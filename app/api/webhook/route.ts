@@ -52,7 +52,11 @@ export async function POST(request: Request) {
   const hl = createHLClient({ privateKey, isTestnet });
 
   const action = payload.action.toLowerCase() as string;
-  const symbol = payload.symbol.toUpperCase();
+  // Normalize TradingView tickers: strip exchange prefix and quote currency suffix
+  // e.g. "BITSTAMP:BTCUSD" → "BTC", "BTCUSDT" → "BTC", "BTC-PERP" → "BTC"
+  const rawSymbol = payload.symbol.toUpperCase();
+  const withoutPrefix = rawSymbol.includes(':') ? rawSymbol.split(':')[1] : rawSymbol;
+  const symbol = withoutPrefix.replace(/[-./]?(USDT|USDC|USD|PERP|BUSD)$/, '');
   const isBuy = ['buy', 'long'].includes(action);
   const isClose = action === 'close';
 
