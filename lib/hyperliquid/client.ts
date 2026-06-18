@@ -206,7 +206,7 @@ export class HyperliquidClient {
     if (sizeRounded === 0) throw new Error('Order size too small for this asset');
 
     const slipFactor = isBuy ? 1 + slippagePercent / 100 : 1 - slippagePercent / 100;
-    const limitPx = parseFloat((markPrice * slipFactor).toPrecision(6));
+    const limitPx = roundToTickSize(markPrice * slipFactor, markPrice);
 
     const action = {
       type: 'order',
@@ -236,7 +236,7 @@ export class HyperliquidClient {
     const markPrice = await this.getMarkPrice(coin);
     const isBuy = position.side === 'short';
     const slipFactor = isBuy ? 1 + slippagePercent / 100 : 1 - slippagePercent / 100;
-    const limitPx = parseFloat((markPrice * slipFactor).toPrecision(6));
+    const limitPx = roundToTickSize(markPrice * slipFactor, markPrice);
     const sizeRounded = parseFloat(position.size.toFixed(meta.szDecimals));
 
     const action = {
@@ -255,4 +255,11 @@ export class HyperliquidClient {
 
 export function createHLClient(config: HyperliquidConfig): HyperliquidClient {
   return new HyperliquidClient(config);
+}
+
+// Hyperliquid tick sizes are derived from price magnitude:
+// >=10000 → $1, >=1000 → $0.1, >=100 → $0.01, >=10 → $0.001, else $0.0001
+function roundToTickSize(price: number, markPrice: number): number {
+  const decimals = markPrice >= 10000 ? 0 : markPrice >= 1000 ? 1 : markPrice >= 100 ? 2 : markPrice >= 10 ? 3 : 4;
+  return parseFloat(price.toFixed(decimals));
 }
