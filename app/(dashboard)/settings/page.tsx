@@ -264,7 +264,7 @@ export default function SettingsPage() {
 {`{
   "secret": "${webhookSecret || 'YOUR_SECRET'}",
   "action": "{{strategy.order.action}}",
-  "symbol": "{{ticker}}",
+  "symbol": "{{syminfo.basecurrency}}",
   "price": {{close}},
   "comment": "{{strategy.order.comment}}"
 }`}
