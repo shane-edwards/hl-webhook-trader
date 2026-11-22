@@ -166,3 +166,51 @@ test('autopilot: a paused account opens nothing; a paper-only strategy is refuse
   await runAutopilot(hl, live.db, 'u1', { ...cfg, mode: 'live', strategies: ['momentum_burst'] }, now);
   assert.equal(live.tables.autopilot_positions.length, 0);
 });
+
+// ---- cross-coin momentum basket (paper only) ----
+import { MOMENTUM_ID, MOMENTUM_UNIVERSE, pickBasket, runMomentumPaper } from '../lib/autopilot/momentum';
+
+test('momentum: ranks coins, takes the strongest and weakest quarter, and is never live-eligible', () => {
+  const ranked = Array.from({ length: 12 }, (_, i) => ({ symbol: `C${i}`, ret: i / 10, price: 100 }));
+  const { longs, shorts } = pickBasket(ranked);
+  assert.deepEqual(longs.map(x => x.symbol), ['C11', 'C10', 'C9']);
+  assert.deepEqual(shorts.map(x => x.symbol), ['C2', 'C1', 'C0']);
+  assert.equal(pickBasket(ranked.slice(0, 5)).longs.length, 0); // too few coins to rank
+  assert.equal(isLiveEligible(MOMENTUM_ID, false), false);
+  assert.equal(isLiveEligible(MOMENTUM_ID, true), false);
+});
+
+test('momentum (paper): opens a balanced basket, holds it for a week, then settles and re-opens', async () => {
+  const DAY = 86_400_000;
+  const now = Date.UTC(2026, 5, 1, 0, 30);
+  const { db, tables } = fakeDb();
+  // Coin k rises k% per 90 days; after the first week every price is 10% higher.
+  let bump = 1, clock = now; // candles always end the day before the current scan
+  const hl = { getDailyCandles: async (symbol: string) => {
+    const k = MOMENTUM_UNIVERSE.indexOf(symbol);
+    return Array.from({ length: 95 }, (_, i) => ({ time: clock - (95 - i) * DAY, close: 100 * (1 + (k / 100) * (i / 94)) * bump }));
+  } } as unknown as HyperliquidClient;
+
+  const first = await runMomentumPaper(hl, db, 'u1', 10_000, now);
+  const legs = tables.autopilot_positions;
+  const longs = legs.filter(l => l.side === 'long'), shorts = legs.filter(l => l.side === 'short');
+  assert.equal(longs.length, shorts.length);
+  assert.ok(longs.length >= 2);
+  const sum = (xs: typeof legs) => xs.reduce((a, l) => a + Number(l.notional_usd), 0);
+  assert.ok(Math.abs(sum(longs) - 5_000) < 1e-6 && Math.abs(sum(shorts) - 5_000) < 1e-6); // half the balance each side
+  assert.equal(first.pnl, 0);
+  assert.ok(longs.every(l => MOMENTUM_UNIVERSE.indexOf(String(l.symbol)) > MOMENTUM_UNIVERSE.indexOf(String(shorts[0].symbol))));
+
+  // Three days later: nothing happens.
+  clock = now + 3 * DAY;
+  const mid = await runMomentumPaper(hl, db, 'u1', 10_000, clock);
+  assert.equal(mid.events.length, 0);
+  assert.equal(tables.autopilot_positions.length, legs.length);
+
+  // A week later, with every coin up 10%: longs gain what shorts lose, so the book only pays costs.
+  bump = 1.1; clock = now + 7 * DAY + 60_000;
+  const week = await runMomentumPaper(hl, db, 'u1', 10_000, clock);
+  assert.ok(week.pnl < 0 && week.pnl > -30, `market-neutral book should only lose costs, got ${week.pnl}`);
+  assert.equal(tables.autopilot_positions.filter(l => l.status === 'closed').length, longs.length * 2);
+  assert.equal(tables.autopilot_positions.filter(l => l.status === 'open').length, longs.length * 2);
+});

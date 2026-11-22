@@ -6,6 +6,8 @@ import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { STRATEGIES } from '@/lib/autopilot/strategies';
 import evidence from '@/lib/autopilot/evidence.json';
 import scalpSearch from '@/lib/autopilot/scalp-evidence.json';
+import momentumEvidence from '@/lib/autopilot/momentum-evidence.json';
+import { MOMENTUM_HOLD_DAYS, MOMENTUM_ID, MOMENTUM_LOOKBACK_DAYS, MOMENTUM_UNIVERSE } from '@/lib/autopilot/momentum';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -29,6 +31,12 @@ export async function GET() {
     id: s.id, name: s.name, style: s.style, description: s.description, horizon: s.horizon,
     evidence: evidence.strategies.filter(e => e.id === s.id),
   }));
+  // The cross-coin basket is not a per-market rule, so it is described here rather than in STRATEGIES.
+  strategies.push({
+    id: MOMENTUM_ID, name: 'Cross-coin momentum (long/short basket)', style: 'Breakout' as const, horizon: `Rebalanced every ${MOMENTUM_HOLD_DAYS} days`,
+    description: `Once a week, ranks ${MOMENTUM_UNIVERSE.length} large coins by ${MOMENTUM_LOOKBACK_DAYS}-day return, holds the strongest quarter long and the weakest quarter short in equal size. It ignores the "Markets to scan" list and uses half the paper balance on each side. It was the only one of ${momentumEvidence.configurationsTested} similar rules to hold up on unseen data, which may be luck.`,
+    evidence: [false, true].map(allowShort => ({ id: MOMENTUM_ID, allowShort, liveEligible: false, early: momentumEvidence.early, late: momentumEvidence.late, recent: momentumEvidence.recent })) as never,
+  });
   const base = {
     strategies, evidenceThrough: evidence.generatedThrough, evidenceCoins: evidence.coins,
     scalpSearch: { tested: scalpSearch.tested, confirmed: scalpSearch.confirmed.length, through: scalpSearch.generatedThrough },

@@ -5,10 +5,11 @@ import { encrypt } from '@/lib/encryption';
 import { generateWebhookSecret } from '@/lib/utils';
 
 import { STRATEGIES } from '@/lib/autopilot/strategies';
+import { MOMENTUM_ID } from '@/lib/autopilot/momentum';
 
 export const dynamic = 'force-dynamic';
 
-const STRATEGY_IDS = new Set(STRATEGIES.map(s => s.id));
+const STRATEGY_IDS = new Set([...STRATEGIES.map(s => s.id), MOMENTUM_ID]);
 
 export async function GET() {
   const supabase = await createClient();

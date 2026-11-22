@@ -18,7 +18,7 @@ import type { Settings } from '@/types';
 
 interface Evidence {
   allowShort: boolean; liveEligible: boolean;
-  late: { annualReturn: number; avgNetBps: number; tradesPerYear: number; winRate: number; maxDrawdown: number; sharpe: number };
+  late: { annualReturn: number; avgNetBps: number | null; tradesPerYear: number; winRate: number; maxDrawdown: number; sharpe: number };
   early: { annualReturn: number };
   recent?: { annualReturn: number };
 }
@@ -235,7 +235,7 @@ export default function AutopilotPage() {
                               {[
                                 ['Return / yr since 2023', pct(e.late.annualReturn), e.late.annualReturn],
                                 ['Of which 2025 on', e.recent ? pct(e.recent.annualReturn) : '—', e.recent?.annualReturn ?? 0],
-                                ['Avg trade after costs', `${e.late.avgNetBps.toFixed(0)} bps`, e.late.avgNetBps],
+                                ['Avg trade after costs', e.late.avgNetBps == null ? '—' : `${e.late.avgNetBps.toFixed(0)} bps`, e.late.avgNetBps ?? 0],
                                 ['Worst drawdown', `-${(e.late.maxDrawdown * 100).toFixed(0)}%`, 0],
                               ].map(([k, v, sign]) => (
                                 <div key={k as string}>
@@ -245,7 +245,7 @@ export default function AutopilotPage() {
                               ))}
                             </dl>
                           )}
-                          {!ok && <p className="text-[11px] text-muted-foreground mt-2">Lost money after costs in testing, so it can only paper trade. That is a safeguard, not a setting.</p>}
+                          {!ok && <p className="text-[11px] text-muted-foreground mt-2">{e && e.late.annualReturn > 0 && (e.recent?.annualReturn ?? 0) > 0 ? 'Promising in testing but not yet proven, so it can only paper trade for now.' : 'Lost money after costs in testing, so it can only paper trade.'} That is a safeguard, not a setting.</p>}
                         </div>
                       </div>
                     </div>

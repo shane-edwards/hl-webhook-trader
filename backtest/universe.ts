@@ -177,6 +177,14 @@ train and validate; confirmed if the holdout Sharpe is at least 0.3 with a posit
 |---|---|---|---|
 ${evald.map(row2).join('\n')}
 `;
+  const mom = evald.find(e => e.label.startsWith('Momentum: buy the strongest quarter over 90 days, short'))!;
+  const since2023 = stat(mom.t, mom.r, TRAIN_END, end, 365);
+  writeFileSync(join(process.cwd(), 'lib', 'autopilot', 'momentum-evidence.json'), JSON.stringify({
+    generatedThrough: lastDate, configurationsTested: evald.length, confirmedOnHoldout: conf.length,
+    early: { annualReturn: mom.train.annual },
+    late: { annualReturn: since2023.annual, sharpe: since2023.sharpe, maxDrawdown: since2023.maxDd, avgNetBps: null },
+    recent: { annualReturn: stat(mom.t, mom.r, VALID_END, end, 365).annual },
+  }, null, 2) + '\n');
   writeFileSync(join(process.cwd(), 'backtest', 'UNIVERSE.md'), md);
   console.log(md.split('## Study 1')[1]);
 }

@@ -9,6 +9,7 @@ import { closePositionFully, openPosition } from '@/lib/execution';
 import { notify } from '@/lib/notify';
 import evidenceFile from './evidence.json';
 import { computeIndicators, getStrategy, WARMUP_BARS, type Bar, type StrategyDef } from './strategies';
+import { MOMENTUM_ID, runMomentumPaper } from './momentum';
 import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional, type RiskConfig, type RiskState } from './risk';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,7 +79,8 @@ export async function runAutopilot(hl: HyperliquidClient, db: Db, userId: string
   const { data: openRows, error: openError } = await db
     .from('autopilot_positions').select('*').eq('user_id', userId).eq('mode', mode).eq('status', 'open');
   if (openError) throw new Error(`Could not load autopilot positions (has migration 004 been run?): ${openError.message}`);
-  const open = new Map<string, PositionRow>((openRows ?? []).map(r => [r.symbol, { ...r, entry_price: +r.entry_price, size: +r.size, notional_usd: +r.notional_usd, stop_price: +r.stop_price, entry_bar_t: +r.entry_bar_t }]));
+  // The momentum basket is a separate paper book with its own weekly cycle; it is handled further down.
+  const open = new Map<string, PositionRow>((openRows ?? []).filter(r => r.strategy_id !== MOMENTUM_ID).map(r => [r.symbol, { ...r, entry_price: +r.entry_price, size: +r.size, notional_usd: +r.notional_usd, stop_price: +r.stop_price, entry_bar_t: +r.entry_bar_t }]));
 
   const exchangePositions = mode === 'live' ? new Map((await hl.getPositions()).map(p => [p.symbol, p])) : null;
 
@@ -141,6 +143,17 @@ export async function runAutopilot(hl: HyperliquidClient, db: Db, userId: string
       }
     } catch (err) {
       log({ level: 'error', symbol: p.symbol, strategyId: p.strategy_id, message: `Could not manage position: ${err instanceof Error ? err.message : err}` });
+    }
+  }
+
+  // ---- 1b. the paper-only momentum basket ----
+  if (mode === 'paper' && cfg.strategies.includes(MOMENTUM_ID)) {
+    try {
+      const m = await runMomentumPaper(hl, db, userId, paperEquity, now);
+      paperEquity += m.pnl;
+      for (const e of m.events) log({ ...e, strategyId: MOMENTUM_ID });
+    } catch (err) {
+      log({ level: 'error', strategyId: MOMENTUM_ID, message: `Momentum basket failed: ${err instanceof Error ? err.message : err}` });
     }
   }
 
