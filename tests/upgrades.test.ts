@@ -14,6 +14,7 @@ import { runFastPass } from '../lib/upkeep';
 import { attributeCosts, exitFromFills, NO_FILL_NOTE, syncAccount } from '../lib/reconcile';
 import { buildScorecard, resolveOutcome } from '../lib/scorecard';
 import { evaluateHealth } from '../lib/health';
+import { notificationChannels, notify } from '../lib/notify';
 import { buildDailySummary } from '../lib/upkeep';
 import { journalTags, resultsByTag } from '../lib/journal';
 import { calculateAnalytics, equityStats, executionStats } from '../lib/analytics';
@@ -663,4 +664,27 @@ test('execution statistics: slippage is size-weighted and split by how the order
   assert.ok(Math.abs(by('Market').feeBps! - 9) < 1e-9, 'fees only over the trades that have them');
   assert.equal(by('Chase').avgSlippageBps, -4);
   assert.ok(Math.abs(by('Chase').feeBps! - 6) < 1e-9);
+});
+
+// ---------------------------------------------------------------- E6
+test('alerts: ntfy needs only a topic; urgent messages are sent at high priority; no channel means nothing is sent', async (t) => {
+  const calls: Array<{ url: string; headers: Record<string, string>; body: string }> = [];
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => { calls.push({ url, headers: init.headers as Record<string, string>, body: String(init.body) }); return new Response('{}', { status: 200 }); });
+  const saved = { ...process.env };
+  t.after(() => { process.env = saved; });
+  for (const k of ['NTFY_TOPIC', 'NTFY_SERVER', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'RESEND_API_KEY', 'ALERT_EMAIL_TO']) delete process.env[k];
+
+  assert.deepEqual(notificationChannels(), []);
+  assert.equal(await notify('quiet'), false);
+  assert.equal(calls.length, 0);
+
+  process.env.NTFY_TOPIC = 'hl-secret-topic';
+  assert.deepEqual(notificationChannels(), ['ntfy']);
+  assert.equal(await notify('Manual: opened long 0.01 BTC at 61000'), true);
+  assert.equal(calls[0].url, 'https://ntfy.sh/hl-secret-topic');
+  assert.equal(calls[0].headers.Priority, 'default');
+  assert.equal(calls[0].body, 'Manual: opened long 0.01 BTC at 61000');
+  await notify('Webhook ERROR on BTC: stop — rejected');
+  assert.equal(calls[1].headers.Priority, 'high');
+  assert.doesNotMatch(calls[1].headers.Title, /[^\x20-\x7E]/, 'header values must be plain ASCII');
 });

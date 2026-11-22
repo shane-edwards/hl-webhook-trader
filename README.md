@@ -22,7 +22,7 @@ A professional Next.js trading application that receives TradingView webhook ale
 - **Kill switch** — One button pauses all automation and closes every position
 - **Markets scanner** — Live funding, premium, open interest and volume for every Hyperliquid perp, sortable
 - **Strategy Lab** — Run the trend strategy on 10 coins with your own settings against buy & hold, with real costs; plus research notes on funding capture and multi-coin trend
-- **Alerts** (optional) — Telegram and/or email: trades, strategy runs, errors, kill-switch use, a daily summary, and a warning when a scheduled scan or the database stops responding
+- **Alerts** — Every alert is kept in a log on the dashboard. Optional phone channels, ntfy push (no account needed), Telegram and/or email: trades, strategy runs, errors, kill-switch use, a daily summary, and a warning when a scheduled scan or the database stops responding
 - **Health check** — `/api/health` reports whether the database and the scheduled scans are alive (public, no account data), so an outside uptime monitor can watch it
 - **Trade Management** — Manually cancel/close any active position from the UI
 - **Performance Analytics** — Return, drawdown and Sharpe measured on the exchange's own account-value history (deposits excluded); per-trade statistics net of fees and funding. Metrics that could not be computed honestly were removed

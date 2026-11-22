@@ -118,7 +118,9 @@ Execution round (started 2026-11-22). Ticked as each is finished:
       (the Autopilot already did this). The exchange's own dead-man's switch was NOT used: `scheduleCancel` cancels
       every open order, stops included, so it would remove protection exactly when the app is down. A resting entry is
       already safe without the app, because its stop is attached on the exchange and activates on the fill
-- [ ] E6. Alerts: phone push channel and an in-app alert log
+- [x] E6. Alerts: every alert is kept in a log on the dashboard (table `alerts`, migration 007), and ntfy push was
+      added as a channel that needs no bot or account, only `NTFY_TOPIC`. Urgent alerts are sent at high priority.
+      Still needs the owner to choose a channel and set its variable in Vercel
 - [ ] Deployed
 
 The 18 items:
