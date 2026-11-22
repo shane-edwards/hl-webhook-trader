@@ -20,6 +20,7 @@ interface Evidence {
   allowShort: boolean; liveEligible: boolean;
   late: { annualReturn: number; avgNetBps: number; tradesPerYear: number; winRate: number; maxDrawdown: number; sharpe: number };
   early: { annualReturn: number };
+  recent?: { annualReturn: number };
 }
 interface StrategyInfo { id: string; name: string; style: string; description: string; horizon: string; evidence: Evidence[] }
 interface Position {
@@ -233,7 +234,7 @@ export default function AutopilotPage() {
                             <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 mt-3">
                               {[
                                 ['Return / yr since 2023', pct(e.late.annualReturn), e.late.annualReturn],
-                                ['2020–2022', pct(e.early.annualReturn), e.early.annualReturn],
+                                ['Of which 2025 on', e.recent ? pct(e.recent.annualReturn) : '—', e.recent?.annualReturn ?? 0],
                                 ['Avg trade after costs', `${e.late.avgNetBps.toFixed(0)} bps`, e.late.avgNetBps],
                                 ['Worst drawdown', `-${(e.late.maxDrawdown * 100).toFixed(0)}%`, 0],
                               ].map(([k, v, sign]) => (

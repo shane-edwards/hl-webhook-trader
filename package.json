@@ -13,7 +13,8 @@
     "backtest:fetch": "node backtest/fetch-data.mjs",
     "backtest:intraday": "tsx backtest/intraday.ts",
     "backtest:autopilot": "tsx backtest/autopilot.ts",
-    "backtest:scalp": "tsx backtest/scalp-search.ts"
+    "backtest:scalp": "tsx backtest/scalp-search.ts",
+    "backtest:universe": "tsx backtest/universe.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.6.0",
