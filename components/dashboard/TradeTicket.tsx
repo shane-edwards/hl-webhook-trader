@@ -14,7 +14,11 @@ import { LevelsChart, type ChartCandle, type ChartLine } from '@/components/char
 import type { Market } from '@/lib/hyperliquid/public';
 import type { Settings } from '@/types';
 import type { Suggestion } from '@/lib/suggestions';
-import { TIMEFRAMES, type Timeframe, type TimeframeLevels } from '@/lib/timeframes';
+import { frameWarnings, TICKET_DEFAULTS, TIMEFRAMES, type TicketFrame, type Timeframe, type TimeframeLevels } from '@/lib/timeframes';
+import tfEvidence from '@/lib/timeframes-evidence.json';
+
+interface TfEvidence { generatedThrough?: string; timeframes?: Array<{ timeframe: string; windowDays: number; verdict: string; overall: { ideas: number; avgR: number; hitRate: number } }> }
+const ZOOMS = [60, 120, 240, 480];
 
 interface Props {
   settings: Settings | null;
@@ -64,6 +68,10 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
   const [timeframe, setTimeframe] = useState<Timeframe>('1h');
   const [tfLevels, setTfLevels] = useState<TimeframeLevels | null>(null);
   const [tfError, setTfError] = useState<string | null>(null);
+  const [frameExtra, setFrameExtra] = useState<Pick<TicketFrame, 'higher' | 'trends'> | null>(null);
+  const [zoom, setZoom] = useState(120);
+  // Fields the user has set by hand are left alone when the timeframe changes.
+  const [touched, setTouched] = useState({ chase: false, expiry: false });
   // Once the user types their own stop or target, suggestions stop overwriting it.
   const [edited, setEdited] = useState({ sl: false, tp: false });
 
@@ -93,7 +101,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
   useEffect(() => {
     if (!open) return;
     const sym = symbol.trim().toUpperCase();
-    setCandles([]); setTfLevels(null); setTfError(null);
+    setCandles([]); setTfLevels(null); setTfError(null); setFrameExtra(null);
     if (!sym) return;
     let live = true;
     const id = setTimeout(() => {
@@ -103,6 +111,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
           if (!live) return;
           if (!ok) { setTfError(d?.error ?? 'Could not load this timeframe'); return; }
           setCandles(d.candles ?? []); setTfLevels(d.levels ?? null);
+          setFrameExtra(d.trends ? { higher: d.higher ?? null, trends: d.trends } : null);
         })
         .catch(() => { if (live) setTfError('Could not load this timeframe'); });
     }, 400);
@@ -114,6 +123,12 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
   // that timeframe's own candles. Either way the levels drawn are the ones the stop and target were placed against.
   const frame = timeframe === '1h' && suggestion ? suggestion : tfLevels;
   const suggested = frame ? frame[side] : null;
+
+  // The timeframe sets starting values for how long to chase and how long a limit order rests.
+  useEffect(() => {
+    if (!touched.chase) setChaseSeconds(String(TICKET_DEFAULTS[timeframe].chaseSeconds));
+    if (!touched.expiry) setExpiryHours(String(TICKET_DEFAULTS[timeframe].expiryHours));
+  }, [timeframe, touched.chase, touched.expiry]);
   useEffect(() => {
     if (!suggested) return;
     if (!edited.sl) setStopLoss(String(suggested.stopLossPct));
@@ -165,6 +180,11 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
     const out: ChartLine[] = [];
     for (const l of frame?.supports ?? []) out.push({ kind: 'support', label: 'Support', price: l.price });
     for (const l of frame?.resistances ?? []) out.push({ kind: 'resistance', label: 'Resist.', price: l.price });
+    // Levels from the next slower chart, so a target is not set into one unseen.
+    const up = frameExtra?.higher;
+    const tag = up ? { '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d' }[up.timeframe] : '';
+    for (const l of up?.supports ?? []) out.push({ kind: 'higher', label: `${tag} sup.`, price: l.price });
+    for (const l of up?.resistances ?? []) out.push({ kind: 'higher', label: `${tag} res.`, price: l.price });
     if (entry) {
       out.push({ kind: 'entry', label: isLimit ? 'Limit' : 'Entry', price: entry });
       if (sl > 0) out.push({ kind: 'stop', label: 'Stop', price: entry * (1 - (dir * sl) / 100) });
@@ -172,7 +192,10 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
       if (tp2 > 0 && managed) out.push({ kind: 'target', label: 'Target 2', price: entry * (1 + (dir * tp2) / 100) });
     }
     return out;
-  }, [frame, entry, isLimit, sl, tp, tp2, dir, managed]);
+  }, [frame, frameExtra, entry, isLimit, sl, tp, tp2, dir, managed]);
+
+  const warnings = useMemo(() => (frameExtra && entry ? frameWarnings(frameExtra, timeframe, side, entry, tp > 0 ? entry * (1 + (dir * tp) / 100) : null) : []), [frameExtra, timeframe, side, entry, tp, dir]);
+  const replay = (tfEvidence as TfEvidence).timeframes?.find(t => t.timeframe === timeframe);
 
   // What a market order of this size would cost against the book right now.
   useEffect(() => {
@@ -281,13 +304,49 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
                 <Segmented aria-label="Chart and stop timeframe" value={timeframe} onChange={v => { setTimeframe(v); setEdited({ sl: false, tp: false }); }}
                   options={(Object.keys(TIMEFRAMES) as Timeframe[]).map(k => ({ value: k, label: TIMEFRAMES[k].label }))} />
               </div>
-              {candles.length > 0 && <LevelsChart candles={candles} lines={lines} height={190} interval={`${TIMEFRAMES[timeframe].label.toLowerCase()} candles`} className="rounded-lg border border-border bg-secondary/30 px-2 py-1.5" />}
+              {candles.length > 0 && <LevelsChart candles={candles.slice(-zoom)} lines={lines} height={210} interval={`${TIMEFRAMES[timeframe].label.toLowerCase()} candles`} className="rounded-lg border border-border bg-secondary/30 px-2 py-1.5" />}
+              {candles.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-1" role="group" aria-label="Candles shown">
+                    <span className="mr-1">Show</span>
+                    {ZOOMS.filter(z => z === ZOOMS[0] || candles.length > z / 2).map(z => (
+                      <button key={z} type="button" onClick={() => setZoom(z)} aria-pressed={zoom === z}
+                        className={cn('px-1.5 h-5 rounded border transition-colors', zoom === z ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border hover:text-foreground')}>
+                        {z}
+                      </button>
+                    ))}
+                    <span className="ml-1">candles · bars along the bottom are volume</span>
+                  </div>
+                  {frameExtra && (
+                    <p aria-label="Trend on each timeframe">
+                      Trend:{' '}
+                      {(Object.keys(TIMEFRAMES) as Timeframe[]).map((k, i) => {
+                        const t = frameExtra.trends[k];
+                        return (
+                          <span key={k}>
+                            {i > 0 && ' · '}
+                            <span className={cn(k === timeframe && 'font-semibold text-foreground')}>{TIMEFRAMES[k].label}</span>{' '}
+                            <span className={t === 'up' ? 'text-profit' : t === 'down' ? 'text-loss' : ''}>{t === 'up' ? '▲ up' : t === 'down' ? '▼ down' : 'n/a'}</span>
+                          </span>
+                        );
+                      })}
+                    </p>
+                  )}
+                </div>
+              )}
+              {warnings.map(w => <p key={w.kind} className="text-[11px] text-warning leading-relaxed">{w.message}</p>)}
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 {tfError ? <span className="text-warning">{tfError}. </span> : null}
                 For a trade held {TIMEFRAMES[timeframe].hold}. The stop, target and levels are taken from {TIMEFRAMES[timeframe].label.toLowerCase()} candles over {TIMEFRAMES[timeframe].span}
                 {tfLevels ? ` (one candle moves about ${tfLevels.atrPct}%)` : ''}. Changing the timeframe re-fills the stop and target.
                 {timeframe === '15m' && ' On a stop this tight, fees and slippage are a large share of the risk.'}
+                {' '}This timeframe suits {TICKET_DEFAULTS[timeframe].suits}.
               </p>
+              {replay && (
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <span className="font-medium text-foreground">Tested on history:</span> {replay.overall.ideas} past ideas with stops sized this way, each given {replay.windowDays} days. {replay.verdict}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -300,7 +359,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="tt-chase">Take the rest at market after</Label>
-                    <select id="tt-chase" value={chaseSeconds} onChange={e => setChaseSeconds(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <select id="tt-chase" value={chaseSeconds} onChange={e => { setChaseSeconds(e.target.value); setTouched(x => ({ ...x, chase: true })); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                       <option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option>
                     </select>
                   </div>
@@ -339,7 +398,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="tt-expiry">Cancel if unfilled after</Label>
-                    <select id="tt-expiry" value={expiryHours} onChange={e => setExpiryHours(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <select id="tt-expiry" value={expiryHours} onChange={e => { setExpiryHours(e.target.value); setTouched(x => ({ ...x, expiry: true })); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                       <option value="4">4 hours</option><option value="24">1 day</option><option value="72">3 days</option><option value="168">7 days</option>
                     </select>
                   </div>

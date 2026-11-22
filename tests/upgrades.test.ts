@@ -11,7 +11,7 @@ import { openPosition, closePositionFully } from '../lib/execution';
 import { cancelLimitEntry, managePending, placeLimitEntry } from '../lib/pending';
 import { estimateFill, liquidityVerdict } from '../lib/liquidity';
 import { runFastPass } from '../lib/upkeep';
-import { atrFraction, buildTimeframeLevels } from '../lib/timeframes';
+import { atrFraction, buildTicketFrame, buildTimeframeLevels, frameWarnings, trendOf } from '../lib/timeframes';
 import { attributeCosts, exitFromFills, NO_FILL_NOTE, syncAccount } from '../lib/reconcile';
 import { buildScorecard, resolveOutcome } from '../lib/scorecard';
 import { evaluateHealth } from '../lib/health';
@@ -715,4 +715,41 @@ test('timeframes: stop and target are sized from the chosen candles, on the corr
     assert.ok(f.supports.length > 0 && f.resistances.length > 0, 'the range floor and ceiling are found as levels');
   }
   assert.ok(Math.abs(atrFraction([{ t: 0, o: 100, h: 100, l: 100, c: 100 }, { t: 1, o: 100, h: 102, l: 99, c: 100 }]) - 0.03) < 1e-9);
+});
+
+test('timeframes: slower-chart levels and trends come with the frame, and warn when a trade fights them', () => {
+  const rising = (n: number, ms: number, step: number): Bar[] => Array.from({ length: n }, (_, i) => { const c = 50 + i * step; return { t: i * ms, o: c - step, h: c + 0.2, l: c - step - 0.2, c }; });
+  const falling = (n: number, ms: number): Bar[] => rising(n, ms, 0.1).map(b => ({ ...b, o: 200 - b.o, c: 200 - b.c, h: 200 - b.l, l: 200 - b.h }));
+  assert.equal(trendOf(rising(200, 900_000, 0.1)), 'up');
+  assert.equal(trendOf(falling(200, 900_000)), 'down');
+  assert.equal(trendOf(rising(20, 900_000, 0.1)), null, 'too little history to call');
+
+  // 15-minute up, everything slower ranging near 100 (so their levels exist) and, for the daily, falling.
+  const series = { '15m': rising(400, 900_000, 0.01), '1h': ranging(400, 3_600_000, 0.5), '4h': ranging(400, 14_400_000, 1), '1d': falling(400, 86_400_000) };
+  const frame = buildTicketFrame(series, '15m', 100);
+  assert.equal(frame.higher!.timeframe, '1h', 'a 15-minute trade is read against the hourly chart');
+  assert.ok(frame.higher!.resistances.length > 0 && frame.higher!.resistances.every(l => l.price > 100));
+  assert.equal(frame.trends['15m'], 'up');
+  assert.equal(frame.trends['1d'], 'down');
+  assert.equal(buildTicketFrame(series, '1d', 100).higher, null, 'nothing slower than daily');
+
+  const res = frame.higher!.resistances[0].price;
+  const long = frameWarnings(frame, '15m', 'long', 100, res + 1);
+  assert.match(long.find(w => w.kind === 'trend')!.message, /against the .*daily trend \(down\)/);
+  assert.match(long.find(w => w.kind === 'target')!.message, /beyond 1 hour resistance/);
+  // A target short of the level, and a trade with the slower trend, raise nothing on those counts.
+  assert.equal(frameWarnings(frame, '15m', 'long', 100, (100 + res) / 2).some(w => w.kind === 'target'), false);
+  assert.equal(frameWarnings({ higher: null, trends: { '15m': 'down', '1h': 'down', '4h': 'down', '1d': 'down' } }, '15m', 'short', 100, 95).length, 0);
+  // A faster chart disagreeing is not a warning: only slower ones count.
+  assert.equal(frameWarnings({ higher: null, trends: { '15m': 'down', '1h': 'up', '4h': 'up', '1d': 'up' } }, '4h', 'long', 100, 110).length, 0);
+});
+
+test('journal: the chart timeframe is recorded and results are grouped by it', () => {
+  assert.equal(journalTags({ side: 'long', stopLossPct: 2, context: { bias: 'long', suggestedStopPct: 2, timeframe: '4h' } }).timeframe, '4h');
+  assert.equal(journalTags({ side: 'long', stopLossPct: 2, context: { timeframe: 'bogus' } }).timeframe, undefined);
+  const rows = resultsByTag([
+    trade({ id: 'a', pnl: 10, webhook_payload: { journal: { read: 'followed', stop: 'suggested', timeframe: '4h' } } }),
+    trade({ id: 'b', pnl: -4, webhook_payload: { journal: { read: 'followed', stop: 'suggested' } } }), // before timeframes: hourly
+  ]).timeframe;
+  assert.deepEqual(rows.map(r => [r.tag, r.trades, r.total]), [['15 min', 0, 0], ['1 hour', 1, -4], ['4 hour', 1, 10], ['Daily', 0, 0]]);
 });
