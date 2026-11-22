@@ -20,7 +20,8 @@
     "backtest:candles": "tsx backtest/candles.ts",
     "mock:supabase": "node scripts/dev-mock/server.mjs",
     "mock:shots": "node scripts/dev-mock/screenshot.mjs",
-    "testnet:check": "tsx scripts/testnet-check.ts"
+    "testnet:check": "tsx scripts/testnet-check.ts",
+    "backtest:timeframes": "tsx backtest/timeframes.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.6.0",

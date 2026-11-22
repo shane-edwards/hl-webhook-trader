@@ -199,13 +199,14 @@ export default function AnalyticsPage() {
           <div>
             <h2 className="text-sm font-semibold">Journal: manual trades by habit</h2>
             <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
-              Each manual trade is tagged when it is placed: whether it followed the rules&apos; read, and whether you kept the suggested stop.
+              Each manual trade is tagged when it is placed: whether it followed the rules&apos; read, whether you kept the suggested stop, and which chart timeframe it was sized on.
               A handful of trades proves nothing either way; this becomes useful after a few dozen.
             </p>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3 lg:gap-4">
             <TagTable title="Direction" rows={tags.read} />
             <TagTable title="Stop" rows={tags.stop} />
+            <TagTable title="Timeframe" rows={tags.timeframe} />
           </div>
         </section>
       </div>

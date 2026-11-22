@@ -66,3 +66,72 @@ export function buildTimeframeLevels(timeframe: Timeframe, bars: Bar[], price: n
     bars: bars.length,
   };
 }
+
+/** The slower chart a trade on each timeframe is usually read against. */
+export const HIGHER: Record<Timeframe, Timeframe | null> = { '15m': '1h', '1h': '4h', '4h': '1d', '1d': null };
+
+export type Trend = 'up' | 'down';
+
+/** Which side of its 50-bar average the last close is on. Null with too little history to say. */
+export function trendOf(bars: Bar[]): Trend | null {
+  if (bars.length < 60) return null;
+  const k = 2 / 51;
+  let ema = bars[0].c;
+  for (let i = 1; i < bars.length; i++) ema = bars[i].c * k + ema * (1 - k);
+  return bars[bars.length - 1].c >= ema ? 'up' : 'down';
+}
+
+export interface TicketFrame {
+  levels: TimeframeLevels;
+  /** Nearest levels from the next slower chart, drawn on this one so a target is not set into them unseen. */
+  higher: { timeframe: Timeframe; supports: Level[]; resistances: Level[] } | null;
+  /** Trend on every timeframe, for the agreement check. */
+  trends: Record<Timeframe, Trend | null>;
+}
+
+/** Everything the ticket shows for one timeframe, from candles of all four. */
+export function buildTicketFrame(series: Record<Timeframe, Bar[]>, timeframe: Timeframe, price: number): TicketFrame {
+  const up = HIGHER[timeframe];
+  let higher: TicketFrame['higher'] = null;
+  if (up && series[up].length >= 30) {
+    const h = buildTimeframeLevels(up, series[up], price);
+    higher = { timeframe: up, supports: h.supports.slice(0, 2), resistances: h.resistances.slice(0, 2) };
+  }
+  const trends = {} as TicketFrame['trends'];
+  for (const tf of Object.keys(TIMEFRAMES) as Timeframe[]) trends[tf] = trendOf(series[tf]);
+  return { levels: buildTimeframeLevels(timeframe, series[timeframe], price), higher, trends };
+}
+
+export interface FrameWarning { kind: 'trend' | 'target'; message: string }
+
+/**
+ * What the slower charts say against this trade: a trend the trade fights, and
+ * a slower-chart level sitting between the entry and the target.
+ */
+export function frameWarnings(frame: Pick<TicketFrame, 'higher' | 'trends'>, timeframe: Timeframe, side: 'long' | 'short', entry: number, targetPrice: number | null): FrameWarning[] {
+  const out: FrameWarning[] = [];
+  const order = Object.keys(TIMEFRAMES) as Timeframe[];
+  const against = side === 'long' ? 'down' : 'up';
+  const slower = order.slice(order.indexOf(timeframe) + 1).filter(tf => frame.trends[tf] === against);
+  if (slower.length) {
+    out.push({ kind: 'trend', message: `This ${side} goes against the ${slower.map(tf => TIMEFRAMES[tf].label.toLowerCase()).join(' and ')} trend (${against}). Trades against the slower trend are the ones a tight stop most often loses to.` });
+  }
+  if (frame.higher && targetPrice != null) {
+    const blocks = (side === 'long' ? frame.higher.resistances : frame.higher.supports)
+      .filter(l => (side === 'long' ? l.price > entry && l.price < targetPrice : l.price < entry && l.price > targetPrice))
+      .sort((a, b) => Math.abs(a.price - entry) - Math.abs(b.price - entry))[0];
+    if (blocks) {
+      const name = TIMEFRAMES[frame.higher.timeframe].label.toLowerCase();
+      out.push({ kind: 'target', message: `The target is beyond ${name} ${side === 'long' ? 'resistance' : 'support'} at ${Number(blocks.price.toPrecision(5)).toLocaleString('en-US')} (${blocks.touches} touch${blocks.touches === 1 ? '' : 'es'}). Price often stalls there first.` });
+    }
+  }
+  return out;
+}
+
+/** Sensible starting values for the rest of the ticket on each timeframe. Only applied to fields the user has not set. */
+export const TICKET_DEFAULTS: Record<Timeframe, { chaseSeconds: number; expiryHours: number; suits: string }> = {
+  '15m': { chaseSeconds: 30, expiryHours: 4, suits: 'a quick entry (chase, 30 seconds) and a single target' },
+  '1h': { chaseSeconds: 60, expiryHours: 24, suits: 'a chase or a limit at a nearby level' },
+  '4h': { chaseSeconds: 120, expiryHours: 72, suits: 'a limit entry at a level, a split target and break-even after target 1' },
+  '1d': { chaseSeconds: 120, expiryHours: 168, suits: 'a limit entry at a level and a trailing stop' },
+};

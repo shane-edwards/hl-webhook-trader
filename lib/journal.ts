@@ -7,7 +7,9 @@ import type { Trade } from '@/types';
 export type ReadTag = 'followed' | 'against' | 'no_read';
 export type StopTag = 'suggested' | 'changed' | 'none';
 
-export interface Journal { read: ReadTag; stop: StopTag; note?: string }
+export interface Journal { read: ReadTag; stop: StopTag; note?: string; /** Chart timeframe the stop and target were sized from. */ timeframe?: string }
+
+const TF_LABEL: Record<string, string> = { '15m': '15 min', '1h': '1 hour', '4h': '4 hour', '1d': 'Daily' };
 
 export const READ_LABEL: Record<ReadTag, string> = { followed: 'Followed the read', against: 'Against the read', no_read: 'No read' };
 export const STOP_LABEL: Record<StopTag, string> = { suggested: 'Suggested stop', changed: 'Changed the stop', none: 'No stop' };
@@ -17,18 +19,19 @@ export const STOP_LABEL: Record<StopTag, string> = { suggested: 'Suggested stop'
  * and the stop they suggested for the chosen side.
  */
 export function journalTags(p: { side: 'long' | 'short'; stopLossPct: number | null; context: unknown; note?: unknown }): Journal {
-  const c = (p.context && typeof p.context === 'object' ? p.context : {}) as { bias?: unknown; suggestedStopPct?: unknown };
+  const c = (p.context && typeof p.context === 'object' ? p.context : {}) as { bias?: unknown; suggestedStopPct?: unknown; timeframe?: unknown };
+  const timeframe = typeof c.timeframe === 'string' && c.timeframe in TF_LABEL ? c.timeframe : null;
   const read: ReadTag = c.bias === 'long' || c.bias === 'short' ? (c.bias === p.side ? 'followed' : 'against') : 'no_read';
   const suggested = Number(c.suggestedStopPct);
   const stop: StopTag = p.stopLossPct == null ? 'none' : Number.isFinite(suggested) && Math.abs(suggested - p.stopLossPct) < 0.051 ? 'suggested' : 'changed';
   const note = typeof p.note === 'string' ? p.note.trim().slice(0, 500) : '';
-  return { read, stop, ...(note ? { note } : {}) };
+  return { read, stop, ...(note ? { note } : {}), ...(timeframe ? { timeframe } : {}) };
 }
 
 export function journalOf(trade: Pick<Trade, 'webhook_payload' | 'signal_source'>): Journal | null {
   const j = (trade.webhook_payload as { journal?: Partial<Journal> } | null | undefined)?.journal;
   if (!j || !j.read || !j.stop) return null;
-  return { read: j.read, stop: j.stop, note: j.note };
+  return { read: j.read, stop: j.stop, note: j.note, timeframe: j.timeframe };
 }
 
 /** Net result of a trade: the exchange's figure once synced, otherwise price move less any recorded costs. */
@@ -40,7 +43,7 @@ export function netPnl(t: Pick<Trade, 'pnl' | 'fees' | 'funding_paid'> & { net_p
 export interface TagResult { tag: string; trades: number; wins: number; winRate: number; total: number; average: number }
 
 /** Results of closed manual trades grouped by journal tag. */
-export function resultsByTag(trades: Trade[]): { read: TagResult[]; stop: TagResult[] } {
+export function resultsByTag(trades: Trade[]): { read: TagResult[]; stop: TagResult[]; timeframe: TagResult[] } {
   const closed = trades.filter(t => t.status === 'closed' && t.pnl != null && t.signal_source === 'manual');
   const group = <K extends string>(labels: Record<K, string>, key: (j: Journal) => K): TagResult[] =>
     (Object.keys(labels) as K[]).map(k => {
@@ -49,5 +52,6 @@ export function resultsByTag(trades: Trade[]): { read: TagResult[]; stop: TagRes
       const total = nets.reduce((a, b) => a + b, 0), wins = nets.filter(x => x > 0).length;
       return { tag: labels[k], trades: rows.length, wins, winRate: rows.length ? (wins / rows.length) * 100 : 0, total, average: rows.length ? total / rows.length : 0 };
     });
-  return { read: group(READ_LABEL, j => j.read), stop: group(STOP_LABEL, j => j.stop) };
+  // Trades from before the timeframe was recorded were all placed on the 1-hour chart.
+  return { read: group(READ_LABEL, j => j.read), stop: group(STOP_LABEL, j => j.stop), timeframe: group(TF_LABEL, j => j.timeframe ?? '1h') };
 }
