@@ -107,10 +107,11 @@ const evidence = STRATEGIES.flatMap(s =>
     const early = stats(runs, '2020-01-01', SPLIT);
     const late = stats(runs, SPLIT, '2100-01-01');
     // The gate: profitable in BOTH halves, and each trade earns well above its cost.
-    const liveEligible = early.annualReturn > 0 && late.annualReturn > 0 && late.avgNetBps > 15 && late.profitFactor > 1.1;
+    const gatePassed = early.annualReturn > 0 && late.annualReturn > 0 && late.avgNetBps > 15 && late.profitFactor > 1.1;
+    const liveEligible = gatePassed && !s.paperOnly;
     // Shown separately because it is the most recent stretch and was not used to design the rules.
     const recent = stats(runs, '2025-01-01', '2100-01-01');
-    return { id: s.id, allowShort, liveEligible, early, late, recent };
+    return { id: s.id, allowShort, liveEligible, gatePassed, early, late, recent };
   })
 );
 
@@ -122,7 +123,7 @@ writeFileSync(
 const pct = (x: number) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(0)}%`;
 const rows = evidence.map(e => {
   const s = STRATEGIES.find(x => x.id === e.id)!;
-  return `| ${s.name} | ${e.allowShort ? 'Long & short' : 'Long only'} | ${e.late.tradesPerYear.toFixed(0)} | ${pct(e.late.winRate)} | ${e.late.avgGrossBps.toFixed(0)} | ${e.late.avgNetBps.toFixed(0)} | ${pct(e.early.annualReturn)} | **${pct(e.late.annualReturn)}** | ${pct(e.recent.annualReturn)} | ${e.late.sharpe.toFixed(2)} | -${(e.late.maxDrawdown * 100).toFixed(0)}% | ${e.liveEligible ? '**Yes**' : 'Paper only'} |`;
+  return `| ${s.name} | ${e.allowShort ? 'Long & short' : 'Long only'} | ${e.late.tradesPerYear.toFixed(0)} | ${pct(e.late.winRate)} | ${e.late.avgGrossBps.toFixed(0)} | ${e.late.avgNetBps.toFixed(0)} | ${pct(e.early.annualReturn)} | **${pct(e.late.annualReturn)}** | ${pct(e.recent.annualReturn)} | ${e.late.sharpe.toFixed(2)} | -${(e.late.maxDrawdown * 100).toFixed(0)}% | ${e.liveEligible ? '**Yes**' : e.gatePassed ? 'Paper only (passed the gate; on probation)' : 'Paper only'} |`;
 });
 
 writeFileSync(join(process.cwd(), 'backtest', 'AUTOPILOT.md'), `# Autopilot strategy evidence
@@ -143,6 +144,8 @@ costs by more than 15 basis points, and its wins outweighed its losses by at lea
 run in paper mode. The gate is re-evaluated whenever this report is regenerated.
 
 **The most recent period is weak.** The one eligible strategy made most of its 2023+ return in 2023–2024 and was roughly flat from 2025 on, when the market fell. On a wider set of 22 coins it was profitable on fewer than half of them (see UNIVERSE.md). Treat it as a way to hold trends with controlled risk, not as a dependable income.
+
+**Probation.** A rule that was picked after its recent results were already known (MACD trend) stays paper-only even though it passes: its backtest is no longer an independent test. It earns live status with a paper track record, not a backtest.
 
 Passing the gate is not a promise. It means the rule was not obviously broken on ${COINS.length} coins over this
 period. Six variants were tested, so one passing by luck alone would not be surprising.

@@ -140,6 +140,8 @@ The autopilot looks at each market you list, on completed hourly candles, and tr
 
 **Other studies.** [`backtest/UNIVERSE.md`](backtest/UNIVERSE.md) tests the eligible strategy on 22 coins and 16 cross-coin ranking rules. [`backtest/POPULAR.md`](backtest/POPULAR.md) tests eight strategies taken from TradingView's public community scripts plus the common indicator strategies (26 variants). The pattern across all of them: long-only trend rules made money through 2024 and nothing in 2025–2026, when the market fell.
 
+**MACD trend, 4-hour (paper only, on probation).** Buys when MACD crosses up above the 200-period average on 4-hour bars, shorts the opposite cross below it, exits when MACD crosses back. Its backtest passes the live gate, but it was chosen after its recent results were known, so that backtest is not an independent test. It stays on paper until it has a track record.
+
 **Cross-coin momentum (paper only).** Once a week it ranks 19 large coins by 90-day return and holds the strongest quarter long and the weakest quarter short in equal size. It was the one ranking rule that held up on unseen data, which may be luck, so it cannot trade real money. Select it on the Autopilot page to start a paper record.
 
 **Risk rules** (all adjustable on the Autopilot page):

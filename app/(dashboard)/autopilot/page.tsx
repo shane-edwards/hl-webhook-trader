@@ -17,7 +17,7 @@ import { cn, formatCurrency, formatPrice, formatRelativeTime } from '@/lib/utils
 import type { Settings } from '@/types';
 
 interface Evidence {
-  allowShort: boolean; liveEligible: boolean;
+  allowShort: boolean; liveEligible: boolean; gatePassed?: boolean;
   late: { annualReturn: number; avgNetBps: number | null; tradesPerYear: number; winRate: number; maxDrawdown: number; sharpe: number };
   early: { annualReturn: number };
   recent?: { annualReturn: number };
@@ -245,7 +245,7 @@ export default function AutopilotPage() {
                               ))}
                             </dl>
                           )}
-                          {!ok && <p className="text-[11px] text-muted-foreground mt-2">{e && e.late.annualReturn > 0 && (e.recent?.annualReturn ?? 0) > 0 ? 'Promising in testing but not yet proven, so it can only paper trade for now.' : 'Lost money after costs in testing, so it can only paper trade.'} That is a safeguard, not a setting.</p>}
+                          {!ok && <p className="text-[11px] text-muted-foreground mt-2">{e && e.late.annualReturn > 0 && (e.recent?.annualReturn ?? 0) > 0 ? 'Promising in testing, but it was chosen after its recent results were known, so it must prove itself on paper first.' : 'Did not hold up after costs in testing, so it can only paper trade.'} That is a safeguard, not a setting.</p>}
                         </div>
                       </div>
                     </div>
