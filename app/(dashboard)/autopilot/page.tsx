@@ -36,6 +36,8 @@ interface Data {
   scalpSearch?: { tested: number; confirmed: number; through: string };
   state?: { day_start_equity: number | null; peak_equity: number | null; halted_reason: string | null; paper_equity: number; last_run_at: string | null } | null;
   positions?: Position[]; events?: EventRow[];
+  /** Current mid price per market with an open position, and when they were read. */
+  prices?: Record<string, number>; pricesAt?: number;
 }
 type AutoSettings = Settings & {
   autopilot_enabled?: boolean; autopilot_mode?: 'paper' | 'live'; autopilot_symbols?: string[]; autopilot_strategies?: string[];
@@ -46,6 +48,16 @@ type AutoSettings = Settings & {
 const pct = (v: number, d = 0) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%`;
 const LEVEL_STYLE: Record<EventRow['level'], string> = { trade: 'bg-primary', info: 'bg-muted-foreground/50', warn: 'bg-warning', error: 'bg-loss' };
 const STALE_MS = 20 * 60_000;
+/** The cross-coin basket has no per-position stop; the stored figure is a far-away placeholder. */
+const BASKET_ID = 'xs_momentum_90';
+
+/** Mark-to-market result of an open position: price move only, before the cost of closing it. */
+function unrealised(p: Position, price: number | undefined): { usd: number; pct: number } | null {
+  const entry = Number(p.entry_price);
+  if (!(price! > 0) || !(entry > 0)) return null;
+  const move = (p.side === 'long' ? 1 : -1) * (price! / entry - 1);
+  return { usd: Number(p.notional_usd) * move, pct: move * 100 };
+}
 
 export default function AutopilotPage() {
   const [data, setData] = useState<Data | null>(null);
@@ -56,6 +68,11 @@ export default function AutopilotPage() {
   // The clock is state so the stale-scan warning is computed from a value React knows about.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
+  // Refresh positions and prices every minute. Settings are left alone, so a half-edited form is not reset.
+  useEffect(() => {
+    const id = setInterval(() => { fetch('/api/autopilot').then(r => (r.ok ? r.json() : null)).then(a => { if (a) setData(a); }).catch(() => {}); }, 60_000);
+    return () => clearInterval(id);
+  }, []);
   // form
   const [symbols, setSymbols] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
@@ -134,6 +151,9 @@ export default function AutopilotPage() {
   const state = data?.state;
   const open = (data?.positions ?? []).filter(p => p.status === 'open');
   const closed = (data?.positions ?? []).filter(p => p.status === 'closed');
+  const openMarks = open.map(p => unrealised(p, data?.prices?.[p.symbol]));
+  const openPnl = openMarks.some(m => m) ? openMarks.reduce((a, m) => a + (m?.usd ?? 0), 0) : null;
+  const strategyName = (id: string) => (id === BASKET_ID ? 'Momentum basket' : data?.strategies.find(x => x.id === id)?.name ?? id);
   const closedPnl = closed.reduce((a, p) => a + Number(p.pnl ?? 0), 0);
   const wins = closed.filter(p => Number(p.pnl) > 0).length;
   const lastRun = state?.last_run_at ? new Date(state.last_run_at).getTime() : null;
@@ -314,26 +334,47 @@ export default function AutopilotPage() {
             <section className="surface overflow-hidden" aria-label="Autopilot positions">
               <div className="px-5 pt-5 pb-3 flex items-baseline justify-between">
                 <h2 className="text-sm font-semibold">Positions · {mode}</h2>
-                <p className="text-xs text-muted-foreground">{open.length} open · {closed.length} closed</p>
+                <p className="text-xs text-muted-foreground text-right">
+                  {open.length} open · {closed.length} closed
+                  {open.length > 0 && openPnl != null && <> · open positions <span className={cn('num', openPnl >= 0 ? 'text-profit' : 'text-loss')}>{formatCurrency(openPnl)}</span></>}
+                </p>
               </div>
+              {open.length > 0 && (
+                <p className="px-5 pb-3 -mt-1 text-[11px] text-muted-foreground">
+                  {data.pricesAt && Object.keys(data.prices ?? {}).length
+                    ? `Open positions are valued at the price as of ${new Date(data.pricesAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, refreshed every minute. The figure is the price move only: closing costs about 0.07% more.`
+                    : 'Current prices could not be loaded, so open positions show no running figure.'}
+                </p>
+              )}
               {(data.positions ?? []).length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-10 px-6">No positions yet. The autopilot waits for a setup; in a falling market a long-only strategy can sit idle for weeks.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="data-table">
-                    <thead><tr><th>Market</th><th>Side</th><th className="hidden sm:table-cell">Size</th><th>Entry</th><th>Stop / exit</th><th className="hidden md:table-cell">Why</th><th>P&amp;L</th></tr></thead>
+                    <thead><tr><th>Market</th><th>Strategy</th><th>Side</th><th className="hidden sm:table-cell">Size</th><th>Entry</th><th>Now / exit</th><th className="hidden lg:table-cell">Stop</th><th className="hidden xl:table-cell">Why</th><th>P&amp;L</th></tr></thead>
                     <tbody>
-                      {(data.positions ?? []).map(p => (
-                        <tr key={p.id}>
-                          <td><span className="font-medium text-foreground">{p.symbol}</span>{p.status === 'open' && <Badge variant="open" className="ml-2 text-[10px] py-0">OPEN</Badge>}</td>
-                          <td className={p.side === 'long' ? 'text-profit' : 'text-loss'}>{p.side}</td>
-                          <td className="num hidden sm:table-cell">{formatCurrency(Number(p.notional_usd), 0)}</td>
-                          <td className="num">${formatPrice(Number(p.entry_price))}</td>
-                          <td className="num text-muted-foreground">${formatPrice(Number(p.status === 'open' ? p.stop_price : p.exit_price ?? 0))}</td>
-                          <td className="hidden md:table-cell text-xs text-muted-foreground max-w-[260px] truncate">{p.status === 'open' ? p.entry_reason : p.exit_reason}</td>
-                          <td className={cn('num', p.pnl == null ? 'text-muted-foreground' : Number(p.pnl) >= 0 ? 'text-profit' : 'text-loss')}>{p.pnl == null ? '—' : formatCurrency(Number(p.pnl))}</td>
-                        </tr>
-                      ))}
+                      {(data.positions ?? []).map(p => {
+                        const isOpen = p.status === 'open';
+                        const price = data.prices?.[p.symbol];
+                        const live = isOpen ? unrealised(p, price) : null;
+                        const pnl = isOpen ? live?.usd ?? null : p.pnl == null ? null : Number(p.pnl);
+                        return (
+                          <tr key={p.id}>
+                            <td><span className="font-medium text-foreground">{p.symbol}</span>{isOpen && <Badge variant="open" className="ml-2 text-[10px] py-0">OPEN</Badge>}</td>
+                            <td className="text-xs text-muted-foreground whitespace-nowrap">{strategyName(p.strategy_id)}</td>
+                            <td className={p.side === 'long' ? 'text-profit' : 'text-loss'}>{p.side}</td>
+                            <td className="num hidden sm:table-cell">{formatCurrency(Number(p.notional_usd), 0)}</td>
+                            <td className="num">${formatPrice(Number(p.entry_price))}</td>
+                            <td className="num">{isOpen ? (price ? `$${formatPrice(price)}` : '—') : <span className="text-muted-foreground">${formatPrice(Number(p.exit_price ?? 0))}</span>}</td>
+                            <td className="num text-muted-foreground hidden lg:table-cell">{!isOpen ? '—' : p.strategy_id === BASKET_ID ? 'none, held a week' : `$${formatPrice(Number(p.stop_price))}`}</td>
+                            <td className="hidden xl:table-cell text-xs text-muted-foreground max-w-[240px] truncate">{isOpen ? p.entry_reason : p.exit_reason}</td>
+                            <td className={cn('num whitespace-nowrap', pnl == null ? 'text-muted-foreground' : pnl >= 0 ? 'text-profit' : 'text-loss')}>
+                              {pnl == null ? '—' : formatCurrency(pnl)}
+                              {live && <span className="block text-[10px] font-normal opacity-80">{live.pct >= 0 ? '+' : ''}{live.pct.toFixed(2)}% · open</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
