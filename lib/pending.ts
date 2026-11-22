@@ -65,7 +65,9 @@ interface PendingRow {
 const isDead = (status: string) => /cancel|reject|expired/i.test(status);
 
 /** One pass over a user's resting limit entries. Never throws; problems come back as events. */
-export async function managePending(hl: HyperliquidClient, db: Db, userId: string, now = Date.now()): Promise<PendingEvent[]> {
+export interface PendingOptions { /** Worst-price guard for a chase's market fallback, percent. */ slippagePercent?: number }
+
+export async function managePending(hl: HyperliquidClient, db: Db, userId: string, now = Date.now(), opts: PendingOptions = {}): Promise<PendingEvent[]> {
   const events: PendingEvent[] = [];
   const { data: rows, error } = await db.from('pending_orders').select('*').eq('user_id', userId).eq('status', 'resting');
   if (error || !rows?.length) return events;

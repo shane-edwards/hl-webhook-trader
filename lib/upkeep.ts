@@ -85,6 +85,44 @@ async function maybeSendSummary(hl: HyperliquidClient, db: Db, settings: Setting
 
 export interface UpkeepResult { notes: string[]; errors: string[] }
 
+/**
+ * The time-critical subset of the upkeep, run every few seconds while anything
+ * is open: follow limit and chase entries, move managed stops, and settle a
+ * trade record the moment its position disappears from the exchange.
+ */
+export async function runFastPass(hl: HyperliquidClient, db: Db, settings: SettingsRow, now = Date.now()): Promise<UpkeepResult> {
+  const userId: string = settings.user_id;
+  const out: UpkeepResult = { notes: [], errors: [] };
+  const step = async (name: string, fn: () => Promise<void>) => {
+    try { await fn(); } catch (err) { out.errors.push(`${name}: ${err instanceof Error ? err.message : err}`); }
+  };
+  const slippage = Number(settings.slippage_percent ?? 2);
+
+  await step('limit orders', async () => {
+    for (const e of await managePending(hl, db, userId, now, { slippagePercent: slippage })) (e.level === 'error' ? out.errors : out.notes).push(e.message);
+  });
+  await step('exit plans', async () => {
+    for (const e of await manageExits(hl, db, userId, slippage)) (e.level === 'error' ? out.errors : out.notes).push(e.message);
+  });
+  await step('closed positions', async () => {
+    // Only when a trade record has lost its position is the (heavier) reconcile worth running.
+    const { data: open } = await db.from('trades').select('symbol, side, entry_time').eq('user_id', userId).eq('status', 'open');
+    const settled = (open ?? []).filter(t => now - new Date(t.entry_time).getTime() > FAST_SETTLE_AFTER_MS);
+    if (!settled.length) return;
+    const held = new Map((await hl.getPositions()).map(p => [p.symbol, p.side]));
+    if (settled.every(t => held.get(t.symbol) === t.side)) return;
+    const r = await syncAccount(hl, db, userId, now, FAST_SETTLE_AFTER_MS);
+    for (const n of r.notes) (n.startsWith('Reconcile failed') ? out.errors : out.notes).push(n);
+  });
+
+  const lines = [...out.errors.map(e => `ERROR ${e}`), ...out.notes];
+  if (lines.length) await notify(lines.join('\n'));
+  return out;
+}
+
+/** A fill reaches the exchange's history within a few seconds; wait this long before trusting its absence. */
+const FAST_SETTLE_AFTER_MS = 20_000;
+
 /** Everything the scan does for one account with a connected wallet. Each step is isolated: one failing does not stop the rest. */
 export async function runUpkeep(hl: HyperliquidClient, db: Db, settings: SettingsRow, now = Date.now()): Promise<UpkeepResult> {
   const userId: string = settings.user_id;
@@ -94,7 +132,7 @@ export async function runUpkeep(hl: HyperliquidClient, db: Db, settings: Setting
   };
 
   await step('limit orders', async () => {
-    for (const e of await managePending(hl, db, userId, now)) (e.level === 'error' ? out.errors : out.notes).push(e.message);
+    for (const e of await managePending(hl, db, userId, now, { slippagePercent: Number(settings.slippage_percent ?? 2) })) (e.level === 'error' ? out.errors : out.notes).push(e.message);
   });
   await step('exit plans', async () => {
     for (const e of await manageExits(hl, db, userId, Number(settings.slippage_percent ?? 2))) (e.level === 'error' ? out.errors : out.notes).push(e.message);

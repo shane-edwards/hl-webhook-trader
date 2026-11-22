@@ -104,6 +104,17 @@ Next actions, in order. Start here if picking this up in a new session.
 - [ ] **Configure an alert channel** in Vercel: Telegram or email (item 12).
 - [ ] Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` (item 18).
 
+Execution round (started 2026-11-22). Ticked as each is finished:
+
+- [x] E2. Stops move within seconds, not every five minutes. `/api/cron/fast`, called every 10 seconds by Supabase's
+      scheduler only while something is open; the daily strategy moved off Vercel cron too (`vercel.json` is empty).
+      Needs migrations 006 and 007
+- [ ] E3. Measure entry cost per fill; maker-first "chase" entries; sliced orders
+- [ ] E4. Order-book check before sending: expected slippage, warn or block on a thin book
+- [ ] E5. A position that cannot get its stop is closed at once, on every entry path
+- [ ] E6. Alerts: phone push channel and an in-app alert log
+- [ ] Deployed
+
 The 18 items:
 
 - [x] 1. Size by risk in the trade ticket

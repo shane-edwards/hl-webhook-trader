@@ -287,8 +287,8 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
                       Stop to break-even after target 1
                     </label>
                     <p className="col-span-2 text-[11px] text-muted-foreground leading-relaxed">
-                      Hyperliquid has no trailing or self-moving stop, so this app moves it for you, and only when its scan runs: about every five minutes.
-                      Between scans the last stop placed still protects the position. With a split, trailing starts once target 1 has filled.
+                      Hyperliquid has no trailing or self-moving stop, so this app moves it for you, checking about every ten seconds.
+                      Between checks the last stop placed still protects the position. With a split, trailing starts once target 1 has filled.
                     </p>
                   </div>
                 )}

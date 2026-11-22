@@ -69,7 +69,7 @@ export function attributeCosts(trades: TradeWindow[], fills: Fill[], funding: Fu
 export interface SyncResult { settled: string[]; costed: number; notes: string[] }
 
 /** One reconcile pass for a user. Never throws; problems are returned as notes. */
-export async function syncAccount(hl: HyperliquidClient, db: Db, userId: string, now = Date.now()): Promise<SyncResult> {
+export async function syncAccount(hl: HyperliquidClient, db: Db, userId: string, now = Date.now(), minAgeMs = 90_000): Promise<SyncResult> {
   const result: SyncResult = { settled: [], costed: 0, notes: [] };
   try {
     const [{ data: open }, { data: unsynced, error: unsyncedError }] = await Promise.all([
@@ -78,7 +78,7 @@ export async function syncAccount(hl: HyperliquidClient, db: Db, userId: string,
         .is('fills_synced_at', null).order('exit_time', { ascending: false }).limit(40),
     ]);
     // Leave very recent rows alone: the fill may not be in the exchange's history yet.
-    const openRows = (open ?? []).filter(t => now - new Date(t.entry_time).getTime() > 90_000);
+    const openRows = (open ?? []).filter(t => now - new Date(t.entry_time).getTime() > minAgeMs);
     const toCost = unsyncedError ? [] : (unsynced ?? []).filter(t => t.exit_time && now - new Date(t.exit_time).getTime() > 90_000);
     if (!openRows.length && !toCost.length) return result;
 

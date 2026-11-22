@@ -83,7 +83,7 @@ export function OpenOrders({ refreshKey, onChanged }: { refreshKey: number; onCh
       </ul>
       {plans.length > 0 && (
         <p className="px-5 py-2.5 border-t border-border/70 text-[11px] text-muted-foreground">
-          Stops in an exit plan are moved by this app&apos;s scan, about every five minutes. Between scans the last stop placed still rests on the exchange.
+          Stops in an exit plan are moved by this app, about every ten seconds while a position is open. In between, the last stop placed still rests on the exchange.
         </p>
       )}
     </section>
