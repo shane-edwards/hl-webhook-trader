@@ -11,6 +11,7 @@ import { formatCurrency, formatPercent, formatDate, formatDuration, formatPrice 
 import type { Trade } from '@/types';
 import { XCircle, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { journalOf, netPnl, READ_LABEL, STOP_LABEL } from '@/lib/journal';
 
 interface TradesTableProps {
   trades: Trade[];
@@ -65,26 +66,21 @@ export function TradesTable({ trades, loading, onRefresh }: TradesTableProps) {
     }
   }
 
-  function SortIcon({ field }: { field: SortField }) {
-    if (sort.field !== field) return <span className="w-3 h-3" />;
-    return sort.dir === 'asc'
-      ? <ChevronUp className="w-3 h-3" />
-      : <ChevronDown className="w-3 h-3" />;
-  }
-
-  function Th({ children, field, className = '' }: { children: React.ReactNode; field?: SortField; className?: string }) {
-    return (
-      <th
-        className={`px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap ${field ? 'cursor-pointer hover:text-foreground select-none' : ''} ${className}`}
-        onClick={field ? () => handleSort(field) : undefined}
-      >
-        <span className="flex items-center gap-1">
-          {children}
-          {field && <SortIcon field={field} />}
-        </span>
-      </th>
-    );
-  }
+  // Plain render helpers rather than components declared inside this one, which React would re-create on every render.
+  const sortIcon = (field: SortField) =>
+    sort.field !== field ? <span className="w-3 h-3" /> : sort.dir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />;
+  const th = (label: string, field?: SortField) => (
+    <th
+      key={label}
+      className={`px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap ${field ? 'cursor-pointer hover:text-foreground select-none' : ''}`}
+      onClick={field ? () => handleSort(field) : undefined}
+    >
+      <span className="flex items-center gap-1">
+        {label}
+        {field && sortIcon(field)}
+      </span>
+    </th>
+  );
 
   if (loading) {
     return (
@@ -109,24 +105,29 @@ export function TradesTable({ trades, loading, onRefresh }: TradesTableProps) {
         <table className="w-full">
           <thead className="border-b border-border bg-secondary/50">
             <tr>
-              <Th field="entry_time">Date</Th>
-              <Th field="symbol">Asset</Th>
-              <Th>Side</Th>
-              <Th>Status</Th>
-              <Th>Entry</Th>
-              <Th>Exit</Th>
-              <Th field="size_usd">Size</Th>
-              <Th field="leverage">Lev.</Th>
-              <Th field="pnl">P&L $</Th>
-              <Th field="pnl_percentage">P&L %</Th>
-              <Th>Duration</Th>
-              <Th>Source</Th>
-              <Th>Action</Th>
+              {th('Date', 'entry_time')}
+              {th('Asset', 'symbol')}
+              {th('Side')}
+              {th('Status')}
+              {th('Entry')}
+              {th('Exit')}
+              {th('Size', 'size_usd')}
+              {th('Lev.', 'leverage')}
+              {th('Net P&L $', 'pnl')}
+              {th('P&L %', 'pnl_percentage')}
+              {th('Duration')}
+              {th('Source')}
+              {th('Action')}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {sorted.map(trade => {
-              const pnlPos = (trade.pnl ?? 0) >= 0;
+              const net = netPnl(trade);
+              const pnlPos = net >= 0;
+              const journal = journalOf(trade);
+              const costs = trade.fills_synced_at
+                ? `Price move ${formatCurrency(Number(trade.exchange_pnl ?? trade.pnl ?? 0))}, fees ${formatCurrency(-Number(trade.fees ?? 0))}, funding ${formatCurrency(-Number(trade.funding_paid ?? 0))} (from the exchange)`
+                : 'Price move only: fees and funding not pulled from the exchange yet';
               const isOpen = trade.status === 'open';
               return (
                 <tr key={trade.id} className="hover:bg-accent/30 transition-colors">
@@ -159,7 +160,7 @@ export function TradesTable({ trades, loading, onRefresh }: TradesTableProps) {
                     {trade.leverage}x
                   </td>
                   <td className={`px-3 py-3 text-xs font-bold tabular-nums ${isOpen ? 'text-muted-foreground' : pnlPos ? 'text-profit' : 'text-loss'}`}>
-                    {isOpen ? '—' : formatCurrency(trade.pnl ?? 0)}
+                    {isOpen ? '—' : <span title={costs}>{formatCurrency(net)}{!trade.fills_synced_at && <span className="font-normal text-muted-foreground" aria-label="before fees and funding">*</span>}</span>}
                   </td>
                   <td className={`px-3 py-3 text-xs font-medium tabular-nums ${isOpen ? 'text-muted-foreground' : pnlPos ? 'text-profit' : 'text-loss'}`}>
                     {isOpen ? '—' : formatPercent(trade.pnl_percentage ?? 0)}
@@ -171,6 +172,11 @@ export function TradesTable({ trades, loading, onRefresh }: TradesTableProps) {
                     <Badge variant="secondary" className="text-[10px]">
                       {trade.signal_source}
                     </Badge>
+                    {journal && (
+                      <p className="mt-1 text-[10px] text-muted-foreground whitespace-nowrap" title={journal.note ?? trade.notes ?? undefined}>
+                        {READ_LABEL[journal.read]} · {STOP_LABEL[journal.stop].toLowerCase()}{journal.note ? ' · note' : ''}
+                      </p>
+                    )}
                   </td>
                   <td className="px-3 py-3">
                     {isOpen && (

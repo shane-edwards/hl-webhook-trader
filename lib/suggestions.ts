@@ -23,6 +23,11 @@ export interface Levels {
   stopLossPct: number; takeProfitPct: number; stopPrice: number; targetPrice: number;
   /** Where each number came from, in plain words. */
   stopBasis: string; targetBasis: string;
+  /** Whether the stop sits beyond a support/resistance level or was sized from volatility alone. */
+  stopKind: 'level' | 'volatility';
+  targetKind: 'level' | 'multiple';
+  /** The volatility-only stop that would have been used had no level been found (for the scorecard's comparison). */
+  volStopPct: number;
 }
 
 export interface Suggestion {
@@ -75,6 +80,7 @@ function levels(price: number, dir: 1 | -1, volStopFraction: number, atr: number
   return {
     stopLossPct, takeProfitPct,
     stopPrice: price * (1 - (dir * stopLossPct) / 100), targetPrice: price * (1 + (dir * takeProfitPct) / 100),
+    stopKind: s ? 'level' : 'volatility', targetKind: t ? 'level' : 'multiple', volStopPct: round(volPct, 1),
     stopBasis: s ? s.basis : 'sized from recent volatility (no usable level nearby)',
     targetBasis: t ? t.basis : `${TARGET_R} times the stop (no level in the way at a worthwhile distance)`,
   };

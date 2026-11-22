@@ -15,6 +15,7 @@ import { AlertTriangle, Bot, Loader2, Play, RotateCcw, Save, ShieldAlert } from 
 import { toast } from 'sonner';
 import { cn, formatCurrency, formatPrice, formatRelativeTime } from '@/lib/utils';
 import type { Settings } from '@/types';
+import { DriftPanel } from '@/components/autopilot/DriftPanel';
 
 interface Evidence {
   allowShort: boolean; liveEligible: boolean; gatePassed?: boolean;
@@ -52,6 +53,9 @@ export default function AutopilotPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmLive, setConfirmLive] = useState(false);
+  // The clock is state so the stale-scan warning is computed from a value React knows about.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
   // form
   const [symbols, setSymbols] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
@@ -133,7 +137,7 @@ export default function AutopilotPage() {
   const closedPnl = closed.reduce((a, p) => a + Number(p.pnl ?? 0), 0);
   const wins = closed.filter(p => Number(p.pnl) > 0).length;
   const lastRun = state?.last_run_at ? new Date(state.last_run_at).getTime() : null;
-  const stale = enabled && (lastRun === null || Date.now() - lastRun > STALE_MS);
+  const stale = enabled && (lastRun === null || now - lastRun > STALE_MS);
   const eligible = (s: StrategyInfo) => s.evidence.find(e => e.allowShort === allowShort)?.liveEligible === true;
   const liveBlocked = selected.filter(id => { const s = data?.strategies.find(x => x.id === id); return s && !eligible(s); });
 
@@ -305,6 +309,8 @@ export default function AutopilotPage() {
             </div>
 
             {/* Positions */}
+            {mode === 'paper' && <DriftPanel refreshKey={data.positions?.length ?? 0} />}
+
             <section className="surface overflow-hidden" aria-label="Autopilot positions">
               <div className="px-5 pt-5 pb-3 flex items-baseline justify-between">
                 <h2 className="text-sm font-semibold">Positions · {mode}</h2>

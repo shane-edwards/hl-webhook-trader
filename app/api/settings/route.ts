@@ -65,8 +65,10 @@ const NUMERIC_FIELDS: Array<[string, number, number, string, boolean?]> = [
   ['autopilot_max_leverage', 0.1, 10, 'Max leverage per position'],
   ['autopilot_daily_loss_limit_pct', 0.5, 50, 'Daily loss limit (%)'],
   ['autopilot_max_drawdown_pct', 1, 90, 'Max drawdown (%)'],
+  ['max_gross_exposure_x', 0.1, 50, 'Max total exposure (x account)'],
+  ['portfolio_daily_loss_limit_pct', 0.5, 90, 'Account daily loss limit (%)'],
 ];
-const BOOLEAN_FIELDS = ['webhook_enabled', 'is_testnet', 'strategy_enabled', 'strategy_dry_run', 'autopilot_enabled', 'autopilot_allow_short'];
+const BOOLEAN_FIELDS = ['webhook_enabled', 'is_testnet', 'strategy_enabled', 'strategy_dry_run', 'autopilot_enabled', 'autopilot_allow_short', 'daily_summary_enabled'];
 
 export async function PUT(request: Request) {
   const supabase = await createClient();

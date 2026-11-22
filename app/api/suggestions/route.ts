@@ -11,14 +11,26 @@ export const maxDuration = 60;
 const DEFAULT_SYMBOLS = ['BTC', 'ETH', 'SOL'];
 const MAX_SYMBOLS = 12;
 
-// ?symbol=BTC  one market (used by the trade ticket)
-// (no query)   the markets the Autopilot watches (used by the dashboard)
+// ?symbol=BTC    one market (used by the trade ticket)
+// ?scope=market  every liquid market, ranked, from the cache the market scan keeps fresh
+// (no query)     the markets the Autopilot watches (used by the dashboard)
 export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const one = new URL(request.url).searchParams.get('symbol');
+  const params = new URL(request.url).searchParams;
+  if (params.get('scope') === 'market') {
+    const { data, error } = await createServiceClient().from('suggestions_cache').select('payload, volume_24h_usd, updated_at');
+    if (error) return NextResponse.json({ suggestions: [], available: false, asOf: Date.now() });
+    const rows = (data ?? [])
+      .map(r => ({ ...(r.payload as Suggestion), volume24hUsd: Number(r.volume_24h_usd), updatedAt: r.updated_at as string }))
+      // Strongest reads first; among equals, the most traded market.
+      .sort((a, b) => Math.abs(b.score) - Math.abs(a.score) || b.volume24hUsd - a.volume24hUsd);
+    const oldest = rows.length ? Math.min(...rows.map(r => new Date(r.updatedAt).getTime())) : null;
+    return NextResponse.json({ suggestions: rows, available: true, asOf: Date.now(), oldest });
+  }
+  const one = params.get('symbol');
   let symbols: string[];
   if (one) {
     const symbol = normalizeSymbol(one);

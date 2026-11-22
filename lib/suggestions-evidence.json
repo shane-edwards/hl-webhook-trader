@@ -1,0 +1,297 @@
+{
+  "generatedThrough": "2026-11-13",
+  "coins": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "costPct": 0.13,
+  "ideas": 2962,
+  "verdict": "Level-based stops did not beat volatility-only stops. They were slightly worse in all 3 periods, by 0.07 percentage points per idea after costs on the same entries. The gap is small, but there is no evidence here that placing the stop beyond a level helps.",
+  "edge": "Across all 2962 ideas the average result was 0.00% per idea after costs, which is no edge; in 2025 onward it was -0.06% over 824 ideas.",
+  "pooled": {
+    "ideas": 2944,
+    "level": {
+      "hitRate": 36.67010663914689,
+      "avgPct": -0.015457992518925934,
+      "avgStopPct": 2.4025815217391346
+    },
+    "volatility": {
+      "hitRate": 36.14120936735407,
+      "avgPct": 0.05249514103583575,
+      "avgStopPct": 3.0186141304347816
+    }
+  },
+  "periods": [
+    {
+      "name": "2021-2022",
+      "ideas": 918,
+      "avgPct": 0.15745200808978632,
+      "rows": [
+        {
+          "group": "All ideas",
+          "ideas": 918,
+          "decided": 907,
+          "hitRate": 38.699007717750824,
+          "avgR": 0.12279371951895235,
+          "avgRet1d": 0.38487619119467986,
+          "avgRet3d": 1.035251029955981,
+          "avgRet7d": 2.7299518372534837
+        },
+        {
+          "group": "Long",
+          "ideas": 502,
+          "decided": 494,
+          "hitRate": 38.46153846153847,
+          "avgR": 0.12456799967320824,
+          "avgRet1d": 0.8540336786833799,
+          "avgRet3d": 2.092053059673495,
+          "avgRet7d": 4.191688181241312
+        },
+        {
+          "group": "Short",
+          "ideas": 416,
+          "decided": 413,
+          "hitRate": 38.983050847457626,
+          "avgR": 0.12067145705841376,
+          "avgRet1d": -0.1812705845729351,
+          "avgRet3d": -0.24002449628967218,
+          "avgRet7d": 0.9660296144604744
+        },
+        {
+          "group": "Strong",
+          "ideas": 491,
+          "decided": 485,
+          "hitRate": 35.670103092783506,
+          "avgR": 0.05640449923062259,
+          "avgRet1d": 0.04915151545210483,
+          "avgRet3d": 0.5180547272754895,
+          "avgRet7d": 1.7751258452332361
+        },
+        {
+          "group": "Moderate",
+          "ideas": 427,
+          "decided": 422,
+          "hitRate": 42.18009478672986,
+          "avgR": 0.19909412672236454,
+          "avgRet1d": 0.7709202562757197,
+          "avgRet3d": 1.6299662164105966,
+          "avgRet7d": 3.827889921754515
+        },
+        {
+          "group": "Stop beyond a level",
+          "ideas": 908,
+          "decided": 897,
+          "hitRate": 38.684503901895205,
+          "avgR": 0.1219330029026642,
+          "avgRet1d": 0.2558011623109736,
+          "avgRet3d": 0.8482186390693802,
+          "avgRet7d": 2.5736253407926055
+        },
+        {
+          "group": "Stop from volatility only",
+          "ideas": 10,
+          "decided": 10,
+          "hitRate": 40,
+          "avgR": 0.2,
+          "avgRet1d": 12.104888813835178,
+          "avgRet3d": 18.01779212245934,
+          "avgRet7d": 16.924397715901147
+        }
+      ],
+      "paired": {
+        "ideas": 908,
+        "level": {
+          "hitRate": 38.684503901895205,
+          "avgPct": 0.11458253681324208,
+          "avgStopPct": 3.2370044052863443
+        },
+        "volatility": {
+          "hitRate": 37.58465011286682,
+          "avgPct": 0.15157338496901848,
+          "avgStopPct": 4.14372246696035
+        }
+      }
+    },
+    {
+      "name": "2023-2024",
+      "ideas": 961,
+      "avgPct": -0.06124734644931685,
+      "rows": [
+        {
+          "group": "All ideas",
+          "ideas": 961,
+          "decided": 953,
+          "hitRate": 36.09653725078699,
+          "avgR": 0.05405612123809569,
+          "avgRet1d": 0.3540711939106699,
+          "avgRet3d": 0.7884831858973251,
+          "avgRet7d": 0.7940201408137074
+        },
+        {
+          "group": "Long",
+          "ideas": 617,
+          "decided": 612,
+          "hitRate": 33.98692810457516,
+          "avgR": -0.0029100722885859118,
+          "avgRet1d": 0.5581140553701786,
+          "avgRet3d": 1.3108431006976626,
+          "avgRet7d": 2.1044710231291393
+        },
+        {
+          "group": "Short",
+          "ideas": 344,
+          "decided": 341,
+          "hitRate": 39.882697947214076,
+          "avgR": 0.15629456827131905,
+          "avgRet1d": -0.011901031439669153,
+          "avgRet3d": -0.14842398686956207,
+          "avgRet7d": -1.5564106568276317
+        },
+        {
+          "group": "Strong",
+          "ideas": 463,
+          "decided": 459,
+          "hitRate": 34.64052287581699,
+          "avgR": 0.025539010653594287,
+          "avgRet1d": 0.2940975203834191,
+          "avgRet3d": 0.6877871658003031,
+          "avgRet7d": 0.3008548478385729
+        },
+        {
+          "group": "Moderate",
+          "ideas": 498,
+          "decided": 494,
+          "hitRate": 37.449392712550605,
+          "avgR": 0.08055278876499071,
+          "avgRet1d": 0.40982985022215096,
+          "avgRet3d": 0.8821021764694563,
+          "avgRet7d": 1.2525252224351677
+        },
+        {
+          "group": "Stop beyond a level",
+          "ideas": 954,
+          "decided": 946,
+          "hitRate": 36.1522198731501,
+          "avgR": 0.055513196130978,
+          "avgRet1d": 0.36102688837274755,
+          "avgRet3d": 0.794221181757666,
+          "avgRet7d": 0.8055439572606543
+        },
+        {
+          "group": "Stop from volatility only",
+          "ideas": 7,
+          "decided": 7,
+          "hitRate": 28.57142857142857,
+          "avgR": -0.14285714285714285,
+          "avgRet1d": -0.5938905942067949,
+          "avgRet3d": 0.006476321502289701,
+          "avgRet7d": -0.7765114149559468
+        }
+      ],
+      "paired": {
+        "ideas": 954,
+        "level": {
+          "hitRate": 36.1522198731501,
+          "avgPct": -0.05958983221990936,
+          "avgStopPct": 2.062578616352201
+        },
+        "volatility": {
+          "hitRate": 35.49083063646171,
+          "avgPct": -0.0519922987580369,
+          "avgStopPct": 2.547064989517815
+        }
+      }
+    },
+    {
+      "name": "2025 onward",
+      "ideas": 824,
+      "avgPct": -0.06116079182295869,
+      "rows": [
+        {
+          "group": "All ideas",
+          "ideas": 824,
+          "decided": 807,
+          "hitRate": 35.19206939281288,
+          "avgR": 0.028526327165363925,
+          "avgRet1d": -0.054067708524019695,
+          "avgRet3d": 0.32122511954249555,
+          "avgRet7d": 0.4609208258981274
+        },
+        {
+          "group": "Long",
+          "ideas": 453,
+          "decided": 441,
+          "hitRate": 31.97278911564626,
+          "avgR": -0.06895402854265346,
+          "avgRet1d": -0.37336619792767517,
+          "avgRet3d": 0.05406884432573402,
+          "avgRet7d": 0.13897496828078745
+        },
+        {
+          "group": "Short",
+          "ideas": 371,
+          "decided": 366,
+          "hitRate": 39.07103825136612,
+          "avgR": 0.14598216560043403,
+          "avgRet1d": 0.3358034928233009,
+          "avgRet3d": 0.6474294124621532,
+          "avgRet7d": 0.8540245280562265
+        },
+        {
+          "group": "Strong",
+          "ideas": 449,
+          "decided": 440,
+          "hitRate": 34.77272727272727,
+          "avgR": 0.02160953373535448,
+          "avgRet1d": -0.15735664973209712,
+          "avgRet3d": 0.31351606212398364,
+          "avgRet7d": 0.8733517574173892
+        },
+        {
+          "group": "Moderate",
+          "ideas": 375,
+          "decided": 367,
+          "hitRate": 35.694822888283376,
+          "avgR": 0.036818940541942,
+          "avgRet1d": 0.06960358374911835,
+          "avgRet3d": 0.3304554309582608,
+          "avgRet7d": -0.03289647610760207
+        },
+        {
+          "group": "Stop beyond a level",
+          "ideas": 823,
+          "decided": 806,
+          "hitRate": 35.235732009925556,
+          "avgR": 0.029802414419911532,
+          "avgRet1d": -0.04823615051335978,
+          "avgRet3d": 0.32599540465318494,
+          "avgRet7d": 0.46482045692461965
+        },
+        {
+          "group": "Stop from volatility only",
+          "ideas": 1,
+          "decided": 1,
+          "hitRate": 0,
+          "avgR": -1,
+          "avgRet1d": -4.853439951297112,
+          "avgRet3d": -3.6047195265547005,
+          "avgRet7d": -2.748475508905124
+        }
+      ],
+      "paired": {
+        "ideas": 823,
+        "level": {
+          "hitRate": 35.235732009925556,
+          "avgPct": -0.05937605402444463,
+          "avgStopPct": 1.9359659781287961
+        },
+        "volatility": {
+          "hitRate": 36.05527638190954,
+          "avgPct": 0.11807313601585351,
+          "avgStopPct": 2.4194410692588084
+        }
+      }
+    }
+  ]
+}

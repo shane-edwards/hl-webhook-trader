@@ -7,6 +7,9 @@ import { AccountPanel } from '@/components/dashboard/AccountPanel';
 import { AutomationPanel } from '@/components/dashboard/AutomationPanel';
 import { TradeTicket } from '@/components/dashboard/TradeTicket';
 import { TradeIdeas } from '@/components/dashboard/TradeIdeas';
+import { Scorecard } from '@/components/dashboard/Scorecard';
+import { OpenOrders } from '@/components/dashboard/OpenOrders';
+import { HealthBanner } from '@/components/dashboard/HealthBanner';
 import { RecentTrades } from '@/components/dashboard/RecentTrades';
 import { ActivePositions } from '@/components/dashboard/ActivePositions';
 import { calculateAnalytics } from '@/lib/analytics';
@@ -78,6 +81,7 @@ export default function DashboardPage() {
       <Header onRefresh={() => fetchData(true)} refreshing={refreshing} actions={<TradeTicket settings={settings} onTraded={() => fetchData(true)} preset={preset} />} />
 
       <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-[1400px] mx-auto">
+        <HealthBanner />
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
           <div className="xl:col-span-2">
             <AccountPanel
@@ -96,12 +100,15 @@ export default function DashboardPage() {
           />
         </div>
 
+        <OpenOrders refreshKey={positionsKey} onChanged={() => fetchData(true)} />
+
         <TradeIdeas onTrade={(symbol, side) => setPreset({ symbol, side, nonce: Date.now() })} />
+        <Scorecard />
 
         <div>
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-0.5 mb-2.5">
-            <h2 className="text-sm font-semibold">Webhook trade log</h2>
-            <p className="text-xs text-muted-foreground">Closed trades placed by this app, before fees and funding</p>
+            <h2 className="text-sm font-semibold">Trade log</h2>
+            <p className="text-xs text-muted-foreground">Closed trades placed by this app, after fees and funding where the exchange figures are in</p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             <Stat label="Total P&L" value={formatCurrency(metrics.totalPnl)} hint={`${metrics.totalTrades} closed · ${openTrades.length} open`} tone={tone(metrics.totalPnl)} loading={loading} />

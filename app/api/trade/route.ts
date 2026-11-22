@@ -4,6 +4,9 @@ import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { closePositionFully, openPosition, protectionPercent, MAX_LEVERAGE } from '@/lib/execution';
 import { normalizeSymbol } from '@/lib/webhook';
 import { notify } from '@/lib/notify';
+import { portfolioLimitsFromSettings } from '@/lib/risk/portfolio';
+import { MAX_EXPIRY_HOURS, placeLimitEntry } from '@/lib/pending';
+import { journalTags } from '@/lib/journal';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -12,11 +15,15 @@ async function context() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data: settings } = await createServiceClient().from('settings').select('*').eq('user_id', user.id).single();
-  return { supabase, user, settings };
+  // Writes go through the service client: trade rows carry the user id explicitly, and the
+  // exit-plan, pending-order and portfolio tables accept writes from the server only.
+  const service = createServiceClient();
+  const { data: settings } = await service.from('settings').select('*').eq('user_id', user.id).single();
+  return { supabase: service, user, settings };
 }
 
-// Manual order from the trade ticket: a market entry with optional stop-loss / take-profit.
+// Manual order from the trade ticket: a market entry, or a post-only limit entry when
+// `limitPx` is given, with optional stop-loss / take-profit and managed exits.
 export async function POST(request: Request) {
   const ctx = await context();
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -40,9 +47,28 @@ export async function POST(request: Request) {
   if (body.stopLossPct != null && body.stopLossPct !== '' && stopLossPct == null) return bad('Stop-loss must be between 0.05% and 50%');
   if (body.takeProfitPct != null && body.takeProfitPct !== '' && takeProfitPct == null) return bad('Take-profit must be between 0.05% and 50%');
 
+  // Managed exits (market entries only).
+  const fraction = body.tp1Fraction == null || body.tp1Fraction === '' ? null : Number(body.tp1Fraction);
+  if (fraction != null && !(fraction > 0 && fraction <= 1)) return bad('Share closed at target 1 must be between 1% and 100%');
+  const takeProfit2Pct = protectionPercent(body.takeProfit2Pct);
+  if (body.takeProfit2Pct != null && body.takeProfit2Pct !== '' && takeProfit2Pct == null) return bad('Target 2 must be between 0.05% and 50%');
+  if (takeProfit2Pct != null && takeProfitPct != null && takeProfit2Pct <= takeProfitPct) return bad('Target 2 must be further away than target 1');
+  const trailPct = protectionPercent(body.trailPct);
+  if (body.trailPct != null && body.trailPct !== '' && trailPct == null) return bad('Trailing distance must be between 0.05% and 50%');
+  const exit = { tp1Fraction: fraction, takeProfit2Pct, breakevenAfterTp1: body.breakevenAfterTp1 === true, trailPct };
+
+  const limitPx = body.limitPx == null || body.limitPx === '' ? null : Number(body.limitPx);
+  if (limitPx != null && !(limitPx > 0)) return bad('Limit price must be a positive number');
+  const expiryHours = body.expiryHours == null ? 24 : Number(body.expiryHours);
+  if (limitPx != null && !(expiryHours >= 1 && expiryHours <= MAX_EXPIRY_HOURS)) return bad(`Expiry must be between 1 hour and ${MAX_EXPIRY_HOURS / 24} days`);
+
   if (settings.strategy_enabled && settings.strategy_dry_run === false && settings.strategy_symbol === symbol) {
     return bad(`${symbol} is being traded by the built-in strategy, which would undo a manual position. Turn it off first.`);
   }
+
+  // Journal: how this trade relates to what the rules read, worked out from what the ticket showed.
+  const journal = journalTags({ side, stopLossPct, context: body.context, note: body.note });
+  const limits = portfolioLimitsFromSettings(settings);
 
   try {
     const hl = hlClientFromSettings(settings);
@@ -54,14 +80,24 @@ export async function POST(request: Request) {
     const existing = position ? position.size * position.markPrice : 0;
     if (existing + sizeUsd > maxUsd) return bad(`That would take ${symbol} past your max position size of $${maxUsd}. Raise it in Settings if intended.`);
 
+    if (limitPx != null) {
+      const order = await placeLimitEntry(hl, supabase, {
+        userId: user.id, symbol, side, limitPx, sizeUsd, leverage, stopLossPct, takeProfitPct, expiryHours, journal, limits,
+      });
+      await notify(`Manual: limit ${side} resting on ${symbol} at ${order.limit_px} (${order.size} ${symbol}, expires in ${expiryHours}h)`);
+      return NextResponse.json({ success: true, resting: true, symbol, side, order });
+    }
+
     const opened = await openPosition(hl, supabase, {
       userId: user.id, symbol, side, sizeUsd, leverage,
       slippagePercent: Number(settings.slippage_percent), stopLossPct, takeProfitPct, source: 'manual',
+      exit, limits, payload: { journal },
     });
     await notify(`Manual: opened ${side} ${opened.size} ${symbol} at ${opened.fillPrice} (${leverage}x)` + (opened.protectionError ? `. WARNING: stop/target NOT placed (${opened.protectionError})` : ''));
     return NextResponse.json({ success: true, symbol, side, ...opened });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: /^Blocked by a portfolio limit|must be (below|above)/.test(message) ? 400 : 500 });
   }
 }
 

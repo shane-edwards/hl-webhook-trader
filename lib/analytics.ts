@@ -1,236 +1,134 @@
-import type { Trade, AnalyticsMetrics, EquityPoint, MonthlyPnL } from '@/types';
+// Performance figures that can be computed honestly.
+//
+// Two sources, kept apart:
+//   - The exchange's own account history (value and P&L over time). Returns,
+//     drawdown and Sharpe are measured on this, against real account equity.
+//   - This app's trade log, per trade, net of fees and funding once the
+//     exchange figures have been synced (lib/reconcile.ts).
+//
+// Removed on purpose: Sortino, Calmar, recovery factor, Kelly and VaR. They
+// were computed on per-trade dollar P&L as if each trade were a daily return,
+// and measured drawdown against cumulative P&L rather than equity, so the
+// numbers meant nothing.
+import type { Trade, MonthlyPnL } from '@/types';
+import type { AccountHistory } from '@/lib/hyperliquid/public';
 import { format, parseISO } from 'date-fns';
+import { netPnl } from '@/lib/journal';
 
-export function calculateAnalytics(trades: Trade[]): AnalyticsMetrics {
-  const closed = trades.filter(t => t.status === 'closed' && t.pnl != null);
+export interface TradeStats {
+  /** Sum of net results of closed trades. */
+  totalPnl: number;
+  totalTrades: number; winningTrades: number; losingTrades: number;
+  winRate: number;
+  profitFactor: number;
+  /** Average net result per closed trade. */
+  expectancy: number;
+  avgWin: number; avgLoss: number; avgWinLossRatio: number;
+  largestWin: number; largestLoss: number;
+  maxConsecutiveWins: number; maxConsecutiveLosses: number;
+  avgTradeDurationHours: number;
+  totalFees: number;
+  /** Positive = paid. */
+  totalFunding: number;
+  /** Closed trades whose fees and funding have been confirmed from the exchange. */
+  costedTrades: number;
+}
 
-  if (closed.length === 0) {
-    return emptyMetrics();
+export function calculateAnalytics(trades: Trade[]): TradeStats {
+  const closed = trades.filter(t => t.status === 'closed' && t.pnl != null)
+    .sort((a, b) => new Date(a.exit_time ?? a.entry_time).getTime() - new Date(b.exit_time ?? b.entry_time).getTime());
+  const nets = closed.map(netPnl);
+  const wins = nets.filter(x => x > 0), losses = nets.filter(x => x < 0);
+  const grossProfit = wins.reduce((a, b) => a + b, 0), grossLoss = -losses.reduce((a, b) => a + b, 0);
+  const totalPnl = nets.reduce((a, b) => a + b, 0);
+  const avgWin = wins.length ? grossProfit / wins.length : 0, avgLoss = losses.length ? grossLoss / losses.length : 0;
+
+  let run = 0, maxWins = 0, maxLosses = 0;
+  for (const x of nets) {
+    run = x > 0 ? (run > 0 ? run + 1 : 1) : run < 0 ? run - 1 : -1;
+    maxWins = Math.max(maxWins, run); maxLosses = Math.max(maxLosses, -run);
   }
-
-  const pnls = closed.map(t => t.pnl!);
-  const wins = closed.filter(t => t.pnl! > 0);
-  const losses = closed.filter(t => t.pnl! < 0);
-
-  const totalPnl = pnls.reduce((a, b) => a + b, 0);
-  const grossProfit = wins.reduce((a, t) => a + t.pnl!, 0);
-  const grossLoss = Math.abs(losses.reduce((a, t) => a + t.pnl!, 0));
-
-  const winRate = closed.length > 0 ? wins.length / closed.length : 0;
-  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
-
-  const avgWin = wins.length > 0 ? grossProfit / wins.length : 0;
-  const avgLoss = losses.length > 0 ? grossLoss / losses.length : 0;
-  const avgWinLossRatio = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0;
-
-  const expectancy = winRate * avgWin - (1 - winRate) * avgLoss;
-
-  const largestWin = wins.length > 0 ? Math.max(...wins.map(t => t.pnl!)) : 0;
-  const largestLoss = losses.length > 0 ? Math.min(...losses.map(t => t.pnl!)) : 0;
-
-  const returns = pnls;
-  const sharpeRatio = calculateSharpe(returns);
-  const sortinoRatio = calculateSortino(returns);
-  const { maxDrawdown, maxDrawdownDollar } = calculateMaxDrawdown(closed);
-  const calmarRatio = maxDrawdown > 0 ? (totalPnl / (maxDrawdown * 1)) : 0;
-  const recoveryFactor = maxDrawdownDollar > 0 ? totalPnl / maxDrawdownDollar : 0;
-
-  const { consecutiveWins, consecutiveLosses, maxConsecutiveWins, maxConsecutiveLosses } =
-    calculateStreaks(closed);
-
-  const durations = closed.filter(t => t.duration_seconds != null).map(t => t.duration_seconds!);
-  const avgTradeDurationHours =
-    durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length / 3600 : 0;
-
-  const avgLeverage =
-    closed.length > 0 ? closed.reduce((a, t) => a + t.leverage, 0) / closed.length : 1;
-
-  const totalFees = closed.reduce((a, t) => a + (t.fees ?? 0), 0);
-  const totalFunding = closed.reduce((a, t) => a + (t.funding_paid ?? 0), 0);
-
-  const kellyPercentage = calculateKelly(winRate, avgWinLossRatio);
-  const varNinetyFive = calculateVaR(returns, 0.95);
-
-  const totalSizeUsd = closed.reduce((a, t) => a + t.size_usd, 0);
-  const totalPnlPercent = totalSizeUsd > 0 ? (totalPnl / totalSizeUsd) * 100 : 0;
+  const durations = closed.map(t => t.duration_seconds).filter((d): d is number => d != null);
 
   return {
-    totalPnl,
-    totalPnlPercent,
-    winRate: winRate * 100,
-    profitFactor,
-    sharpeRatio,
-    sortinoRatio,
-    calmarRatio,
-    maxDrawdown: maxDrawdown * 100,
-    maxDrawdownDollar,
-    expectancy,
-    avgWin,
-    avgLoss,
-    avgWinLossRatio,
-    totalTrades: closed.length,
-    winningTrades: wins.length,
-    losingTrades: losses.length,
-    avgTradeDurationHours,
-    largestWin,
-    largestLoss,
-    consecutiveWins,
-    consecutiveLosses,
-    maxConsecutiveWins,
-    maxConsecutiveLosses,
-    recoveryFactor,
-    avgLeverage,
-    totalFees,
-    totalFunding,
-    kellyPercentage,
-    varNinetyFive,
+    totalPnl, totalTrades: closed.length, winningTrades: wins.length, losingTrades: losses.length,
+    winRate: closed.length ? (wins.length / closed.length) * 100 : 0,
+    profitFactor: grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0,
+    expectancy: closed.length ? totalPnl / closed.length : 0,
+    avgWin, avgLoss, avgWinLossRatio: avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0,
+    largestWin: wins.length ? Math.max(...wins) : 0, largestLoss: losses.length ? Math.min(...losses) : 0,
+    maxConsecutiveWins: maxWins, maxConsecutiveLosses: maxLosses,
+    avgTradeDurationHours: durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length / 3600 : 0,
+    totalFees: closed.reduce((a, t) => a + Number(t.fees ?? 0), 0),
+    totalFunding: closed.reduce((a, t) => a + Number(t.funding_paid ?? 0), 0),
+    costedTrades: closed.filter(t => t.fills_synced_at != null).length,
   };
 }
 
-function calculateSharpe(returns: number[], riskFreeRate = 0): number {
-  if (returns.length < 2) return 0;
-  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const variance =
-    returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (returns.length - 1);
-  const stdDev = Math.sqrt(variance);
-  if (stdDev === 0) return 0;
-  return ((mean - riskFreeRate) / stdDev) * Math.sqrt(252);
-}
-
-function calculateSortino(returns: number[], riskFreeRate = 0): number {
-  if (returns.length < 2) return 0;
-  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const downside = returns.filter(r => r < riskFreeRate);
-  if (downside.length === 0) return 5;
-  const downsideVariance = downside.reduce((a, r) => a + Math.pow(r - riskFreeRate, 2), 0) / downside.length;
-  const downsideStdDev = Math.sqrt(downsideVariance);
-  if (downsideStdDev === 0) return 0;
-  return ((mean - riskFreeRate) / downsideStdDev) * Math.sqrt(252);
-}
-
-function calculateMaxDrawdown(trades: Trade[]): { maxDrawdown: number; maxDrawdownDollar: number } {
-  let equity = 0;
-  let peak = 0;
-  let maxDrawdown = 0;
-  let maxDrawdownDollar = 0;
-
-  const sorted = [...trades].sort(
-    (a, b) => new Date(a.entry_time).getTime() - new Date(b.entry_time).getTime()
-  );
-
-  for (const trade of sorted) {
-    equity += trade.pnl ?? 0;
-    if (equity > peak) peak = equity;
-    const dd = peak > 0 ? (peak - equity) / peak : 0;
-    const ddDollar = peak - equity;
-    if (dd > maxDrawdown) maxDrawdown = dd;
-    if (ddDollar > maxDrawdownDollar) maxDrawdownDollar = ddDollar;
-  }
-
-  return { maxDrawdown, maxDrawdownDollar };
-}
-
-function calculateStreaks(trades: Trade[]) {
-  const sorted = [...trades].sort(
-    (a, b) => new Date(a.entry_time).getTime() - new Date(b.entry_time).getTime()
-  );
-
-  let consecutiveWins = 0;
-  let consecutiveLosses = 0;
-  let maxConsecutiveWins = 0;
-  let maxConsecutiveLosses = 0;
-  let currentWins = 0;
-  let currentLosses = 0;
-
-  for (const trade of sorted) {
-    if ((trade.pnl ?? 0) > 0) {
-      currentWins++;
-      currentLosses = 0;
-      if (currentWins > maxConsecutiveWins) maxConsecutiveWins = currentWins;
-    } else {
-      currentLosses++;
-      currentWins = 0;
-      if (currentLosses > maxConsecutiveLosses) maxConsecutiveLosses = currentLosses;
-    }
-  }
-
-  consecutiveWins = currentWins;
-  consecutiveLosses = currentLosses;
-
-  return { consecutiveWins, consecutiveLosses, maxConsecutiveWins, maxConsecutiveLosses };
-}
-
-function calculateKelly(winRate: number, winLossRatio: number): number {
-  if (winLossRatio <= 0) return 0;
-  const kelly = winRate - (1 - winRate) / winLossRatio;
-  return Math.max(0, Math.min(kelly * 100, 100));
-}
-
-function calculateVaR(returns: number[], confidence: number): number {
-  if (returns.length === 0) return 0;
-  const sorted = [...returns].sort((a, b) => a - b);
-  const index = Math.floor((1 - confidence) * sorted.length);
-  return Math.abs(sorted[index] ?? 0);
-}
-
-export function buildEquityCurve(trades: Trade[]): EquityPoint[] {
-  const closed = trades
-    .filter(t => t.status === 'closed' && t.pnl != null)
-    .sort((a, b) => new Date(a.entry_time).getTime() - new Date(b.entry_time).getTime());
-
-  let equity = 0;
-  let peak = 0;
-  const points: EquityPoint[] = [];
-
-  for (const trade of closed) {
-    equity += trade.pnl!;
-    if (equity > peak) peak = equity;
-    const drawdown = peak > 0 ? ((peak - equity) / peak) * 100 : 0;
-
-    points.push({
-      date: format(parseISO(trade.exit_time ?? trade.entry_time), 'MMM d'),
-      equity: parseFloat(equity.toFixed(2)),
-      drawdown: parseFloat(drawdown.toFixed(2)),
-      pnl: trade.pnl!,
-    });
-  }
-
-  return points;
-}
-
+/** Net result by the month each trade closed in. */
 export function buildMonthlyPnL(trades: Trade[]): MonthlyPnL[] {
-  const closed = trades.filter(t => t.status === 'closed' && t.pnl != null);
   const map = new Map<string, { pnl: number; trades: number; wins: number }>();
-
-  for (const trade of closed) {
-    const month = format(parseISO(trade.entry_time), 'yyyy-MM');
-    const existing = map.get(month) ?? { pnl: 0, trades: 0, wins: 0 };
-    map.set(month, {
-      pnl: existing.pnl + trade.pnl!,
-      trades: existing.trades + 1,
-      wins: existing.wins + (trade.pnl! > 0 ? 1 : 0),
-    });
+  for (const t of trades) {
+    if (t.status !== 'closed' || t.pnl == null) continue;
+    const month = format(parseISO(t.exit_time ?? t.entry_time), 'yyyy-MM');
+    const m = map.get(month) ?? { pnl: 0, trades: 0, wins: 0 };
+    const net = netPnl(t);
+    map.set(month, { pnl: m.pnl + net, trades: m.trades + 1, wins: m.wins + (net > 0 ? 1 : 0) });
   }
-
-  return Array.from(map.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, data]) => ({
-      month: format(parseISO(`${month}-01`), 'MMM yyyy'),
-      pnl: parseFloat(data.pnl.toFixed(2)),
-      trades: data.trades,
-      winRate: data.trades > 0 ? (data.wins / data.trades) * 100 : 0,
-    }));
+  return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, d]) => ({
+    month: format(parseISO(`${month}-01`), 'MMM yyyy'), pnl: Math.round(d.pnl * 100) / 100, trades: d.trades,
+    winRate: d.trades ? (d.wins / d.trades) * 100 : 0,
+  }));
 }
 
-function emptyMetrics(): AnalyticsMetrics {
-  return {
-    totalPnl: 0, totalPnlPercent: 0, winRate: 0, profitFactor: 0,
-    sharpeRatio: 0, sortinoRatio: 0, calmarRatio: 0, maxDrawdown: 0,
-    maxDrawdownDollar: 0, expectancy: 0, avgWin: 0, avgLoss: 0,
-    avgWinLossRatio: 0, totalTrades: 0, winningTrades: 0, losingTrades: 0,
-    avgTradeDurationHours: 0, largestWin: 0, largestLoss: 0,
-    consecutiveWins: 0, consecutiveLosses: 0, maxConsecutiveWins: 0,
-    maxConsecutiveLosses: 0, recoveryFactor: 0, avgLeverage: 1,
-    totalFees: 0, totalFunding: 0, kellyPercentage: 0, varNinetyFive: 0,
-  };
+export interface EquityStats {
+  /** Account value, and a return index (starts at 100) that ignores deposits and withdrawals. */
+  points: Array<{ t: number; equity: number; index: number; drawdownPct: number }>;
+  /** Profit and loss over the period, in dollars. */
+  pnl: number;
+  /** Return over the period with deposits and withdrawals taken out, percent. Null without enough history. */
+  returnPct: number | null;
+  /** Largest fall of the return index from an earlier high, percent. */
+  maxDrawdownPct: number | null;
+  /** Annualised Sharpe ratio from daily returns (risk-free rate 0). Null with fewer than 30 daily returns. */
+  sharpe: number | null;
+  /** Number of daily returns available. */
+  days: number;
+}
+
+export const MIN_DAYS_FOR_SHARPE = 30;
+
+/**
+ * Statistics from the exchange's account history. Each step's return is the
+ * P&L earned in it divided by the account value at its start, so a deposit
+ * does not look like a profit.
+ */
+export function equityStats(history: AccountHistory | null | undefined): EquityStats {
+  const empty: EquityStats = { points: [], pnl: 0, returnPct: null, maxDrawdownPct: null, sharpe: null, days: 0 };
+  if (!history || history.equity.length < 2 || history.pnl.length !== history.equity.length) return empty;
+  const { equity, pnl } = history;
+
+  const points: EquityStats['points'] = [];
+  let index = 100, peak = 100, maxDd = 0, started = false;
+  for (let i = 0; i < equity.length; i++) {
+    if (i > 0 && equity[i - 1].v > 0) { index *= 1 + (pnl[i].v - pnl[i - 1].v) / equity[i - 1].v; started = true; }
+    peak = Math.max(peak, index);
+    const dd = (1 - index / peak) * 100;
+    maxDd = Math.max(maxDd, dd);
+    points.push({ t: equity[i].t, equity: equity[i].v, index, drawdownPct: dd });
+  }
+  if (!started) return { ...empty, points, pnl: pnl[pnl.length - 1].v - pnl[0].v };
+
+  // Daily returns: the last index value of each UTC day.
+  const byDay = new Map<string, number>();
+  for (const p of points) byDay.set(new Date(p.t).toISOString().slice(0, 10), p.index);
+  const daily = [...byDay.values()];
+  const rets = daily.slice(1).map((v, i) => v / daily[i] - 1);
+  let sharpe: number | null = null;
+  if (rets.length >= MIN_DAYS_FOR_SHARPE) {
+    const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+    const sd = Math.sqrt(rets.reduce((a, b) => a + (b - mean) ** 2, 0) / (rets.length - 1));
+    sharpe = sd > 0 ? (mean / sd) * Math.sqrt(365) : null; // crypto trades every day of the year
+  }
+  return { points, pnl: pnl[pnl.length - 1].v - pnl[0].v, returnPct: index - 100, maxDrawdownPct: maxDd, sharpe, days: rets.length };
 }

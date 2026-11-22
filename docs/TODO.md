@@ -7,7 +7,7 @@ Written 2026-11-22 as a handoff for a new working session. Read the "State of th
 
 Live at `https://hl-webhook-trader.vercel.app`. Vercel deploys `master` automatically; every pull
 request gets a preview build. The production database is Supabase project `Trading`
-(ref `famqzrvaivcwjwxohgev`, Tokyo), with migrations `001` to `005` applied.
+(ref `famqzrvaivcwjwxohgev`, Tokyo), with migrations `001` to `006` applied.
 
 | Area | What exists | Where |
 |---|---|---|
@@ -26,7 +26,8 @@ request gets a preview build. The production database is Supabase project `Tradi
 Current settings on the live account: mainnet, a trading key is saved, webhook off, daily strategy
 off, Autopilot **on in paper mode** with shorts allowed. The Autopilot scan is called every
 5 minutes by a `pg_cron` job in Supabase named `hl-autopilot` (Vercel's free plan only allows daily
-crons). `CRON_SECRET` is set in Vercel and embedded in that job.
+crons); the same scan now also looks after limit orders, managed stops and the trade log. A second job,
+`hl-market`, runs the whole-market ideas scan. `CRON_SECRET` is set in Vercel and embedded in that job.
 
 ### What the research found (read before proposing strategies)
 
@@ -39,6 +40,7 @@ checked on data it was not chosen on. Reports are in `backtest/`:
 - `UNIVERSE.md`: the live-eligible rule on 22 coins; cross-coin momentum.
 - `POPULAR.md`: 35 TradingView and indicator strategies with volume and 5-minute data.
 - `AUTOPILOT.md`: evidence behind the live gate.
+- `SUGGESTIONS.md`: the trade ideas replayed over history; no edge after costs.
 
 The consistent pattern: long-only trend rules made money through 2024 and nothing in 2025-2026,
 when the market fell. The only rules profitable in 2025-2026 can go short (90-day cross-coin
@@ -74,142 +76,107 @@ simulated exchange, and read-only calls.
   token can see three unrelated projects; leave them alone.
 - Candle caches in `backtest/data/intraday/` are not committed. `npx tsx backtest/candles.ts`
   downloads them (about 10 minutes, mostly the 5-minute files).
-- To see the UI locally you need a stand-in for Supabase auth and tables. The previous session
-  used a small mock HTTP server and a forged session cookie with Playwright; it was not committed.
-  Consider committing one under `scripts/dev-mock/` (see item 16).
+- To see the UI locally use `scripts/dev-mock/` (mock Supabase, forged session cookie, Playwright screenshots).
 
 ## To-do list
 
-Ordered by recommended priority. Items 1, 2, 6, 8 and 9 were recommended as the first batch.
+Updated 2026-11-22 after a session that worked through all 18 items. What follows is what was built for each,
+and what is still open. The open items are collected first.
 
-### Make manual trading smarter
+### Still open (needs the account owner, or a real exchange)
 
-**1. Size by risk in the trade ticket.**
-Let the user enter the amount to risk (dollars or percent of account) and derive position size
-from the stop distance: `size = risk / stop%`. Show margin, leverage needed and the resulting
-size; cap at max position size and at the market's max leverage. Keep the existing "size in USD"
-mode as an option.
-*Where:* `components/dashboard/TradeTicket.tsx`; reuse `sizeNotional` from `lib/autopilot/risk.ts`.
-*Done when:* changing the stop changes the size so the loss at the stop stays at the entered risk;
-unit test for the sizing maths.
+- **Run the testnet check (item 17).** `npm run testnet:check` with a funded Hyperliquid testnet key places one small
+  position and walks it through every order type the app sends: market entry, stop and target, moving a stop, split
+  targets, a post-only limit entry with attached stop and target, cancel, close, and reading fills. It has **not been
+  run**: no key was available. Nothing live-facing has been placed with a real account yet, and that now includes
+  limit entries, split targets and stop moves.
+- **New order shapes were not signed by the official SDK.** The session could not install the Python SDK to produce
+  reference signatures. The tests show the builders reproduce the two SDK-verified actions exactly and that the new
+  shapes (trigger legs with grouping `na`, `Alo` limit, `normalTpsl`) keep the same field order, but the exchange
+  accepting them is only proven by the testnet check. In particular, confirm how `normalTpsl` children behave on a
+  partial fill, and that open orders are labelled "Stop Market" / "Take Profit Market" (the exits code tells stops
+  from targets by that text).
+- **Alerts are still not delivered.** Telegram needs `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in Vercel; email
+  needs `RESEND_API_KEY` and `ALERT_EMAIL_TO`. Until one is set, health warnings, idea alerts and the daily summary
+  are computed and dropped. Settings shows which channels are configured and has a test button.
+- **WalletConnect** still needs `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`.
+- **An outside uptime monitor** pointed at `/api/health` (returns 503 when something is down) would catch the one case
+  the app cannot report itself: Vercel being unreachable.
+- **The daily BTC strategy does not pass through the portfolio limits.** It rebalances toward a target exposure under
+  its own leverage cap and calls the exchange client directly. It is off and in dry run today.
+- **`react-hooks/set-state-in-effect` is switched off** in `eslint.config.mjs`. Every page loads data in an effect;
+  satisfying the rule means moving to a data-fetching library.
 
-**2. Chart in the ticket and the ideas panel.**
-Candles (hourly, last few days) with support and resistance levels, entry, stop and target drawn
-as lines. Use the existing Recharts dependency or add `lightweight-charts`. Colour-blind-safe
-series colours are defined in `app/globals.css` (`--series-1`, `--series-2`).
-*Where:* new `components/charts/LevelsChart.tsx`; `/api/suggestions` should return the recent
-candles (or add `/api/candles`).
-*Done when:* lines move when the user edits stop/target; readable at phone width.
+### What the new research found
 
-**3. Better exits.**
-(a) Split take-profit: part at target 1, remainder at target 2 or trailing. (b) Move stop to
-break-even after target 1. (c) Trailing stop. Hyperliquid has no native trailing order, so (b) and
-(c) need the 5-minute scan to amend trigger orders; that means a stop only trails as often as the
-scan runs. Say so in the UI.
-*Where:* `lib/hyperliquid/client.ts` (`placeProtectiveOrders` takes one size today),
-`lib/execution.ts`, a position-management pass in the cron route.
-*Done when:* covered by simulated-exchange tests; order wire format checked against the SDK the
-way `tests/signing.test.ts` does.
+- **The trade ideas have no measurable edge.** Replayed over 2021 to 2026 on BTC, ETH and SOL (2,962 ideas), the average
+  result was 0.00% per idea after costs, and -0.06% from 2025 on. See `backtest/SUGGESTIONS.md`. The dashboard says so.
+- **Stops at support/resistance did not beat volatility-only stops.** On identical entries they were slightly worse in
+  all three periods (0.07 percentage points per idea). The level-based placement was kept because nothing shows the
+  alternative is better by a margin that matters, but it should not be described as an improvement.
+- **Volume breakout** passes the gate on BTC/ETH/SOL (long and short: +13% a year since 2023, +9% from 2025) and is
+  `paperOnly`, like MACD trend. Ten variants are now in `evidence.json`; the existing eight are unchanged.
 
-**4. Limit-order entries.**
-Post-only (`Alo`) limit entries from the ticket and from suggestions ("buy at support"). Needs:
-resting-order tracking, expiry/cancel, placing the stop and target once the entry fills (detected
-by the scan), and a list of open orders on the dashboard. Maker fee is 0.015% versus 0.045%.
-*Where:* `lib/hyperliquid/client.ts` (add `placeLimitOrder`), new `pending_orders` table.
-*Done when:* an unfilled order never leaves an orphaned stop; a filled one always gets its stop.
+### Done
 
-**5. Trade ideas across the whole market.**
-Scan every liquid Hyperliquid perp (for example, over $5M daily volume from `/api/markets`),
-rank by score, and alert when a market flips to a long or short read. Each market needs about
-2,430 hourly candles, so cache results (for example a `suggestions_cache` table refreshed by the
-5-minute scan) rather than computing on page load.
-*Where:* `lib/suggestions.ts`, `app/api/cron/autopilot/route.ts` or a new cron route.
+**1. Size by risk.** `lib/sizing.ts`, trade ticket "By amount at risk" (percent or dollars), capped by max position
+size and the market's max leverage; "Size in USD" kept. Tests: the loss at the stop stays at the entered risk.
 
-### Find out what actually works
+**2. Chart.** `components/charts/LevelsChart.tsx` (plain SVG) in the ticket and in each expanded idea: hourly candles,
+support/resistance, entry, stop, targets. Lines follow edits. `/api/candles`.
 
-**6. Scorecard for suggestions.**
-Neither the long/short reads nor the stop/target placement has been tested. Record each
-suggestion when it is shown (market, time, bias, score, stop, target, basis) and resolve it later
-from candles: did price hit the target or the stop first, and what was the return after 1, 3 and
-7 days. Show hit rate and average result by bias, by strength, and by stop basis (level versus
-volatility). Also run it historically: replay `buildSuggestion` over cached candles so there is a
-backtest without waiting weeks.
-*Where:* new `backtest/suggestions.ts`, new `suggestion_log` table, a panel on the dashboard or Lab.
-*Done when:* the report states plainly whether level-based stops beat volatility-only stops.
+**3. Better exits.** `lib/exits.ts`: split take-profit, break-even after target 1, trailing stop. Orders rest on the
+exchange; the five-minute scan moves the stop (new one placed before the old one is cancelled) and the UI says so.
+Table `position_plans`. Simulated-exchange tests in `tests/upgrades.test.ts`.
 
-**7. Trade journal.**
-Tag each manual trade automatically (followed the read, against the read, no read; used the
-suggested stop or changed it) and allow a free-text note. Show results by tag.
-*Where:* `trades.webhook_payload` can carry the tags for manual trades, or add columns;
-`app/api/trade/route.ts`; Trades and Analytics pages.
+**4. Limit entries.** `lib/pending.ts`, `placeLimitEntry` in the client, table `pending_orders`, "Open orders and exit
+plans" panel, `/api/orders`. Stop and target are children of the entry (`normalTpsl`); the scan re-checks both rules
+on every pass. Simple stop and target only: managed exits are for market entries.
 
-**8. True profit per trade.**
-Pull fees, funding and realised P&L from Hyperliquid (`userFillsByTime`, `userFunding`) and store
-them on the trade row (`fees`, `funding_paid` columns already exist and are always 0). The fills
-response shape was taken from documentation and never confirmed against an account with recent
-fills; verify it first.
-*Where:* `lib/hyperliquid/public.ts`, `lib/trade-records.ts`, a sync step in the scan.
+**5. Whole-market ideas.** `lib/market-scan.ts`, `/api/cron/market`, table `suggestions_cache`. Markets over $5M daily
+volume (60 at most), 12 refreshed per run. Alerts when a read turns long or short.
 
-**9. Fix the Analytics page.**
-Sharpe is computed on per-trade dollar P&L and annualised with sqrt(252); Calmar and drawdown
-percent are measured against cumulative P&L instead of account equity. Rebuild the page on the
-exchange's account-value history (`getAccountTruth` in `lib/hyperliquid/public.ts`) and net
-per-trade figures from item 8. Remove any metric that cannot be computed honestly.
-*Where:* `lib/analytics.ts`, `app/(dashboard)/analytics/page.tsx`.
+**6. Scorecard.** Live: table `suggestion_log`, scored by the market scan. Historical: `npm run backtest:suggestions`.
+Panel on the dashboard under the ideas.
 
-### Protect the account
+**7. Journal.** `lib/journal.ts`: tags in `trades.webhook_payload.journal`, optional note in the ticket, results by
+tag on Analytics, tag shown on the Trades page.
 
-**10. Portfolio-level limits.**
-A cap on total exposure across all positions and a daily loss limit that applies to manual and
-webhook trades as well as the Autopilot. BTC, ETH and SOL move together, so count correlated
-positions as one risk (simplest version: cap gross exposure as a multiple of equity).
-*Where:* `lib/autopilot/risk.ts` generalised; enforced in `lib/execution.ts` so every entry path
-passes through it.
+**8. True profit per trade.** `lib/reconcile.ts`: fees, funding and realised P&L per trade from `userFillsByTime` and
+`userFunding`. Response shapes were confirmed against live mainnet accounts. Columns `exchange_pnl`, `net_pnl`,
+`fills_synced_at`. Not yet seen working on this account, which has no fills.
 
-**11. Keep records in step with the exchange.**
-Webhook and manual trade rows stay "open" if the stop is hit or the position is closed on
-Hyperliquid directly. Reconcile on each scan: compare open rows with exchange positions and
-settle the missing ones from fills (the Autopilot already does a rough version for its own
-positions in `lib/autopilot/run.ts`).
+**9. Analytics.** Rebuilt on the exchange's account-value history: return (deposits excluded), drawdown on equity,
+Sharpe from daily returns only with 30 or more of them. Sortino, Calmar, recovery factor, Kelly and VaR removed.
 
-**12. Alerts and a daily summary.**
-Telegram needs `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in Vercel (the user must create the
-bot). Add a once-a-day summary: account value, day's P&L, open positions, what the Autopilot did.
-Consider email as a second channel.
+**10. Portfolio limits.** `lib/risk/portfolio.ts`, enforced inside `openPosition` and `placeLimitEntry`. Gross
+exposure cap (default 3x) and account daily loss limit (default 5%), editable in Settings.
 
-**13. Health monitoring.**
-The database was found paused on 2026-11-22, which had silently broken login and webhooks. Add a
-check that the webhook, the scan and the database are responding, and alert when the last
-Autopilot scan is older than about 20 minutes. The 5-minute `pg_cron` job probably keeps the
-project active now, but that is not confirmed.
+**11. Reconcile.** Same module as item 8: open rows with no position behind them are settled from the exchange's
+closing fills, or at the current price with a note when no fill is found.
 
-### Carry-overs
+**12. Alerts and daily summary.** Email channel added (`lib/notify.ts`); summary in `lib/upkeep.ts`. Needs a channel
+configured (see above).
 
-**14. Volume-confirmed breakout as a paper strategy.**
-20-day high (or low, for shorts) on volume above 1.5 times its 20-day average; exit on the
-opposite 10-day extreme. Survived the holdout in `POPULAR.md` (long and short). The Autopilot reads
-hourly candles without volume today; add volume to `getHourlyCandles` and daily aggregation to
-`computeIndicators`, mark it `paperOnly`.
+**13. Health.** `lib/health.ts`, table `system_health`, `/api/health`, banner on the dashboard. Each scan records a
+heartbeat and alerts about the other after 20 minutes; the daily Vercel cron checks both and the database.
 
-**15. Paper record versus backtest.**
-On the Autopilot page, chart each strategy's paper equity against what the backtest predicted for
-the same dates, so drift is visible early.
+**14. Volume breakout.** `volume_breakout` in `lib/autopilot/strategies.ts`, with daily bars and volume added to the
+indicators. Paper only.
 
-**16. Commit a local preview harness.**
-A mock Supabase server and a Playwright screenshot script under `scripts/dev-mock/`, so UI changes
-can be checked without production credentials. Never add an auth bypass to the app itself.
+**15. Paper versus backtest.** `lib/autopilot/drift.ts`, `/api/autopilot/drift`, chart on the Autopilot page. The
+simulator moved to `lib/autopilot/simulate.ts` so the backtest and the comparison share it.
 
-**17. Live-mode test on testnet.**
-Before any real money: connect a wallet on Hyperliquid testnet, place a manual trade with stop
-and target, close it, run the Autopilot in live mode there, and use the kill switch. Fix whatever
-the first real orders reveal.
+**16. Preview harness.** `scripts/dev-mock/`: mock Supabase, screenshots of every page, and `ticket.mjs`, which walks
+idea to ticket using made-up long and short reads.
 
-**18. Smaller items.**
-- The 5-minute scan runs strategies on completed hourly candles; the stale-scan warning on the
-  Autopilot page uses a 20-minute threshold.
-- `eslint-config-next` is pinned to 14 while Next is 16.
-- `middleware.ts` uses the deprecated name; Next 16 prefers `proxy.ts`.
-- WalletConnect needs `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`; without it only in-wallet browsers
-  work.
-- One-click path from a trade idea to the ticket has not been exercised with a real long/short
-  read.
+**17. Testnet.** Script written, not run (see above).
+
+**18. Smaller items.** `eslint-config-next` 16 with ESLint 9 and a flat config; `middleware.ts` renamed `proxy.ts`;
+the idea-to-ticket path exercised in the harness (which found and fixed a bug: a slow reply for the watched list could
+overwrite the whole-market list).
+
+### Database and scheduling
+
+Migration `006_trading_upgrades.sql` adds everything above. A second `pg_cron` job, `hl-market`, calls
+`/api/cron/market` every five minutes.

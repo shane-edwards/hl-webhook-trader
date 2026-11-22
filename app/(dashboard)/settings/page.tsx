@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { generateWebhookSecret } from '@/lib/utils';
 import { StrategyCard } from '@/components/settings/StrategyCard';
 import { WalletCard } from '@/components/settings/WalletCard';
+import { PortfolioLimitsCard } from '@/components/settings/PortfolioLimitsCard';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -400,6 +401,8 @@ export default function SettingsPage() {
             )}
           </Button>
         </div>
+
+        {settings && <PortfolioLimitsCard settings={settings} onSaved={setSettings} />}
 
         {settings && <StrategyCard settings={settings} onSaved={setSettings} />}
       </div>

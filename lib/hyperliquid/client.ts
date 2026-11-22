@@ -9,7 +9,7 @@ import type {
   HyperliquidConfig,
   ExchangeResponse,
 } from './types';
-import { formatPrice, formatSize } from './format';
+import { limitOrderWire, orderAction, triggerOrderWire, type Grouping, type OrderWire } from './orders';
 import { signL1Action } from './signing';
 
 const MAINNET_URL = 'https://api.hyperliquid.xyz';
@@ -42,6 +42,10 @@ export class HyperliquidClient {
   /** The account whose balance and positions are traded. */
   get address(): string {
     return this.accountAddress;
+  }
+
+  get isTestnet(): boolean {
+    return !this.isMainnet;
   }
 
   private async infoRequest<T>(body: unknown): Promise<T> {
@@ -173,18 +177,23 @@ export class HyperliquidClient {
       .map(c => ({ time: c.t, close: parseFloat(c.c) }));
   }
 
-  /** Completed hourly candles, oldest first. The candle still forming is dropped. */
-  async getHourlyCandles(coin: string, count: number): Promise<Array<{ t: number; o: number; h: number; l: number; c: number }>> {
+  /** Completed hourly candles with volume (in coins), oldest first. The candle still forming is dropped. */
+  async getHourlyCandles(coin: string, count: number): Promise<Array<{ t: number; o: number; h: number; l: number; c: number; v: number }>> {
     const endTime = Date.now();
-    const startTime = endTime - (count + 2) * 3_600_000;
-    const raw = await this.infoRequest<Array<{ t: number; T: number; o: string; h: string; l: string; c: string }>>({
+    return this.getCandles(coin, '1h', endTime - (count + 2) * 3_600_000, endTime);
+  }
+
+  /** Completed candles between two times, oldest first. The exchange returns at most 5,000 per call. */
+  async getCandles(coin: string, interval: '5m' | '15m' | '1h' | '4h' | '1d', startTime: number, endTime = Date.now()): Promise<Array<{ t: number; o: number; h: number; l: number; c: number; v: number }>> {
+    const now = Date.now();
+    const raw = await this.infoRequest<Array<{ t: number; T: number; o: string; h: string; l: string; c: string; v?: string }>>({
       type: 'candleSnapshot',
-      req: { coin: coin.toUpperCase(), interval: '1h', startTime, endTime },
+      req: { coin: coin.toUpperCase(), interval, startTime, endTime },
     });
     return (raw ?? [])
-      .filter(c => c.T < endTime)
+      .filter(c => c.T < now)
       .sort((x, y) => x.t - y.t)
-      .map(c => ({ t: c.t, o: parseFloat(c.o), h: parseFloat(c.h), l: parseFloat(c.l), c: parseFloat(c.c) }));
+      .map(c => ({ t: c.t, o: parseFloat(c.o), h: parseFloat(c.h), l: parseFloat(c.l), c: parseFloat(c.c), v: parseFloat(c.v ?? '0') }));
   }
 
   async setLeverage(coin: string, leverage: number, isCross = true): Promise<void> {
@@ -223,17 +232,11 @@ export class HyperliquidClient {
     const { coin, isBuy, size, reduceOnly, slippagePercent = 2 } = params;
     const [{ index, meta }, markPrice] = await Promise.all([this.getAsset(coin), this.getMarkPrice(coin)]);
 
-    const sizeStr = formatSize(size, meta.szDecimals);
-    if (parseFloat(sizeStr) === 0) throw new Error('Order size too small for this asset');
-
     const slipFactor = isBuy ? 1 + slippagePercent / 100 : 1 - slippagePercent / 100;
-    const limitPx = formatPrice(markPrice * slipFactor, meta.szDecimals);
+    const wire = limitOrderWire(index, meta.szDecimals, isBuy, markPrice * slipFactor, size, 'Ioc', reduceOnly);
+    if (parseFloat(wire.s) === 0) throw new Error('Order size too small for this asset');
 
-    const result = await this.sendAction({
-      type: 'order',
-      orders: [{ a: index, b: isBuy, p: limitPx, s: sizeStr, r: reduceOnly, t: { limit: { tif: 'Ioc' } } }],
-      grouping: 'na',
-    });
+    const result = await this.sendAction(orderAction([wire], 'na'));
 
     if (result.status !== 'ok' || typeof result.response !== 'object') {
       throw new Error(`Order rejected: ${JSON.stringify(result.response ?? result)}`);
@@ -276,39 +279,102 @@ export class HyperliquidClient {
     takeProfitPx?: number;
   }): Promise<{ stopLossOid: string | null; takeProfitOid: string | null }> {
     const { coin, side, size, stopLossPx, takeProfitPx } = params;
+    const legs: TriggerLeg[] = [];
+    if (stopLossPx != null) legs.push({ kind: 'sl', triggerPx: stopLossPx, size });
+    if (takeProfitPx != null) legs.push({ kind: 'tp', triggerPx: takeProfitPx, size });
+    if (legs.length === 0) return { stopLossOid: null, takeProfitOid: null };
+    const oids = await this.placeTriggerOrders({ coin, side, legs, grouping: 'positionTpsl' });
+    return {
+      stopLossOid: stopLossPx != null ? oids[0] : null,
+      takeProfitOid: takeProfitPx != null ? oids[legs.length - 1] : null,
+    };
+  }
+
+  /**
+   * Places reduce-only stop / target orders, each with its own size. With
+   * grouping "na" the sizes are fixed (used for split targets); a reduce-only
+   * order can never grow or flip the position, so a stop sized for the whole
+   * position stays safe after part of it has been taken off.
+   * Returns one order id per leg, in order (null if the exchange gave none).
+   */
+  async placeTriggerOrders(params: { coin: string; side: 'long' | 'short'; legs: TriggerLeg[]; grouping: Grouping }): Promise<Array<string | null>> {
+    const { coin, side, legs, grouping } = params;
     const { index, meta } = await this.getAsset(coin);
-    const closeIsBuy = side === 'short';
-    const sizeStr = formatSize(size, meta.szDecimals);
-    if (parseFloat(sizeStr) === 0) throw new Error('Protective order size too small for this asset');
-
-    const build = (triggerPx: number, tpsl: 'sl' | 'tp') => ({
-      a: index,
-      b: closeIsBuy,
-      // Worst price the triggered market order may fill at: 10% through the trigger.
-      p: formatPrice(triggerPx * (closeIsBuy ? 1.1 : 0.9), meta.szDecimals),
-      s: sizeStr,
-      r: true,
-      t: { trigger: { isMarket: true, triggerPx: formatPrice(triggerPx, meta.szDecimals), tpsl } },
+    const wires = legs.map(l => {
+      const w = triggerOrderWire(index, meta.szDecimals, side, l.triggerPx, l.size, l.kind);
+      if (parseFloat(w.s) === 0) throw new Error('Protective order size too small for this asset');
+      return w;
     });
-    const kinds: Array<'sl' | 'tp'> = [];
-    const orders = [];
-    if (stopLossPx != null) { orders.push(build(stopLossPx, 'sl')); kinds.push('sl'); }
-    if (takeProfitPx != null) { orders.push(build(takeProfitPx, 'tp')); kinds.push('tp'); }
-    if (orders.length === 0) return { stopLossOid: null, takeProfitOid: null };
+    const statuses = await this.sendOrders(wires, grouping, 'Protective orders');
+    return legs.map((l, i) => {
+      const st = statuses[i];
+      if (st && typeof st === 'object' && st.error) throw new Error(`${l.kind === 'sl' ? 'Stop-loss' : 'Take-profit'} rejected: ${st.error}`);
+      return st && typeof st === 'object' && st.resting ? String(st.resting.oid) : null;
+    });
+  }
 
-    const result = await this.sendAction({ type: 'order', orders, grouping: 'positionTpsl' });
+  private async sendOrders(orders: OrderWire[], grouping: Grouping, what: string) {
+    const result = await this.sendAction(orderAction(orders, grouping));
     if (result.status !== 'ok' || typeof result.response !== 'object') {
-      throw new Error(`Protective orders rejected: ${JSON.stringify(result.response ?? result)}`);
+      throw new Error(`${what} rejected: ${JSON.stringify(result.response ?? result)}`);
     }
-    const statuses = result.response.data?.statuses ?? [];
-    const out: { stopLossOid: string | null; takeProfitOid: string | null } = { stopLossOid: null, takeProfitOid: null };
-    kinds.forEach((kind, i) => {
-      const st = statuses[i] as { error?: string; resting?: { oid: number } } | string | undefined;
-      if (st && typeof st === 'object' && st.error) throw new Error(`${kind === 'sl' ? 'Stop-loss' : 'Take-profit'} rejected: ${st.error}`);
-      const oid = st && typeof st === 'object' && st.resting ? String(st.resting.oid) : null;
-      if (kind === 'sl') out.stopLossOid = oid; else out.takeProfitOid = oid;
+    return (result.response.data?.statuses ?? []) as Array<{ error?: string; resting?: { oid: number }; filled?: { totalSz: string; avgPx: string; oid: number } } | string | undefined>;
+  }
+
+  /**
+   * Rests a post-only limit order (it is rejected rather than taking liquidity,
+   * so it always pays the maker fee). When a stop or target is given they are
+   * sent as children of the entry (normalTpsl): the exchange only activates
+   * them once the entry fills and cancels them with it, so an unfilled entry
+   * cannot leave a stop behind.
+   */
+  async placeLimitEntry(params: {
+    coin: string; isBuy: boolean; size: number; price: number; leverage: number;
+    stopLossPx?: number; takeProfitPx?: number;
+  }): Promise<{ oid: string; size: number; price: number }> {
+    const { coin, isBuy, size, price, leverage, stopLossPx, takeProfitPx } = params;
+    const { index, meta } = await this.getAsset(coin);
+    const entry = limitOrderWire(index, meta.szDecimals, isBuy, price, size, 'Alo');
+    if (parseFloat(entry.s) === 0) throw new Error('Order size too small for this asset');
+    if (parseFloat(entry.s) * parseFloat(entry.p) < MIN_ORDER_USD) throw new Error(`Order size must be at least $${MIN_ORDER_USD}`);
+    await this.setLeverage(coin, leverage);
+
+    const side = isBuy ? 'long' as const : 'short' as const;
+    const orders = [entry];
+    if (stopLossPx != null) orders.push(triggerOrderWire(index, meta.szDecimals, side, stopLossPx, parseFloat(entry.s), 'sl'));
+    if (takeProfitPx != null) orders.push(triggerOrderWire(index, meta.szDecimals, side, takeProfitPx, parseFloat(entry.s), 'tp'));
+    const statuses = await this.sendOrders(orders, orders.length > 1 ? 'normalTpsl' : 'na', 'Limit order');
+    for (const st of statuses) if (st && typeof st === 'object' && st.error) throw new Error(`Limit order rejected: ${st.error}`);
+    const first = statuses[0];
+    const oid = first && typeof first === 'object' ? first.resting?.oid ?? first.filled?.oid : undefined;
+    if (oid == null) throw new Error(`Limit order gave no order id: ${JSON.stringify(statuses)}`);
+    return { oid: String(oid), size: parseFloat(entry.s), price: parseFloat(entry.p) };
+  }
+
+  /** Where an order stands. `filledSize` is what has filled so far, in coins. */
+  async getOrderStatus(oid: string): Promise<{ status: string; filledSize: number; originalSize: number; limitPx: number } | null> {
+    const raw = await this.infoRequest<{ status: string; order?: { status: string; order: { sz: string; origSz: string; limitPx: string } } }>({
+      type: 'orderStatus', user: this.address, oid: Number(oid),
     });
-    return out;
+    if (raw.status !== 'order' || !raw.order) return null;
+    const o = raw.order.order;
+    const originalSize = parseFloat(o.origSz), remaining = parseFloat(o.sz);
+    // For a filled order `sz` is 0; for a cancelled one it is what never filled.
+    return { status: raw.order.status, filledSize: Math.max(0, originalSize - remaining), originalSize, limitPx: parseFloat(o.limitPx) };
+  }
+
+  async cancelOrders(coin: string, oids: Array<string | number>): Promise<void> {
+    if (oids.length === 0) return;
+    const { index } = await this.getAsset(coin);
+    const result = await this.sendAction({ type: 'cancel', cancels: oids.map(o => ({ a: index, o: Number(o) })) });
+    if (result.status !== 'ok') throw new Error(`Cancel failed: ${JSON.stringify(result.response ?? result)}`);
+  }
+
+  /** Cancels the stop-loss / take-profit orders on a coin, leaving resting limit entries alone. */
+  async cancelProtectiveOrders(coin: string): Promise<number> {
+    const orders = (await this.getOpenOrders(coin)).filter(o => o.isTrigger && o.reduceOnly);
+    await this.cancelOrders(coin, orders.map(o => o.oid));
+    return orders.length;
   }
 
   /** Open orders for a coin, including untriggered stop-loss / take-profit orders. */
@@ -378,6 +444,8 @@ export class HyperliquidClient {
     return { fillPrice: notional / filledSize, filledSize, side: position.side, fullyClosed: remaining <= dust };
   }
 }
+
+export interface TriggerLeg { kind: 'sl' | 'tp'; triggerPx: number; /** Coins. */ size: number }
 
 export function createHLClient(config: HyperliquidConfig): HyperliquidClient {
   return new HyperliquidClient(config);
