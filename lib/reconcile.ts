@@ -10,6 +10,9 @@ import { closeOpenTrades } from '@/lib/trade-records';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any, any, any>;
 
+/** Note written on rows cancelled because the exchange shows neither a position nor a closing fill. */
+export const NO_FILL_NOTE = 'No position and no closing fill found on the exchange; cancelled without a profit or loss';
+
 const isClosing = (f: Fill) => /^Close|>/.test(f.dir) || f.closedPnl !== 0;
 
 /**
@@ -101,10 +104,14 @@ export async function syncAccount(hl: HyperliquidClient, db: Db, userId: string,
         result.settled.push(...ids);
         result.notes.push(`${symbol}: position closed on the exchange at about ${exit.price.toPrecision(6)}; ${ids.length} trade record${ids.length === 1 ? '' : 's'} settled`);
       } else if (!truncated) {
-        const mark = await hl.getMarkPrice(symbol);
-        const ids = await closeOpenTrades(db, userId, symbol, mark, 'No position and no closing fill found on the exchange; exit price is the current price, so the P&L is approximate');
-        result.settled.push(...ids);
-        result.notes.push(`${symbol}: no position on the exchange and no closing fill found; ${ids.length} record${ids.length === 1 ? '' : 's'} closed at the current price`);
+        // No position and no closing fill in the exchange's history: there is no honest exit price, so
+        // the rows are cancelled without a profit or loss rather than closed at a price nobody traded at.
+        const stamp = new Date(now).toISOString();
+        const { data: cancelled } = await db.from('trades')
+          .update({ status: 'cancelled', exit_time: stamp, notes: NO_FILL_NOTE, updated_at: stamp })
+          .eq('user_id', userId).eq('symbol', symbol).eq('status', 'open').select('id');
+        const n = cancelled?.length ?? rows.length;
+        result.notes.push(`${symbol}: ${n} open trade record${n === 1 ? '' : 's'} had no position and no closing fill on the exchange; marked cancelled with no profit or loss`);
       }
     }
 

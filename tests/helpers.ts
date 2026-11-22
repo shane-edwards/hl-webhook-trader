@@ -26,7 +26,7 @@ export function memoryDb(seed: Record<string, Row[]> = {}) {
     };
     const add = (f: (r: Row) => boolean) => { filters.push(f); return q; };
     const q: Record<string, unknown> = {
-      select: () => q,
+      select: () => { if (op === 'update') { const r = exec(); inserted = r.data; op = 'select'; } return q; },
       eq: (k: string, v: unknown) => add(r => r[k] === v),
       is: (k: string, v: unknown) => add(r => (r[k] ?? null) === v),
       in: (k: string, v: unknown[]) => add(r => v.includes(r[k])),
