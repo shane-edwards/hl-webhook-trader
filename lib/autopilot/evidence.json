@@ -11,16 +11,17 @@
       "id": "trend_pullback",
       "allowShort": false,
       "liveEligible": false,
+      "gatePassed": false,
       "early": {
-        "annualReturn": -0.014074800302359747,
-        "sharpe": 0.07038046058414517,
-        "maxDrawdown": 0.27401613650650736,
-        "tradesPerYear": 65.81463317976916,
-        "winRate": 0.3824175824175824,
-        "avgGrossBps": 6.163070665037201,
-        "avgNetBps": -10.446126885053507,
-        "profitFactor": 0.9463107464779595,
-        "trades": 455
+        "annualReturn": -0.03748707066640633,
+        "sharpe": -0.015731271471962037,
+        "maxDrawdown": 0.2740161365065109,
+        "tradesPerYear": 68.24418416365305,
+        "winRate": 0.3833718244803695,
+        "avgGrossBps": 7.495089679477355,
+        "avgNetBps": -9.092734286125134,
+        "profitFactor": 0.9533886824933336,
+        "trades": 433
       },
       "late": {
         "annualReturn": -0.08394149763170655,
@@ -49,16 +50,17 @@
       "id": "trend_pullback",
       "allowShort": true,
       "liveEligible": false,
+      "gatePassed": false,
       "early": {
-        "annualReturn": -0.13069346024525286,
-        "sharpe": -0.21571871321649796,
+        "annualReturn": -0.09687414340047451,
+        "sharpe": -0.09937198936259918,
         "maxDrawdown": 0.47347629508421407,
-        "tradesPerYear": 128.88096299598752,
-        "winRate": 0.39057239057239057,
-        "avgGrossBps": 0.11677210106871917,
-        "avgNetBps": -15.141648709318192,
-        "profitFactor": 0.9200481447400237,
-        "trades": 891
+        "tradesPerYear": 129.86884007124738,
+        "winRate": 0.3932038834951456,
+        "avgGrossBps": 4.685579871364614,
+        "avgNetBps": -10.704774443189237,
+        "profitFactor": 0.9416222454132259,
+        "trades": 824
       },
       "late": {
         "annualReturn": -0.08708742008243042,
@@ -87,16 +89,17 @@
       "id": "trend_breakout",
       "allowShort": false,
       "liveEligible": true,
+      "gatePassed": true,
       "early": {
-        "annualReturn": 0.5452335615500199,
-        "sharpe": 1.2969735887630092,
-        "maxDrawdown": 0.2641200082013484,
-        "tradesPerYear": 51.20523108931491,
-        "winRate": 0.3700564971751412,
-        "avgGrossBps": 167.1757647525379,
-        "avgNetBps": 133.924324933805,
-        "profitFactor": 1.6870761803333854,
-        "trades": 354
+        "annualReturn": 0.6449411517131569,
+        "sharpe": 1.4438508419843434,
+        "maxDrawdown": 0.2641200082013494,
+        "tradesPerYear": 52.48340260160847,
+        "winRate": 0.37537537537537535,
+        "avgGrossBps": 178.72117155537788,
+        "avgNetBps": 143.47795870158893,
+        "profitFactor": 1.7465144497556533,
+        "trades": 333
       },
       "late": {
         "annualReturn": 0.1948764087122603,
@@ -125,16 +128,17 @@
       "id": "trend_breakout",
       "allowShort": true,
       "liveEligible": false,
+      "gatePassed": false,
       "early": {
-        "annualReturn": 0.30769202261215245,
-        "sharpe": 0.7464671229035086,
-        "maxDrawdown": 0.38790225614015306,
-        "tradesPerYear": 103.42299499678012,
-        "winRate": 0.32727272727272727,
-        "avgGrossBps": 82.98780968149168,
-        "avgNetBps": 55.01738473348241,
-        "profitFactor": 1.2565270430774307,
-        "trades": 715
+        "annualReturn": 0.3520486706136545,
+        "sharpe": 0.7982756262257975,
+        "maxDrawdown": 0.38790225614015283,
+        "tradesPerYear": 105.28202083445781,
+        "winRate": 0.3278443113772455,
+        "avgGrossBps": 80.232486973897,
+        "avgNetBps": 52.3120590349359,
+        "profitFactor": 1.2471445720577716,
+        "trades": 668
       },
       "late": {
         "annualReturn": 0.03735203899302597,
@@ -163,16 +167,17 @@
       "id": "momentum_burst",
       "allowShort": false,
       "liveEligible": false,
+      "gatePassed": false,
       "early": {
-        "annualReturn": 0.005564453840662065,
-        "sharpe": 0.11921352482845506,
-        "maxDrawdown": 0.1892672715794691,
-        "tradesPerYear": 96.91385545152822,
-        "winRate": 0.47313432835820896,
-        "avgGrossBps": 16.15233569717171,
-        "avgNetBps": 0.6928200186002657,
-        "profitFactor": 1.0068671070889812,
-        "trades": 670
+        "annualReturn": 0.03593152004602729,
+        "sharpe": 0.28779481435321336,
+        "maxDrawdown": 0.18926727157946954,
+        "tradesPerYear": 100.0809629189831,
+        "winRate": 0.47086614173228347,
+        "avgGrossBps": 12.98099938213667,
+        "avgNetBps": -2.5123042388695955,
+        "profitFactor": 0.9753179865627444,
+        "trades": 635
       },
       "late": {
         "annualReturn": -0.1309720153385605,
@@ -201,16 +206,17 @@
       "id": "momentum_burst",
       "allowShort": true,
       "liveEligible": false,
+      "gatePassed": false,
       "early": {
-        "annualReturn": -0.18641681426125478,
-        "sharpe": -0.6955286738891863,
-        "maxDrawdown": 0.5024559811279006,
-        "tradesPerYear": 189.48828453955517,
-        "winRate": 0.4351145038167939,
-        "avgGrossBps": 2.2077767204302376,
-        "avgNetBps": -12.761998773521,
-        "profitFactor": 0.8821626091262227,
-        "trades": 1310
+        "annualReturn": -0.1846458322442306,
+        "sharpe": -0.6876771896759932,
+        "maxDrawdown": 0.4643265552115581,
+        "tradesPerYear": 191.17828034760078,
+        "winRate": 0.4319868095630668,
+        "avgGrossBps": 0.5178254095692443,
+        "avgNetBps": -14.422539509743542,
+        "profitFactor": 0.8650988959473594,
+        "trades": 1213
       },
       "late": {
         "annualReturn": -0.24585028816667054,
@@ -233,6 +239,84 @@
         "avgNetBps": -7.372560370892887,
         "profitFactor": 0.8939484413852566,
         "trades": 961
+      }
+    },
+    {
+      "id": "macd_trend",
+      "allowShort": false,
+      "liveEligible": false,
+      "gatePassed": true,
+      "early": {
+        "annualReturn": 0.44162418929593095,
+        "sharpe": 1.1852374725905133,
+        "maxDrawdown": 0.32107264309719596,
+        "tradesPerYear": 52.641010417228905,
+        "winRate": 0.38023952095808383,
+        "avgGrossBps": 115.13281677230673,
+        "avgNetBps": 98.63262825368804,
+        "profitFactor": 1.511687662182237,
+        "trades": 334
+      },
+      "late": {
+        "annualReturn": 0.1751493729419702,
+        "sharpe": 0.8542245055533795,
+        "maxDrawdown": 0.22142898005301082,
+        "tradesPerYear": 42.10921241609755,
+        "winRate": 0.30691056910569103,
+        "avgGrossBps": 72.73414753119711,
+        "avgNetBps": 43.878361442061774,
+        "profitFactor": 1.3172375608409361,
+        "trades": 492
+      },
+      "recent": {
+        "annualReturn": 0.08582844350812135,
+        "sharpe": 0.5670762450736597,
+        "maxDrawdown": 0.16156338409420246,
+        "tradesPerYear": 36.64534813563412,
+        "winRate": 0.2644230769230769,
+        "avgGrossBps": 50.752696165878554,
+        "avgNetBps": 26.457784155786516,
+        "profitFactor": 1.210325245570129,
+        "trades": 208
+      }
+    },
+    {
+      "id": "macd_trend",
+      "allowShort": true,
+      "liveEligible": false,
+      "gatePassed": true,
+      "early": {
+        "annualReturn": 0.19612054867675965,
+        "sharpe": 0.6059529283799334,
+        "maxDrawdown": 0.5355932739092473,
+        "tradesPerYear": 97.71684568467641,
+        "winRate": 0.3370967741935484,
+        "avgGrossBps": 49.654389842955,
+        "avgNetBps": 34.98647242242984,
+        "profitFactor": 1.1662920301331958,
+        "trades": 620
+      },
+      "late": {
+        "annualReturn": 0.11018904906225124,
+        "sharpe": 0.4826801327521963,
+        "maxDrawdown": 0.4547437710377814,
+        "tradesPerYear": 79.42550634581,
+        "winRate": 0.3168103448275862,
+        "avgGrossBps": 41.98665908907352,
+        "avgNetBps": 19.89928672443116,
+        "profitFactor": 1.1411538360893554,
+        "trades": 928
+      },
+      "recent": {
+        "annualReturn": 0.21839400493954697,
+        "sharpe": 0.7447644323927191,
+        "maxDrawdown": 0.3647088466006525,
+        "tradesPerYear": 78.92844213828889,
+        "winRate": 0.32589285714285715,
+        "avgGrossBps": 51.59018741976766,
+        "avgNetBps": 32.55322264412824,
+        "profitFactor": 1.2384367583155789,
+        "trades": 448
       }
     }
   ]

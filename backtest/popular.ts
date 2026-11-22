@@ -1,39 +1,17 @@
 // Strategies taken from TradingView's public community scripts, plus the most
 // widely used indicator strategies, tested the same way as everything else.
-//   npm run backtest:popular     (needs the hourly data: run backtest:universe first)
+//   npm run backtest:popular     (downloads candles with volume on first run)
 //
 // Each rule runs on every coin of the fixed mid-2020 universe with equal
 // capital per coin, at 1x, with fees, slippage, funding and intrabar stops.
 // TRAIN 2020-07 → 2022, VALIDATE 2023 → 2024, HOLDOUT 2025 → today.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { aggregate, loadBars, MAJORS, UNIVERSE, type Bars } from './candles';
 
-const DIR = join(process.cwd(), 'backtest', 'data', 'intraday');
-const UNIVERSE = ['BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'BNB', 'EOS', 'XLM', 'ADA', 'TRX', 'LINK', 'XTZ', 'ATOM', 'ETC', 'DOGE', 'DASH', 'ZEC', 'NEO', 'IOTA', 'VET', 'ALGO', 'SOL'];
 const T0 = Date.UTC(2020, 6, 1), TRAIN_END = Date.UTC(2023, 0, 1), VALID_END = Date.UTC(2025, 0, 1);
 const COST = 0.00065, STOP_SLIP = 0.0005, FUNDING_PER_DAY = 0.0003;
 const HOUR = 3_600_000;
-
-interface Bars { t: number[]; o: number[]; h: number[]; l: number[]; c: number[]; ms: number }
-
-function read(coin: string, tf: '1h' | '15m'): Bars | null {
-  const file = join(DIR, `${coin.toLowerCase()}-${tf}.csv`);
-  if (!existsSync(file)) return null;
-  const b: Bars = { t: [], o: [], h: [], l: [], c: [], ms: tf === '1h' ? HOUR : HOUR / 4 };
-  for (const line of readFileSync(file, 'utf8').trim().split('\n')) { const [t, o, h, l, c] = line.split(',').map(Number); b.t.push(t); b.o.push(o); b.h.push(h); b.l.push(l); b.c.push(c); }
-  return b;
-}
-/** Merge hourly bars into `hours`-hour bars aligned to UTC. Incomplete groups are dropped. */
-function aggregate(src: Bars, hours: number): Bars {
-  const ms = hours * HOUR, out: Bars = { t: [], o: [], h: [], l: [], c: [], ms };
-  let k = -1, n = 0;
-  for (let i = 0; i < src.t.length; i++) {
-    const bucket = Math.floor(src.t[i] / ms) * ms;
-    if (k < 0 || out.t[k] !== bucket) { if (k >= 0 && n < hours) { out.t.pop(); out.o.pop(); out.h.pop(); out.l.pop(); out.c.pop(); k--; } out.t.push(bucket); out.o.push(src.o[i]); out.h.push(src.h[i]); out.l.push(src.l[i]); out.c.push(src.c[i]); k++; n = 1; }
-    else { out.h[k] = Math.max(out.h[k], src.h[i]); out.l[k] = Math.min(out.l[k], src.l[i]); out.c[k] = src.c[i]; n++; }
-  }
-  return out;
-}
 
 // ---- indicators (value at i uses bars up to and including i) ----
 const sma = (x: number[], n: number) => { const o = new Array(x.length).fill(NaN); let s = 0; for (let i = 0; i < x.length; i++) { s += x[i]; if (i >= n) s -= x[i - n]; if (i >= n - 1) o[i] = s / n; } return o; };
@@ -101,7 +79,7 @@ function ladder(ctx: Ctx, close: number, first: number): number | undefined {
   return ctx.pos === 1 ? Math.max(s, ctx.stop) : Math.min(s, ctx.stop);
 }
 
-interface Def { name: string; source: string; tf: '15m' | '1h' | '4h' | '1d'; warm: number; make: (b: Bars, short: boolean) => Rule; shortable: boolean }
+interface Def { name: string; source: string; tf: '5m' | '15m' | '1h' | '4h' | '1d'; warm: number; make: (b: Bars, short: boolean) => Rule; shortable: boolean }
 const hi = Math.max, lo = Math.min;
 
 const DEFS: Def[] = [
@@ -141,16 +119,16 @@ const DEFS: Def[] = [
       return null;
     };
   } },
-  { name: 'ATR trailing-stop bot (key 2, ATR 14): buy cross above trail, stop 2 ATR, target 1.65R', source: 'TradingView', tf: '1h', warm: 60, shortable: false, make: b => {
+  ...(['5m', '1h'] as const).map((tf): Def => ({ name: `ATR trailing-stop bot (key 2, ATR 14): buy cross above trail, stop 2 ATR, target 1.65R (${tf})`, source: 'TradingView', tf, warm: 60, shortable: false, make: b => {
     const a = atr(b, 14), trail = new Array(b.c.length).fill(0);
     for (let i = 1; i < b.c.length; i++) { const n = 2 * (a[i] || 0), p = trail[i - 1]; trail[i] = b.c[i] > p && b.c[i - 1] > p ? Math.max(p, b.c[i] - n) : b.c[i] < p && b.c[i - 1] < p ? Math.min(p, b.c[i] + n) : b.c[i] > p ? b.c[i] - n : b.c[i] + n; }
     return (i, x) => (x.pos ? (b.c[i] < trail[i] ? { exit: true } : null) : b.c[i] > trail[i] && b.c[i - 1] <= trail[i - 1] ? { enter: { dir: 1, stop: b.c[i] - 2 * a[i], target: b.c[i] + 3.3 * a[i] } } : null);
-  } },
-  { name: '60-bar breakout with strong candle, in the upper half of the 400-bar range, exit on 30-bar channel (volume filter omitted)', source: 'TradingView', tf: '1h', warm: 410, shortable: true, make: (b, short) => {
-    const H = prior(b.h, 60, hi), L = prior(b.l, 60, lo), xh = prior(b.h, 30, hi), xl = prior(b.l, 30, lo), rh = prior(b.h, 400, hi), rl = prior(b.l, 400, lo), s5l = prior(b.l, 5, lo), s5h = prior(b.h, 5, hi);
+  } })),
+  { name: '60-bar breakout with strong candle, volume at least 2x its 40-bar average, in the upper half of the 400-bar range, exit on 30-bar channel', source: 'TradingView', tf: '1h', warm: 410, shortable: true, make: (b, short) => {
+    const H = prior(b.h, 60, hi), L = prior(b.l, 60, lo), xh = prior(b.h, 30, hi), xl = prior(b.l, 30, lo), rh = prior(b.h, 400, hi), rl = prior(b.l, 400, lo), s5l = prior(b.l, 5, lo), s5h = prior(b.h, 5, hi), va = sma(b.v, 40);
     return (i, x) => {
       if (x.pos) return (x.pos === 1 ? b.c[i] < xl[i] : b.c[i] > xh[i]) ? { exit: true } : null;
-      const body = Math.abs(b.c[i] - b.o[i]) >= 0.6 * (b.h[i] - b.l[i]), mid = (rh[i] + rl[i]) / 2;
+      const body = Math.abs(b.c[i] - b.o[i]) >= 0.6 * (b.h[i] - b.l[i]) && b.v[i] >= 2 * va[i - 1], mid = (rh[i] + rl[i]) / 2;
       if (body && b.c[i] > H[i] && b.c[i] > mid) return { enter: { dir: 1, stop: lo(s5l[i], b.l[i]) } };
       if (short && body && b.c[i] < L[i] && b.c[i] < mid) return { enter: { dir: -1, stop: hi(s5h[i], b.h[i]) } };
       return null;
@@ -182,6 +160,29 @@ const DEFS: Def[] = [
     const top = (i: number) => (i < 26 ? NaN : hi((ten[i - 26] + kij[i - 26]) / 2, spanB[i - 26]));
     return (i, x) => (x.pos ? (b.c[i] < kij[i] ? { exit: true } : null) : b.c[i] > top(i) && ten[i] > kij[i] ? { enter: { dir: 1 } } : null);
   } },
+  { name: '20-day high on volume above 1.5x its 20-day average, exit on 10-day low', source: 'Volume', tf: '1d', warm: 30, shortable: true, make: (b, short) => {
+    const H = prior(b.h, 20, hi), L = prior(b.l, 20, lo), xh = prior(b.h, 10, hi), xl = prior(b.l, 10, lo), va = sma(b.v, 20);
+    return (i, x) => (x.pos ? ((x.pos === 1 ? b.c[i] < xl[i] : b.c[i] > xh[i]) ? { exit: true } : null) : b.v[i] > 1.5 * va[i - 1] && b.c[i] > H[i] ? { enter: { dir: 1 } } : short && b.v[i] > 1.5 * va[i - 1] && b.c[i] < L[i] ? { enter: { dir: -1 } } : null);
+  } },
+  { name: 'Capitulation buy: hour falls over 2 ATR on volume 4x its 48-hour average; hold 12 hours, stop 2 ATR', source: 'Volume', tf: '1h', warm: 60, shortable: true, make: (b, short) => {
+    const a = atr(b, 24), va = sma(b.v, 48);
+    return (i, x) => {
+      if (x.pos) return x.held >= 12 ? { exit: true } : null;
+      const big = b.v[i] > 4 * va[i - 1], move = b.c[i] - b.o[i];
+      if (big && move < -2 * a[i - 1]) return { enter: { dir: 1, stop: b.c[i] - 2 * a[i] } };
+      if (short && big && move > 2 * a[i - 1]) return { enter: { dir: -1, stop: b.c[i] + 2 * a[i] } };
+      return null;
+    };
+  } },
+  { name: 'On-balance volume above its 50 EMA with price above its 50 EMA', source: 'Volume', tf: '4h', warm: 120, shortable: true, make: (b, short) => {
+    const obv = [0]; for (let i = 1; i < b.c.length; i++) obv.push(obv[i - 1] + (b.c[i] > b.c[i - 1] ? b.v[i] : b.c[i] < b.c[i - 1] ? -b.v[i] : 0));
+    const oe = ema(obv, 50), pe = ema(b.c, 50);
+    return (i, x) => (x.pos ? ((x.pos === 1 ? obv[i] < oe[i] : obv[i] > oe[i]) ? { exit: true } : null) : obv[i] > oe[i] && b.c[i] > pe[i] ? { enter: { dir: 1 } } : short && obv[i] < oe[i] && b.c[i] < pe[i] ? { enter: { dir: -1 } } : null);
+  } },
+  { name: 'Volume-weighted price (24h VWAP) reclaim: close crosses above VWAP in an uptrend, exit below', source: 'Volume', tf: '1h', warm: 420, shortable: true, make: (b, short) => {
+    const pv = b.c.map((c, i) => ((b.h[i] + b.l[i] + c) / 3) * b.v[i]); const spv = sma(pv, 24), sv = sma(b.v, 24), vwap = spv.map((x, i) => x / sv[i]), e = ema(b.c, 400);
+    return (i, x) => (x.pos ? ((x.pos === 1 ? b.c[i] < vwap[i] : b.c[i] > vwap[i]) ? { exit: true } : null) : b.c[i] > vwap[i] && b.c[i - 1] <= vwap[i - 1] && b.c[i] > e[i] ? { enter: { dir: 1 } } : short && b.c[i] < vwap[i] && b.c[i - 1] >= vwap[i - 1] && b.c[i] < e[i] ? { enter: { dir: -1 } } : null);
+  } },
 ];
 
 interface Stat { annual: number; sharpe: number; maxDd: number }
@@ -193,13 +194,14 @@ function stat(times: number[], rets: number[], from: number, to: number, perYear
   return { annual: eq > 0 ? eq ** (perYear / n) - 1 : -1, sharpe: (mean / sd) * Math.sqrt(perYear), maxDd };
 }
 
-const data: Record<string, Map<string, Bars>> = { '15m': new Map(), '1h': new Map(), '4h': new Map(), '1d': new Map() };
+async function main() {
+const data: Record<string, Map<string, Bars>> = { '5m': new Map(), '15m': new Map(), '1h': new Map(), '4h': new Map(), '1d': new Map() };
 for (const c of UNIVERSE) {
-  const h = read(c, '1h'); if (!h) continue;
+  const h = await loadBars(c, '1h'); if (!h) continue;
   data['1h'].set(c, h); data['4h'].set(c, aggregate(h, 4)); data['1d'].set(c, aggregate(h, 24));
-  const q = read(c, '15m'); if (q) data['15m'].set(c, q);
 }
-if (data['1h'].size < 10) throw new Error('Hourly data missing. Run "npm run backtest:universe" first.');
+// Sub-hourly data is large, so the short-timeframe rules run on the three majors only.
+for (const c of MAJORS) for (const tf of ['5m', '15m'] as const) { const q = await loadBars(c, tf); if (q) data[tf].set(c, q); }
 const end = data['1h'].get('BTC')!.t.at(-1)! + HOUR;
 const lastDate = new Date(end).toISOString().slice(0, 10);
 
@@ -225,8 +227,7 @@ Generated by \`npm run backtest:popular\` through ${lastDate}. Do not edit by ha
 equal capital per coin, after fees, slippage and funding. Stops are checked inside each bar and counted before targets.
 
 Rules marked "TradingView" were taken from the public descriptions of community scripts and coded as described; settings the
-author did not state were left at the indicator's usual default. Where the original needs data this project does not have
-(volume, 5-minute bars) the note in the name says what was changed.
+author did not state were left at the indicator's usual default. Rules on 5- and 15-minute bars run on BTC, ETH and SOL only; the rest run on all coins with data.
 
 Selected: Sharpe of at least 0.5 in both train (2020-07 → 2022) and validate (2023 → 2024). Confirmed: holdout (2025 → ${lastDate}) Sharpe of at
 least 0.3 with a positive return.
@@ -240,3 +241,6 @@ ${rows.join('\n')}
 writeFileSync(join(process.cwd(), 'backtest', 'POPULAR.md'), md);
 console.log(`tested ${results.length}, selected ${sel.length}, confirmed ${conf.length}`);
 for (const r of results) console.log(`${r.selected ? (conf.includes(r) ? 'CONF' : 'sel ') : '    '} ${r.d.tf.padEnd(3)} ${(r.short ? 'L/S' : 'L  ')} ${cell(r.train).padEnd(14)} ${cell(r.valid).padEnd(14)} ${(r.holdout ? cell(r.holdout) : '-').padEnd(14)} ${r.d.name.slice(0, 70)}`);
+}
+
+main().catch(e => { console.error(e); process.exit(1); });

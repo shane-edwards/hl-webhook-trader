@@ -10,6 +10,13 @@ export interface Indicators {
   rsi: number[];
   atrPct: number[]; // 24h average true range as a fraction of price
   high48: number[]; low48: number[]; high24: number[]; low24: number[];
+  /** Four-hour view, indexed by hourly bar: values of the most recent COMPLETED 4h bar. */
+  h4: {
+    /** True on the hourly bar that completes a 4h bar (the only moment 4h rules may act). */
+    fresh: boolean[];
+    close: number[]; ema200: number[];
+    macd: number[]; signal: number[]; macdPrev: number[]; signalPrev: number[];
+  };
 }
 
 export interface Signal {
@@ -24,17 +31,22 @@ export interface Signal {
 export interface StrategyDef {
   id: string;
   name: string;
-  style: 'Pullback' | 'Breakout' | 'Momentum burst';
+  style: 'Pullback' | 'Breakout' | 'Momentum burst' | 'Trend (4h)';
   description: string;
   /** Typical holding period, for the UI. */
   horizon: string;
   /** Hours a position may be held before it is closed regardless (0 = no limit). */
   maxHoldHours: number;
+  /**
+   * Held to paper trading even if its backtest passes the gate. Set for rules that were
+   * chosen AFTER looking at the most recent data: their backtest is no longer an independent test.
+   */
+  paperOnly?: boolean;
   evaluate(ind: Indicators, bars: Bar[], i: number, pos: -1 | 0 | 1, allowShort: boolean): Signal;
 }
 
-/** Bars needed before any signal is valid. */
-export const WARMUP_BARS = 740;
+/** Hourly bars needed before any signal is valid: 100 days, so the 200-period average on 4h bars has settled. */
+export const WARMUP_BARS = 2400;
 
 function ema(x: number[], n: number): number[] {
   const k = 2 / (n + 1);
@@ -77,7 +89,28 @@ export function computeIndicators(bars: Bar[]): Indicators {
     if (i >= 23) atrPct[i] = sum / 24;
   }
   const highs = bars.map(b => b.h), lows = bars.map(b => b.l);
+
+  // Build completed 4h bars (UTC-aligned, all four hours present) and map each hourly bar to the latest one.
+  const H4 = 4 * 3_600_000;
+  const c4: number[] = [], endIdx: number[] = [];
+  for (let i = 3; i < bars.length; i++) {
+    if ((bars[i].t + 3_600_000) % H4 === 0 && bars[i - 3].t === bars[i].t - 3 * 3_600_000) { c4.push(bars[i].c); endIdx.push(i); }
+  }
+  const e12 = c4.length ? ema(c4, 12) : [], e26 = c4.length ? ema(c4, 26) : [], e200 = c4.length ? ema(c4, 200) : [];
+  const macdLine = e12.map((v, k) => v - e26[k]), sigLine = macdLine.length ? ema(macdLine, 9) : [];
+  const nan = () => new Array(bars.length).fill(NaN);
+  const h4 = { fresh: new Array(bars.length).fill(false), close: nan(), ema200: nan(), macd: nan(), signal: nan(), macdPrev: nan(), signalPrev: nan() };
+  let k = -1;
+  for (let i = 0; i < bars.length; i++) {
+    if (k + 1 < endIdx.length && endIdx[k + 1] === i) { k += 1; h4.fresh[i] = true; }
+    if (k >= 1) {
+      h4.close[i] = c4[k]; h4.ema200[i] = e200[k];
+      h4.macd[i] = macdLine[k]; h4.signal[i] = sigLine[k]; h4.macdPrev[i] = macdLine[k - 1]; h4.signalPrev[i] = sigLine[k - 1];
+    }
+  }
+
   return {
+    h4,
     close, emaSlow: ema(close, 720), rsi: rsi(close, 14), atrPct,
     high48: rolling(highs, 48, Math.max), low48: rolling(lows, 48, Math.min),
     high24: rolling(highs, 24, Math.max), low24: rolling(lows, 24, Math.min),
@@ -140,6 +173,27 @@ export const STRATEGIES: StrategyDef[] = [
       const where = (b.c - b.l) / (b.h - b.l); // 1 = closed at the high
       if (up && b.c > b.o && where > 0.75) return { target: 1, stopPct, reason: 'strong up-hour in an uptrend' };
       if (allowShort && !up && b.c < b.o && where < 0.25) return { target: -1, stopPct, reason: 'strong down-hour in a downtrend' };
+      return flat('no setup');
+    },
+  },
+  {
+    id: 'macd_trend',
+    name: 'MACD trend (4-hour)',
+    style: 'Trend (4h)',
+    horizon: 'Days',
+    maxHoldHours: 0,
+    paperOnly: true,
+    description: 'On 4-hour bars: buy when MACD(12, 26, 9) crosses above its signal line while price is above the 200-period average; sell short on the opposite cross below it. Exit when MACD crosses back. From TradingView-style indicator tests, where the long-and-short version was the only one of 26 to stay profitable in 2025-2026.',
+    evaluate(ind, _bars, i, pos, allowShort) {
+      const h = ind.h4;
+      const stopPct = clampStop(4 * ind.atrPct[i]); // wide safety stop; the rule itself exits on the MACD cross
+      // Only the hourly bar that completes a 4h bar may change anything.
+      if (!h.fresh[i] || !Number.isFinite(h.macdPrev[i])) return pos === 0 ? flat('waiting for the 4h close') : { target: pos, stopPct, reason: 'holding' };
+      const above = h.macd[i] > h.signal[i], wasAbove = h.macdPrev[i] > h.signalPrev[i];
+      if (pos === 1) return above ? { target: 1, stopPct, reason: 'holding the MACD long' } : flat('MACD crossed down');
+      if (pos === -1) return !above ? { target: -1, stopPct, reason: 'holding the MACD short' } : flat('MACD crossed up');
+      if (above && !wasAbove && h.close[i] > h.ema200[i]) return { target: 1, stopPct, reason: 'MACD crossed up above the 200 average' };
+      if (allowShort && !above && wasAbove && h.close[i] < h.ema200[i]) return { target: -1, stopPct, reason: 'MACD crossed down below the 200 average' };
       return flat('no setup');
     },
   },

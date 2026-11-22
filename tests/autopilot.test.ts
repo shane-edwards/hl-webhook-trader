@@ -214,3 +214,19 @@ test('momentum (paper): opens a balanced basket, holds it for a week, then settl
   assert.equal(tables.autopilot_positions.filter(l => l.status === 'closed').length, longs.length * 2);
   assert.equal(tables.autopilot_positions.filter(l => l.status === 'open').length, longs.length * 2);
 });
+
+test('MACD trend: acts only when a 4-hour bar completes, and stays on paper despite passing the gate', () => {
+  const now = Date.UTC(2026, 5, 1); // midnight UTC: the last hourly bar completes a 4h bar
+  const bars = uptrend(now, WARMUP_BARS + 20, true);
+  const ind = computeIndicators(bars);
+  const s = getStrategy('macd_trend')!;
+  const last = bars.length - 1;
+  assert.equal(ind.h4.fresh[last], true);
+  assert.equal(ind.h4.fresh[last - 1], false);
+  // Mid-bar it never opens anything, and it never drops a position it holds.
+  assert.equal(s.evaluate(ind, bars, last - 1, 0, true).target, 0);
+  assert.equal(s.evaluate(ind, bars, last - 1, 1, true).target, 1);
+  assert.equal(s.paperOnly, true);
+  assert.equal(isLiveEligible('macd_trend', false), false);
+  assert.equal(isLiveEligible('macd_trend', true), false);
+});

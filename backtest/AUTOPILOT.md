@@ -7,12 +7,14 @@ extra slippage on stops, and funding. Settings are the first ones chosen; nothin
 
 | Strategy | Direction | Trades / coin / yr | Win rate | Avg trade before costs (bps) | Avg trade after costs (bps) | Return / yr 2020–2022 | Return / yr 2023+ | of which 2025+ | Sharpe 2023+ | Worst drawdown 2023+ | Allowed to trade live |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Trend pullback | Long only | 57 | +38% | 6 | -13 | -1% | **-8%** | -8% | -0.48 | -44% | Paper only |
-| Trend pullback | Long & short | 112 | +39% | 10 | -6 | -13% | **-9%** | -2% | -0.31 | -41% | Paper only |
-| Trend breakout | Long only | 48 | +29% | 75 | 44 | +55% | **+19%** | -1% | 0.83 | -26% | **Yes** |
-| Trend breakout | Long & short | 92 | +28% | 39 | 15 | +31% | **+4%** | +6% | 0.29 | -38% | Paper only |
-| Momentum burst | Long only | 90 | +38% | 1 | -15 | +1% | **-13%** | -7% | -1.15 | -52% | Paper only |
-| Momentum burst | Long & short | 171 | +38% | 0 | -16 | -19% | **-25%** | -13% | -1.52 | -73% | Paper only |
+| Trend pullback | Long only | 57 | +38% | 6 | -13 | -4% | **-8%** | -8% | -0.48 | -44% | Paper only |
+| Trend pullback | Long & short | 112 | +39% | 10 | -6 | -10% | **-9%** | -2% | -0.31 | -41% | Paper only |
+| Trend breakout | Long only | 48 | +29% | 75 | 44 | +64% | **+19%** | -1% | 0.83 | -26% | **Yes** |
+| Trend breakout | Long & short | 92 | +28% | 39 | 15 | +35% | **+4%** | +6% | 0.29 | -38% | Paper only |
+| Momentum burst | Long only | 90 | +38% | 1 | -15 | +4% | **-13%** | -7% | -1.15 | -52% | Paper only |
+| Momentum burst | Long & short | 171 | +38% | 0 | -16 | -18% | **-25%** | -13% | -1.52 | -73% | Paper only |
+| MACD trend (4-hour) | Long only | 42 | +31% | 73 | 44 | +44% | **+18%** | +9% | 0.85 | -22% | Paper only (passed the gate; on probation) |
+| MACD trend (4-hour) | Long & short | 79 | +32% | 42 | 20 | +20% | **+11%** | +22% | 0.48 | -45% | Paper only (passed the gate; on probation) |
 
 ## The live gate
 
@@ -21,6 +23,8 @@ costs by more than 15 basis points, and its wins outweighed its losses by at lea
 run in paper mode. The gate is re-evaluated whenever this report is regenerated.
 
 **The most recent period is weak.** The one eligible strategy made most of its 2023+ return in 2023–2024 and was roughly flat from 2025 on, when the market fell. On a wider set of 22 coins it was profitable on fewer than half of them (see UNIVERSE.md). Treat it as a way to hold trends with controlled risk, not as a dependable income.
+
+**Probation.** A rule that was picked after its recent results were already known (MACD trend) stays paper-only even though it passes: its backtest is no longer an independent test. It earns live status with a paper track record, not a backtest.
 
 Passing the gate is not a promise. It means the rule was not obviously broken on 3 coins over this
 period. Six variants were tested, so one passing by luck alone would not be surprising.
