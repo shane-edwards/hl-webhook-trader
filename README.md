@@ -9,19 +9,23 @@ A professional Next.js trading application that receives TradingView webhook ale
 - **Built-in BTC strategy** — Optional daily volatility-targeted trend strategy that runs on a cron with no TradingView needed ([backtest](backtest/RESULTS.md))
 - **Live Dashboard** — Account value and P&L straight from the exchange (including fees and funding paid), positions, automation status
 - **Wallet connect** — Link your Hyperliquid wallet (SafePal, MetaMask, any WalletConnect wallet) with one signature. The app gets a trade-only key; it can never withdraw
-- **Trade ticket** — Place market orders from the dashboard with stop-loss and take-profit held on the exchange
+- **Trade ticket** — Market or post-only limit entries, sized by the amount you are prepared to lose, with a chart of support, resistance, entry, stop and target that follows your edits
+- **Managed exits** — Split take-profit, stop to break-even after the first target, and a trailing stop. Stops and targets rest on the exchange; moving a stop is done by the five-minute scan, so it only moves that often
+- **Account limits** — A cap on total exposure and a daily loss limit that apply to every entry, manual, webhook or Autopilot
 - **Stop-loss / take-profit on webhook trades** — Per signal (`stop_loss_pct`, `take_profit_pct`) or as defaults in Settings
 - **Autopilot** — Scans your chosen markets and opens and closes positions by tested rules, sized by risk, every position with an exchange-side stop. Paper mode builds a track record before any real money is used
-- **Trade ideas** — For each market the Autopilot watches, a long / short / no-trade read built from the rules that held up in testing, with every vote shown
+- **Trade ideas** — A long / short / no-trade read for the markets you watch and for every liquid Hyperliquid market, built from the rules that held up in testing, with every vote shown, and an alert when a market's read changes
+- **Scorecard** — Every idea is logged and scored against what the price then did, alongside a replay over history ([report](backtest/SUGGESTIONS.md))
+- **True profit per trade** — Fees, funding and realised P&L pulled from the exchange onto each trade, and trade records settled automatically when a stop is hit or a position is closed on Hyperliquid directly
+- **Trade journal** — Manual trades are tagged by whether they followed the rules' read and the suggested stop, with results by tag
 - **Smart ticket defaults** — The trade ticket pre-fills a stop-loss and take-profit for the chosen side from recent volatility, the last 24 hours' range and the stops the tested rules use; you can override both
 - **Kill switch** — One button pauses all automation and closes every position
 - **Markets scanner** — Live funding, premium, open interest and volume for every Hyperliquid perp, sortable
 - **Strategy Lab** — Run the trend strategy on 10 coins with your own settings against buy & hold, with real costs; plus research notes on funding capture and multi-coin trend
-- **Telegram alerts** (optional) — Trades, strategy runs, errors and kill-switch use
+- **Alerts** (optional) — Telegram and/or email: trades, strategy runs, errors, kill-switch use, a daily summary, and a warning when a scheduled scan or the database stops responding
+- **Health check** — `/api/health` reports whether the database and the scheduled scans are alive (public, no account data), so an outside uptime monitor can watch it
 - **Trade Management** — Manually cancel/close any active position from the UI
-- **Performance Analytics** — Sharpe ratio, Sortino ratio, max drawdown, Calmar ratio, win rate, profit factor, expectancy, Kelly %, VaR, and more
-- **Monthly P&L Charts** — Visualize performance over time
-- **Drawdown Chart** — Track portfolio risk visually
+- **Performance Analytics** — Return, drawdown and Sharpe measured on the exchange's own account-value history (deposits excluded); per-trade statistics net of fees and funding. Metrics that could not be computed honestly were removed
 - **Secure Auth** — Supabase Auth with email/password login
 - **Encrypted Credentials** — Private key stored with AES-256-GCM encryption
 - **Admin Settings** — Configure leverage, order size, slippage, webhook secret from the UI
@@ -165,6 +169,33 @@ The autopilot looks at each market you list, on completed hourly candles, and tr
 "Scan now" on the page runs one pass immediately, in whichever mode is selected.
 
 ---
+
+## Scheduled jobs and database migrations
+
+Run the files in `supabase/migrations/` in order (001 to 006). Each is additive, and the app keeps working before a
+new one is run: features that need it say so.
+
+| Job | Endpoint | Scheduler | What it does |
+|---|---|---|---|
+| Trading scan | `/api/cron/autopilot` | Supabase `pg_cron`, every 5 minutes (see 004) | Autopilot, limit-order follow-up, moving managed stops, reconciling the trade log with the exchange, daily summary |
+| Market scan | `/api/cron/market` | Supabase `pg_cron`, every 5 minutes (see 006) | Trade ideas for every liquid market, alerts on changes, scoring earlier ideas |
+| Daily strategy | `/api/cron/strategy` | Vercel Cron, daily | The BTC trend strategy; also checks that the two scans and the database are alive |
+
+All three require `Authorization: Bearer $CRON_SECRET`. Each scan records a heartbeat and alerts if the other has not
+succeeded for 20 minutes.
+
+## Checking changes
+
+```bash
+npm test && npx eslint . && npx tsc --noEmit && npx next build
+```
+
+To look at the UI without production credentials, use the mock backend in `scripts/dev-mock/` (see its README):
+`npm run mock:supabase`, start `next dev` with `scripts/dev-mock/env.example`, then `npm run mock:shots`.
+
+Before trading real money, run `npm run testnet:check` with a funded Hyperliquid **testnet** key. It places one small
+position and walks it through every order type the app sends. No real order had been placed by this app when that
+script was written.
 
 ## Research tools
 

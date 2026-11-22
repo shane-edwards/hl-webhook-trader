@@ -1,28 +1,25 @@
 import { NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
 import { createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { notify } from '@/lib/notify';
+import { cronAuthorized } from '@/lib/cron-auth';
+import { alertOnStalePeers } from '@/lib/health';
 import { runStrategyOnce, runToRow, strategyConfigFromSettings, type StrategyRunResult } from '@/lib/strategy/run';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-function authorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false; // never run unauthenticated
-  const given = Buffer.from(request.headers.get('authorization') ?? '');
-  const expected = Buffer.from(`Bearer ${secret}`);
-  return given.length === expected.length && timingSafeEqual(given, expected);
-}
-
 // Called once a day shortly after the 00:00 UTC candle close (see vercel.json).
 // Vercel Cron sends `Authorization: Bearer $CRON_SECRET` automatically.
 export async function GET(request: Request) {
-  if (!authorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!cronAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const supabase = createServiceClient();
+  // This job runs on Vercel's scheduler, independent of the one that drives the
+  // five-minute scans, so it doubles as the watchdog for them and the database.
+  await alertOnStalePeers(supabase, null).catch(() => {});
+
   const { data: rows, error } = await supabase.from('settings').select('*').eq('strategy_enabled', true);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

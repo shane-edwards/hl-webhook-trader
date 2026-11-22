@@ -2,7 +2,8 @@
 // backtest (backtest/autopilot.ts) and the live scanner (lib/autopilot/run.ts)
 // so that what is tested is exactly what trades.
 
-export interface Bar { t: number; o: number; h: number; l: number; c: number }
+/** `v` is volume in coins; only the volume rules need it. */
+export interface Bar { t: number; o: number; h: number; l: number; c: number; v?: number }
 
 export interface Indicators {
   close: number[];
@@ -16,6 +17,16 @@ export interface Indicators {
     fresh: boolean[];
     close: number[]; ema200: number[];
     macd: number[]; signal: number[]; macdPrev: number[]; signalPrev: number[];
+  };
+  /** Daily view (UTC days), indexed by hourly bar: values of the most recent COMPLETED day. */
+  d: {
+    /** True on the hourly bar that completes a UTC day (the only moment daily rules may act). */
+    fresh: boolean[];
+    close: number[]; volume: number[];
+    /** Average volume of the 20 days before that day. */
+    volAvg20: number[];
+    /** Highest high / lowest low of the 20 and 10 days before that day. */
+    high20: number[]; low20: number[]; high10: number[]; low10: number[];
   };
 }
 
@@ -31,7 +42,7 @@ export interface Signal {
 export interface StrategyDef {
   id: string;
   name: string;
-  style: 'Pullback' | 'Breakout' | 'Momentum burst' | 'Trend (4h)';
+  style: 'Pullback' | 'Breakout' | 'Momentum burst' | 'Trend (4h)' | 'Breakout (daily)';
   description: string;
   /** Typical holding period, for the UI. */
   horizon: string;
@@ -109,8 +120,31 @@ export function computeIndicators(bars: Bar[]): Indicators {
     }
   }
 
+  // Completed UTC days (all 24 hours present), mapped to hourly bars the same way.
+  const DAY = 24 * 3_600_000;
+  const dC: number[] = [], dH: number[] = [], dL: number[] = [], dV: number[] = [], dEnd: number[] = [];
+  for (let i = 23; i < bars.length; i++) {
+    if ((bars[i].t + 3_600_000) % DAY !== 0 || bars[i - 23].t !== bars[i].t - 23 * 3_600_000) continue;
+    let hi = -Infinity, lo = Infinity, vol = 0;
+    for (let j = i - 23; j <= i; j++) { hi = Math.max(hi, bars[j].h); lo = Math.min(lo, bars[j].l); vol += bars[j].v ?? 0; }
+    dC.push(bars[i].c); dH.push(hi); dL.push(lo); dV.push(vol); dEnd.push(i);
+  }
+  /** Extreme / mean of the n days BEFORE day k (excludes day k). */
+  const priorDays = (x: number[], k: number, n: number, f: (a: number, b: number) => number) => (k < n ? NaN : x.slice(k - n, k).reduce(f));
+  const d = { fresh: new Array(bars.length).fill(false), close: nan(), volume: nan(), volAvg20: nan(), high20: nan(), low20: nan(), high10: nan(), low10: nan() };
+  let q = -1;
+  for (let i = 0; i < bars.length; i++) {
+    if (q + 1 < dEnd.length && dEnd[q + 1] === i) { q += 1; d.fresh[i] = true; }
+    if (q >= 20) {
+      d.close[i] = dC[q]; d.volume[i] = dV[q];
+      d.volAvg20[i] = priorDays(dV, q, 20, (a, b) => a + b) / 20;
+      d.high20[i] = priorDays(dH, q, 20, (a, b) => Math.max(a, b)); d.low20[i] = priorDays(dL, q, 20, (a, b) => Math.min(a, b));
+      d.high10[i] = priorDays(dH, q, 10, (a, b) => Math.max(a, b)); d.low10[i] = priorDays(dL, q, 10, (a, b) => Math.min(a, b));
+    }
+  }
+
   return {
-    h4,
+    h4, d,
     close, emaSlow: ema(close, 720), rsi: rsi(close, 14), atrPct,
     high48: rolling(highs, 48, Math.max), low48: rolling(lows, 48, Math.min),
     high24: rolling(highs, 24, Math.max), low24: rolling(lows, 24, Math.min),
@@ -194,6 +228,28 @@ export const STRATEGIES: StrategyDef[] = [
       if (pos === -1) return !above ? { target: -1, stopPct, reason: 'holding the MACD short' } : flat('MACD crossed up');
       if (above && !wasAbove && h.close[i] > h.ema200[i]) return { target: 1, stopPct, reason: 'MACD crossed up above the 200 average' };
       if (allowShort && !above && wasAbove && h.close[i] < h.ema200[i]) return { target: -1, stopPct, reason: 'MACD crossed down below the 200 average' };
+      return flat('no setup');
+    },
+  },
+  {
+    id: 'volume_breakout',
+    name: 'Volume breakout (daily)',
+    style: 'Breakout (daily)',
+    horizon: 'Days to weeks',
+    maxHoldHours: 0,
+    paperOnly: true,
+    description: 'On daily bars: buy when the day closes above the highest high of the previous 20 days on volume more than 1.5 times its 20-day average; sell short on the mirror-image break of the 20-day low. Exit when a day closes beyond the opposite 10-day extreme. Of the volume rules tested it was the one still profitable in 2025-2026 when allowed to short, which may be luck, so it is on paper only.',
+    evaluate(ind, _bars, i, pos, allowShort) {
+      const d = ind.d;
+      // Only the hourly bar that completes a UTC day may change anything.
+      if (!d.fresh[i] || !Number.isFinite(d.high20[i])) return pos === 0 ? flat('waiting for the daily close') : { target: pos, stopPct: 0.05, reason: 'holding' };
+      const c = d.close[i];
+      if (pos === 1) return c < d.low10[i] ? flat('closed below the 10-day low') : { target: 1, stopPct: 0.05, reason: 'holding the breakout' };
+      if (pos === -1) return c > d.high10[i] ? flat('closed above the 10-day high') : { target: -1, stopPct: 0.05, reason: 'holding the breakdown' };
+      const loud = d.volAvg20[i] > 0 && d.volume[i] > 1.5 * d.volAvg20[i];
+      // The safety stop sits at the rule's own exit level: the opposite 10-day extreme.
+      if (loud && c > d.high20[i]) return { target: 1, stopPct: clampStop((c - d.low10[i]) / c), reason: `20-day high on ${(d.volume[i] / d.volAvg20[i]).toFixed(1)}x average volume` };
+      if (allowShort && loud && c < d.low20[i]) return { target: -1, stopPct: clampStop((d.high10[i] - c) / c), reason: `20-day low on ${(d.volume[i] / d.volAvg20[i]).toFixed(1)}x average volume` };
       return flat('no setup');
     },
   },

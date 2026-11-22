@@ -13,7 +13,9 @@ export async function closeOpenTrades(
   userId: string,
   symbol: string,
   exitPrice: number,
-  notes?: string
+  notes?: string,
+  /** When the position actually closed, if known (e.g. from the exchange's fills). Defaults to now. */
+  exitTime?: Date
 ): Promise<string[]> {
   const { data: open, error } = await supabase
     .from('trades')
@@ -25,7 +27,7 @@ export async function closeOpenTrades(
 
   if (error) throw new Error(`Could not load open trades: ${error.message}`);
 
-  const now = new Date();
+  const now = exitTime ?? new Date();
   const closed: string[] = [];
   for (const t of open ?? []) {
     const { pnl, pnlPercentage } = computePnl({
@@ -45,7 +47,7 @@ export async function closeOpenTrades(
         pnl,
         pnl_percentage: pnlPercentage,
         ...(notes ? { notes } : {}),
-        updated_at: now.toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq('id', t.id)
       .eq('status', 'open');

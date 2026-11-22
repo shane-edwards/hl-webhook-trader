@@ -89,6 +89,39 @@ export interface AccountTruth {
   };
 }
 
+export interface Fill {
+  coin: string; px: number; sz: number; time: number; oid: string;
+  /** "Open Long", "Close Short", "Long > Short" (a flip) and so on, as the exchange labels it. */
+  dir: string;
+  /** Realised P&L of this fill, before fees. Zero for fills that open or add. */
+  closedPnl: number;
+  /** Total fee charged for the fill (includes any builder fee). */
+  fee: number;
+}
+
+/**
+ * The account's fills from `startTime`, oldest first. The exchange returns at
+ * most 2,000 per call; `truncated` says the list hit that limit.
+ * Field names confirmed against live mainnet accounts on 2026-11-22.
+ */
+export async function getUserFills(address: string, startTime: number, isTestnet: boolean): Promise<{ fills: Fill[]; truncated: boolean }> {
+  const raw = await info<Array<Record<string, unknown>> | null>({ type: 'userFillsByTime', user: address, startTime }, isTestnet);
+  const fills = (raw ?? []).map(f => ({
+    coin: String(f.coin), px: num(f.px), sz: num(f.sz), time: num(f.time), oid: String(f.oid ?? ''),
+    dir: String(f.dir ?? ''), closedPnl: num(f.closedPnl), fee: num(f.fee),
+  })).sort((a, b) => a.time - b.time);
+  return { fills, truncated: fills.length >= FILL_PAGE_LIMIT };
+}
+
+export interface FundingPayment { coin: string; time: number; /** Negative = paid, positive = received. */ usdc: number }
+
+export async function getUserFunding(address: string, startTime: number, isTestnet: boolean): Promise<FundingPayment[]> {
+  const raw = await info<Array<{ time?: number; delta?: { type?: string; coin?: string; usdc?: string } }> | null>({ type: 'userFunding', user: address, startTime }, isTestnet);
+  return (raw ?? [])
+    .filter(f => f.delta?.type === 'funding')
+    .map(f => ({ coin: String(f.delta!.coin), time: num(f.time), usdc: num(f.delta!.usdc) }));
+}
+
 const PERIODS = ['day', 'week', 'month', 'allTime'] as const;
 const FILL_PAGE_LIMIT = 2000;
 

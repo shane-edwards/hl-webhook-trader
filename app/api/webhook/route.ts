@@ -4,6 +4,7 @@ import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { closePositionFully, openPosition, protectionPercent, MAX_LEVERAGE } from '@/lib/execution';
 import { parseWebhookPayload, planSignal, redactPayload } from '@/lib/webhook';
 import { notify } from '@/lib/notify';
+import { portfolioLimitsFromSettings } from '@/lib/risk/portfolio';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
     const side = plan.side;
     const opened = await openPosition(hl, supabase, {
       userId, symbol, side, sizeUsd, leverage, slippagePercent: slippage,
-      stopLossPct, takeProfitPct, source: 'webhook', payload,
+      stopLossPct, takeProfitPct, source: 'webhook', payload, limits: portfolioLimitsFromSettings(settings),
     });
     tradeId = opened.tradeId;
     await log('processed', opened.protectionError ? `Opened WITHOUT stop/target: ${opened.protectionError}` : null, tradeId);

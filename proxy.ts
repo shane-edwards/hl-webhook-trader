@@ -1,7 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+const MACHINE_PATHS = new Set(['/api/webhook', '/api/cron/strategy', '/api/cron/autopilot', '/api/cron/market', '/api/health']);
+
+// Next 16 calls this file proxy.ts (it was middleware.ts before).
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -23,14 +26,13 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
+  const { data: { user } } = MACHINE_PATHS.has(pathname) ? { data: { user: null } } : await supabase.auth.getUser();
 
-  // Machine endpoints authenticate themselves (webhook secret / CRON_SECRET).
+  // Machine endpoints authenticate themselves (webhook secret / CRON_SECRET), and
+  // /api/health is public by design (it exposes no account data).
   // Exact matches only, so /api/webhook-logs still goes through session auth.
-  if (pathname === '/api/webhook' || pathname === '/api/cron/strategy' || pathname === '/api/cron/autopilot') {
-    return NextResponse.next();
-  }
+  if (MACHINE_PATHS.has(pathname)) return NextResponse.next();
 
   // API callers get a 401, not a redirect to an HTML login page.
   if (!user && pathname.startsWith('/api/') && !pathname.startsWith('/api/auth')) {

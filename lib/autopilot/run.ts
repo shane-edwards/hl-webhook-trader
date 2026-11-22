@@ -10,6 +10,7 @@ import { notify } from '@/lib/notify';
 import evidenceFile from './evidence.json';
 import { computeIndicators, getStrategy, WARMUP_BARS, type Bar, type StrategyDef } from './strategies';
 import { MOMENTUM_ID, runMomentumPaper } from './momentum';
+import { portfolioLimitsFromSettings, type PortfolioLimits } from '@/lib/risk/portfolio';
 import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional, type RiskConfig, type RiskState } from './risk';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +31,8 @@ export interface AutopilotConfig {
   slippagePercent: number;
   /** Symbol reserved by the built-in daily strategy, if that is trading live. */
   reservedSymbol: string | null;
+  /** Account-wide limits shared with manual and webhook trades (live mode only). */
+  portfolio?: PortfolioLimits;
 }
 
 export interface AutopilotEvent { level: 'info' | 'trade' | 'warn' | 'error'; symbol?: string; strategyId?: string; message: string }
@@ -55,6 +58,7 @@ export function configFromSettings(s: Record<string, any>): AutopilotConfig {
       maxDrawdownPct: n(s.autopilot_max_drawdown_pct, DEFAULT_RISK.maxDrawdownPct),
     },
     slippagePercent: n(s.slippage_percent, 2),
+    portfolio: portfolioLimitsFromSettings(s),
     reservedSymbol: s.strategy_enabled === true && s.strategy_dry_run === false ? String(s.strategy_symbol ?? 'BTC') : null,
   };
 }
@@ -213,7 +217,7 @@ export async function runAutopilot(hl: HyperliquidClient, db: Db, userId: string
                 userId, symbol, side, sizeUsd: notional,
                 leverage: Math.max(1, Math.ceil(cfg.risk.maxLeveragePerPosition)),
                 slippagePercent: cfg.slippagePercent, stopLossPct: sig.stopPct * 100, takeProfitPct: null,
-                source: 'autopilot', payload: { strategy: id, reason: sig.reason },
+                source: 'autopilot', payload: { strategy: id, reason: sig.reason }, limits: cfg.portfolio,
               });
               entry = opened.fillPrice; size = opened.size; stop = opened.stopLossPx ?? stop;
               if (opened.protectionError) {

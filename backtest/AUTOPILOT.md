@@ -15,6 +15,8 @@ extra slippage on stops, and funding. Settings are the first ones chosen; nothin
 | Momentum burst | Long & short | 171 | +38% | 0 | -16 | -18% | **-25%** | -13% | -1.52 | -73% | Paper only |
 | MACD trend (4-hour) | Long only | 42 | +31% | 73 | 44 | +44% | **+18%** | +9% | 0.85 | -22% | Paper only (passed the gate; on probation) |
 | MACD trend (4-hour) | Long & short | 79 | +32% | 42 | 20 | +20% | **+11%** | +22% | 0.48 | -45% | Paper only (passed the gate; on probation) |
+| Volume breakout (daily) | Long only | 4 | +51% | 917 | 544 | +131% | **+19%** | -13% | 0.71 | -38% | Paper only (passed the gate; on probation) |
+| Volume breakout (daily) | Long & short | 7 | +45% | 552 | 295 | +104% | **+13%** | +9% | 0.49 | -45% | Paper only (passed the gate; on probation) |
 
 ## The live gate
 
@@ -24,7 +26,7 @@ run in paper mode. The gate is re-evaluated whenever this report is regenerated.
 
 **The most recent period is weak.** The one eligible strategy made most of its 2023+ return in 2023–2024 and was roughly flat from 2025 on, when the market fell. On a wider set of 22 coins it was profitable on fewer than half of them (see UNIVERSE.md). Treat it as a way to hold trends with controlled risk, not as a dependable income.
 
-**Probation.** A rule that was picked after its recent results were already known (MACD trend) stays paper-only even though it passes: its backtest is no longer an independent test. It earns live status with a paper track record, not a backtest.
+**Probation.** A rule that was picked after its recent results were already known (MACD trend, volume breakout) stays paper-only even if it passes: its backtest is no longer an independent test. It earns live status with a paper track record, not a backtest.
 
 Passing the gate is not a promise. It means the rule was not obviously broken on 3 coins over this
-period. Six variants were tested, so one passing by luck alone would not be surprising.
+period. 10 variants were tested, so one passing by luck alone would not be surprising.

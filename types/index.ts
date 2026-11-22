@@ -18,6 +18,10 @@ export interface Trade {
   pnl_percentage?: number | null;
   fees?: number | null;
   funding_paid?: number | null;
+  /** Realised P&L, and the result after fees and funding, as the exchange booked them (migration 006). */
+  exchange_pnl?: number | null;
+  net_pnl?: number | null;
+  fills_synced_at?: string | null;
   entry_time: string;
   exit_time?: string | null;
   duration_seconds?: number | null;
@@ -52,6 +56,10 @@ export interface Settings {
   strategy_target_vol?: number;
   strategy_max_leverage?: number;
   strategy_capital_usd?: number | null;
+  // Account-wide limits and the daily summary (migration 006)
+  max_gross_exposure_x?: number;
+  portfolio_daily_loss_limit_pct?: number;
+  daily_summary_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -112,38 +120,6 @@ export interface WebhookLog {
   trade_id?: string | null;
   ip_address?: string | null;
   created_at: string;
-}
-
-export interface AnalyticsMetrics {
-  totalPnl: number;
-  totalPnlPercent: number;
-  winRate: number;
-  profitFactor: number;
-  sharpeRatio: number;
-  sortinoRatio: number;
-  calmarRatio: number;
-  maxDrawdown: number;
-  maxDrawdownDollar: number;
-  expectancy: number;
-  avgWin: number;
-  avgLoss: number;
-  avgWinLossRatio: number;
-  totalTrades: number;
-  winningTrades: number;
-  losingTrades: number;
-  avgTradeDurationHours: number;
-  largestWin: number;
-  largestLoss: number;
-  consecutiveWins: number;
-  consecutiveLosses: number;
-  maxConsecutiveWins: number;
-  maxConsecutiveLosses: number;
-  recoveryFactor: number;
-  avgLeverage: number;
-  totalFees: number;
-  totalFunding: number;
-  kellyPercentage: number;
-  varNinetyFive: number;
 }
 
 export interface EquityPoint {
