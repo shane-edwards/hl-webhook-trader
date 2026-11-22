@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
+import { isAddress } from 'ethers';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { encrypt } from '@/lib/encryption';
 import { generateWebhookSecret } from '@/lib/utils';
-import type { SettingsUpdate } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,38 +46,88 @@ export async function GET() {
   return NextResponse.json({ settings: sanitize(settings) });
 }
 
+// [field, min, max, label, wholeNumber?]
+const NUMERIC_FIELDS: Array<[string, number, number, string, boolean?]> = [
+  ['default_leverage', 1, 50, 'Leverage', true],
+  ['default_order_size_usd', 10, 10_000_000, 'Order size (USD)'],
+  ['max_position_size_usd', 10, 100_000_000, 'Max position size (USD)'],
+  ['risk_per_trade_percent', 0.1, 100, 'Risk per trade (%)'],
+  ['slippage_percent', 0.01, 10, 'Slippage (%)'],
+  ['strategy_target_vol', 0.05, 1.5, 'Strategy target volatility'],
+  ['strategy_max_leverage', 0.1, 5, 'Strategy max leverage'],
+];
+const BOOLEAN_FIELDS = ['webhook_enabled', 'is_testnet', 'strategy_enabled', 'strategy_dry_run'];
+
 export async function PUT(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body: SettingsUpdate = await request.json();
-  const serviceClient = createServiceClient();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  const bad = (message: string) => NextResponse.json({ error: message }, { status: 400 });
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (body.default_leverage != null) {
-    const v = Number(body.default_leverage);
-    if (v < 1 || v > 50) return NextResponse.json({ error: 'Leverage must be 1–50' }, { status: 400 });
-    update.default_leverage = v;
+  for (const [field, min, max, label, whole] of NUMERIC_FIELDS) {
+    if (body[field] == null) continue;
+    const v = Number(body[field]);
+    if (!Number.isFinite(v) || v < min || v > max) return bad(`${label} must be between ${min} and ${max}`);
+    if (whole && !Number.isInteger(v)) return bad(`${label} must be a whole number`);
+    update[field] = v;
   }
-  if (body.default_order_size_usd != null) update.default_order_size_usd = Number(body.default_order_size_usd);
-  if (body.max_position_size_usd != null) update.max_position_size_usd = Number(body.max_position_size_usd);
-  if (body.risk_per_trade_percent != null) update.risk_per_trade_percent = Number(body.risk_per_trade_percent);
-  if (body.webhook_secret != null) update.webhook_secret = body.webhook_secret;
-  if (body.webhook_enabled != null) update.webhook_enabled = Boolean(body.webhook_enabled);
-  if (body.is_testnet != null) update.is_testnet = Boolean(body.is_testnet);
-  if (body.slippage_percent != null) update.slippage_percent = Number(body.slippage_percent);
-  if (body.hl_wallet_address != null) update.hl_wallet_address = body.hl_wallet_address;
+  for (const field of BOOLEAN_FIELDS) {
+    if (body[field] == null) continue;
+    if (typeof body[field] !== 'boolean') return bad(`${field} must be true or false`);
+    update[field] = body[field];
+  }
 
-  if (body.hl_private_key && body.hl_private_key.trim()) {
+  // Empty or null clears the cap (strategy then sizes against the whole account).
+  if ('strategy_capital_usd' in body) {
+    const raw = body.strategy_capital_usd;
+    if (raw == null || raw === '') {
+      update.strategy_capital_usd = null;
+    } else {
+      const v = Number(raw);
+      if (!Number.isFinite(v) || v < 10) return bad('Strategy capital must be at least $10, or empty for the whole account');
+      update.strategy_capital_usd = v;
+    }
+  }
+
+  // Default stop-loss / take-profit distance for webhook entries. Empty clears it.
+  for (const field of ['default_stop_loss_percent', 'default_take_profit_percent']) {
+    if (!(field in body)) continue;
+    const raw = body[field];
+    if (raw == null || raw === '') { update[field] = null; continue; }
+    const v = Number(raw);
+    if (!Number.isFinite(v) || v < 0.05 || v > 50) return bad('Stop-loss and take-profit must be between 0.05% and 50%, or empty');
+    update[field] = v;
+  }
+
+  if (body.webhook_secret != null) {
+    if (typeof body.webhook_secret !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(body.webhook_secret)) {
+      return bad('Webhook secret must be 16–128 letters, digits, "-" or "_"');
+    }
+    update.webhook_secret = body.webhook_secret;
+  }
+
+  if (body.hl_wallet_address != null) {
+    const address = String(body.hl_wallet_address).trim();
+    if (address && !isAddress(address)) return bad('Wallet address is not a valid 0x address');
+    update.hl_wallet_address = address || null;
+  }
+
+  if (typeof body.hl_private_key === 'string' && body.hl_private_key.trim()) {
+    const key = body.hl_private_key.trim();
+    if (!/^(0x)?[0-9a-fA-F]{64}$/.test(key)) return bad('Private key must be 64 hex characters');
     try {
-      update.hl_private_key_encrypted = encrypt(body.hl_private_key.trim());
+      update.hl_private_key_encrypted = encrypt(key.startsWith('0x') ? key : `0x${key}`);
     } catch {
       return NextResponse.json({ error: 'Failed to encrypt private key — is ENCRYPTION_KEY set?' }, { status: 500 });
     }
   }
 
+  const serviceClient = createServiceClient();
   const { data, error } = await serviceClient
     .from('settings')
     .update(update)
@@ -85,7 +135,11 @@ export async function PUT(request: Request) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // 23505 = unique violation on webhook_secret (migration 002).
+    if (error.code === '23505') return bad('That webhook secret is already in use; generate a new one');
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ settings: sanitize(data) });
 }

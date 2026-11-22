@@ -87,5 +87,14 @@ export function truncateAddress(address: string): string {
 
 export function generateWebhookSecret(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  // Web Crypto, not Math.random: this secret is the only thing guarding the webhook.
+  // Rejection sampling keeps the distribution uniform (256 is not a multiple of 62).
+  const limit = 256 - (256 % chars.length);
+  let out = '';
+  while (out.length < 32) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(48))) {
+      if (byte < limit && out.length < 32) out += chars[byte % chars.length];
+    }
+  }
+  return out;
 }

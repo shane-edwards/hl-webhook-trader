@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { createHLClient } from '@/lib/hyperliquid/client';
-import { decrypt } from '@/lib/encryption';
+import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,14 +16,9 @@ export async function GET() {
     .eq('user_id', user.id)
     .single();
 
-  if (!settings?.hl_private_key_encrypted && !process.env.HL_PRIVATE_KEY) {
-    return NextResponse.json({ positions: [], account: null });
-  }
-
   try {
-    const privateKey = process.env.HL_PRIVATE_KEY ?? decrypt(settings!.hl_private_key_encrypted!);
-    const isTestnet = process.env.HL_TESTNET === 'true' || settings?.is_testnet;
-    const hl = createHLClient({ privateKey, isTestnet });
+    const hl = hlClientFromSettings(settings);
+    if (!hl) return NextResponse.json({ positions: [], account: null });
 
     const [positions, account] = await Promise.all([
       hl.getPositions(),

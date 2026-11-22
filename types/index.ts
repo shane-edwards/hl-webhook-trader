@@ -1,6 +1,7 @@
 export type TradeSide = 'long' | 'short';
 export type TradeStatus = 'open' | 'closed' | 'cancelled';
 export type SignalSource = 'webhook' | 'manual';
+export type StrategyRunStatus = 'held' | 'traded' | 'dry_run' | 'error';
 
 export interface Trade {
   id: string;
@@ -41,8 +42,34 @@ export interface Settings {
   hl_private_key_encrypted?: string | null;
   is_testnet: boolean;
   slippage_percent: number;
+  // Default stop/target for webhook entries, percent from entry (migration 003)
+  default_stop_loss_percent?: number | null;
+  default_take_profit_percent?: number | null;
+  // Built-in strategy (present once migration 002 has been applied)
+  strategy_enabled?: boolean;
+  strategy_dry_run?: boolean;
+  strategy_symbol?: string;
+  strategy_target_vol?: number;
+  strategy_max_leverage?: number;
+  strategy_capital_usd?: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface StrategyRun {
+  id: string;
+  symbol: string;
+  status: StrategyRunStatus;
+  signal_date: string | null;
+  trend_score: number | null;
+  realized_vol: number | null;
+  target_exposure: number | null;
+  current_exposure: number | null;
+  equity_usd: number | null;
+  traded_size: number | null;
+  fill_price: number | null;
+  message: string | null;
+  created_at: string;
 }
 
 export interface SettingsUpdate {
@@ -56,6 +83,11 @@ export interface SettingsUpdate {
   hl_private_key?: string;
   is_testnet?: boolean;
   slippage_percent?: number;
+  strategy_enabled?: boolean;
+  strategy_dry_run?: boolean;
+  strategy_target_vol?: number;
+  strategy_max_leverage?: number;
+  strategy_capital_usd?: number | null;
 }
 
 export interface Position {
@@ -130,7 +162,10 @@ export interface MonthlyPnL {
 
 export interface WebhookPayload {
   secret: string;
-  action: 'buy' | 'sell' | 'long' | 'short' | 'close';
+  /** Order direction. In TradingView "sell" can mean exit or short, so prefer `position`. */
+  action?: 'buy' | 'sell' | 'long' | 'short' | 'close';
+  /** The strategy's position after the order: TradingView {{strategy.market_position}}. */
+  position?: 'long' | 'short' | 'flat';
   symbol: string;
   price?: number;
   comment?: string;

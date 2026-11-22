@@ -56,7 +56,7 @@ export default function TradesPage() {
     <div className="flex flex-col min-h-full">
       <Header onRefresh={() => fetchTrades(true)} refreshing={refreshing} />
 
-      <div className="p-4 lg:p-6 space-y-5 flex-1">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-[1400px] mx-auto">
         {/* Summary bar */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="bg-card border border-border rounded-xl px-4 py-3">

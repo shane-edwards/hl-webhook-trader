@@ -1,194 +1,148 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { createHLClient } from '@/lib/hyperliquid/client';
-import { decrypt } from '@/lib/encryption';
-import type { WebhookPayload } from '@/types';
+import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
+import { closePositionFully, openPosition, protectionPercent, MAX_LEVERAGE } from '@/lib/execution';
+import { parseWebhookPayload, planSignal, redactPayload } from '@/lib/webhook';
+import { notify } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const MIN_SECRET_LENGTH = 16;
+
 export async function POST(request: Request) {
-  const ip = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'unknown';
-  let payload: WebhookPayload | null = null;
+  const ip = (request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'unknown').split(',')[0].trim();
 
-  const supabase = createServiceClient();
-
+  let body: unknown;
   try {
-    payload = await request.json();
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  if (!payload?.secret || !payload?.action || !payload?.symbol) {
-    await logWebhook(supabase, null, (payload ?? {}) as Record<string, unknown>, 'rejected', 'Missing required fields', ip);
-    return NextResponse.json({ error: 'Missing required fields: secret, action, symbol' }, { status: 400 });
-  }
+  // Requests that cannot be tied to a user are answered but not written to the
+  // database, so an unauthenticated caller cannot fill the logs table.
+  const parsed = parseWebhookPayload(body);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const signal = parsed.signal;
+  if (signal.secret.length < MIN_SECRET_LENGTH) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Find user by webhook secret
-  const { data: settings, error: settingsError } = await supabase
+  const supabase = createServiceClient();
+  const { data: settings } = await supabase
     .from('settings')
     .select('*')
-    .eq('webhook_secret', payload.secret)
-    .single();
+    .eq('webhook_secret', signal.secret)
+    .maybeSingle();
 
-  if (settingsError || !settings) {
-    await logWebhook(supabase, null, payload, 'rejected', 'Invalid webhook secret', ip);
+  if (!settings) {
+    console.warn('[webhook] rejected: invalid secret from', ip);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (!settings.webhook_enabled) {
-    await logWebhook(supabase, settings.user_id, payload, 'rejected', 'Webhook trading disabled', ip);
-    return NextResponse.json({ error: 'Webhook trading is currently disabled' }, { status: 403 });
+  const payload = redactPayload(body);
+  const userId: string = settings.user_id;
+  const log = (status: 'processed' | 'rejected' | 'error', message: string | null, tradeId: string | null = null) =>
+    supabase.from('webhook_logs').insert({
+      user_id: userId,
+      payload,
+      status,
+      error_message: message,
+      trade_id: tradeId,
+      ip_address: ip,
+      created_at: new Date().toISOString(),
+    });
+  const reject = async (message: string, httpStatus: number) => {
+    await log('rejected', message);
+    return NextResponse.json({ error: message }, { status: httpStatus });
+  };
+
+  if (!settings.webhook_enabled) return reject('Webhook trading is currently disabled', 403);
+
+  const { symbol } = signal;
+  if (settings.strategy_enabled && settings.strategy_symbol === symbol) {
+    return reject(`${symbol} is managed by the built-in strategy; disable it to trade ${symbol} by webhook`, 409);
   }
 
-  if (!settings.hl_private_key_encrypted && !process.env.HL_PRIVATE_KEY) {
-    await logWebhook(supabase, settings.user_id, payload, 'error', 'Hyperliquid not configured', ip);
-    return NextResponse.json({ error: 'Hyperliquid credentials not configured' }, { status: 500 });
-  }
-
-  const privateKey = process.env.HL_PRIVATE_KEY ?? decrypt(settings.hl_private_key_encrypted!);
-  const isTestnet = process.env.HL_TESTNET === 'true' || settings.is_testnet;
-
-  const hl = createHLClient({ privateKey, isTestnet });
-
-  const action = payload.action.toLowerCase() as string;
-  // Normalize TradingView tickers: strip exchange prefix and quote currency suffix
-  // e.g. "BITSTAMP:BTCUSD" → "BTC", "BTCUSDT" → "BTC", "BTC-PERP" → "BTC"
-  const rawSymbol = payload.symbol.toUpperCase();
-  const withoutPrefix = rawSymbol.includes(':') ? rawSymbol.split(':')[1] : rawSymbol;
-  const symbol = withoutPrefix.replace(/[-./]?(USDT|USDC|USD|PERP|BUSD)$/, '');
-  const isBuy = ['buy', 'long'].includes(action);
-  const isClose = action === 'close';
-
-  const leverage = payload.leverage ?? settings.default_leverage;
-  const sizeUsd = payload.size_usd ?? settings.default_order_size_usd;
+  const leverage = Math.round(signal.leverage ?? Number(settings.default_leverage));
+  if (!(leverage >= 1 && leverage <= MAX_LEVERAGE)) return reject(`Leverage must be between 1 and ${MAX_LEVERAGE}`, 400);
+  const sizeUsd = signal.sizeUsd ?? Number(settings.default_order_size_usd);
+  const maxPositionSizeUsd = Number(settings.max_position_size_usd);
+  const slippage = Number(settings.slippage_percent);
+  // Per-signal stop/target (percent from entry) override the defaults from Settings.
+  const raw = body as Record<string, unknown>;
+  const stopLossPct = protectionPercent(raw.stop_loss_pct ?? settings.default_stop_loss_percent);
+  const takeProfitPct = protectionPercent(raw.take_profit_pct ?? settings.default_take_profit_percent);
+  if (raw.stop_loss_pct != null && stopLossPct == null) return reject('stop_loss_pct must be between 0.05 and 50', 400);
+  if (raw.take_profit_pct != null && takeProfitPct == null) return reject('take_profit_pct must be between 0.05 and 50', 400);
 
   let tradeId: string | null = null;
 
   try {
-    if (isClose) {
-      // Close existing position
-      const positions = await hl.getPositions();
-      const pos = positions.find(p => p.symbol === symbol);
-
-      if (!pos) {
-        await logWebhook(supabase, settings.user_id, payload, 'rejected', `No open position for ${symbol}`, ip);
-        return NextResponse.json({ message: `No open position for ${symbol}` }, { status: 200 });
-      }
-
-      const { fillPrice } = await hl.closePosition(symbol, settings.slippage_percent);
-
-      // Find and close the open trade record
-      const { data: openTrade } = await supabase
-        .from('trades')
-        .select('id, entry_price, size, size_usd, leverage, entry_time')
-        .eq('user_id', settings.user_id)
-        .eq('symbol', symbol)
-        .eq('status', 'open')
-        .order('entry_time', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (openTrade) {
-        const exitTime = new Date().toISOString();
-        const entryTime = new Date(openTrade.entry_time ?? Date.now()).getTime();
-        const durationSeconds = Math.floor((Date.now() - entryTime) / 1000);
-        const pnlPct = pos.side === 'long'
-          ? ((fillPrice - openTrade.entry_price) / openTrade.entry_price) * 100 * openTrade.leverage
-          : ((openTrade.entry_price - fillPrice) / openTrade.entry_price) * 100 * openTrade.leverage;
-        const pnl = (pnlPct / 100) * openTrade.size_usd;
-
-        const { data: updated } = await supabase
-          .from('trades')
-          .update({
-            status: 'closed',
-            exit_price: fillPrice,
-            exit_time: exitTime,
-            duration_seconds: durationSeconds,
-            pnl,
-            pnl_percentage: pnlPct,
-            updated_at: exitTime,
-          })
-          .eq('id', openTrade.id)
-          .select('id')
-          .single();
-
-        tradeId = updated?.id ?? null;
-      }
-
-      await logWebhook(supabase, settings.user_id, payload, 'processed', null, ip, tradeId);
-      return NextResponse.json({ success: true, action: 'close', symbol, fillPrice });
+    const hl = hlClientFromSettings(settings);
+    if (!hl) {
+      await log('error', 'Hyperliquid not configured');
+      return NextResponse.json({ error: 'Hyperliquid credentials not configured' }, { status: 500 });
     }
 
-    // Open new position
-    const result = await hl.placeMarketOrder({
-      coin: symbol,
-      isBuy,
-      sizeUsd,
-      leverage,
-      reduceOnly: false,
-      slippagePercent: settings.slippage_percent,
+    const position = await hl.getPosition(symbol);
+    const plan = planSignal({
+      direction: signal.direction,
+      isTargetPosition: signal.isTargetPosition,
+      current: position ? { side: position.side, notionalUsd: position.size * position.markPrice } : null,
+      orderSizeUsd: sizeUsd,
+      maxPositionSizeUsd,
     });
 
-    const now = new Date().toISOString();
-    const { data: trade } = await supabase
-      .from('trades')
-      .insert({
-        user_id: settings.user_id,
-        symbol,
-        side: isBuy ? 'long' : 'short',
-        status: 'open',
-        entry_price: result.fillPrice,
-        size: result.sizeInContracts,
-        size_usd: sizeUsd,
-        leverage,
-        entry_time: now,
-        signal_source: 'webhook',
-        webhook_payload: payload as unknown as Record<string, unknown>,
-        hyperliquid_order_id: result.orderId,
-        created_at: now,
-        updated_at: now,
-      })
-      .select('id')
-      .single();
+    if (plan.type === 'none') {
+      await log('rejected', plan.reason);
+      return NextResponse.json({ success: false, message: plan.reason }, { status: 200 });
+    }
 
-    tradeId = trade?.id ?? null;
-    await logWebhook(supabase, settings.user_id, payload, 'processed', null, ip, tradeId);
+    let reversed = false;
+    if (plan.type === 'close' || plan.type === 'reverse') {
+      const closed = await closePositionFully(hl, supabase, userId, symbol, slippage);
+      tradeId = closed.tradeIds[0] ?? null;
+      reversed = true;
+
+      if (plan.type === 'close') {
+        await log('processed', null, tradeId);
+        await notify(`Webhook: closed ${symbol} at ${closed.fillPrice}`);
+        return NextResponse.json({ success: true, action: 'close', symbol, fillPrice: closed.fillPrice, size: closed.size });
+      }
+    }
+
+    const side = plan.side;
+    const opened = await openPosition(hl, supabase, {
+      userId, symbol, side, sizeUsd, leverage, slippagePercent: slippage,
+      stopLossPct, takeProfitPct, source: 'webhook', payload,
+    });
+    tradeId = opened.tradeId;
+    await log('processed', opened.protectionError ? `Opened WITHOUT stop/target: ${opened.protectionError}` : null, tradeId);
+    await notify(
+      `Webhook: opened ${side} ${opened.size} ${symbol} at ${opened.fillPrice} (${leverage}x)` +
+        (opened.stopLossPx ? `, stop ${opened.stopLossPx.toFixed(2)}` : '') +
+        (opened.takeProfitPx ? `, target ${opened.takeProfitPx.toFixed(2)}` : '') +
+        (opened.protectionError ? `. WARNING: stop/target NOT placed (${opened.protectionError})` : '')
+    );
 
     return NextResponse.json({
       success: true,
-      action: isBuy ? 'long' : 'short',
+      action: side,
+      reversed,
       symbol,
-      fillPrice: result.fillPrice,
-      size: result.sizeInContracts,
+      fillPrice: opened.fillPrice,
+      size: opened.size,
       leverage,
       tradeId,
+      stopLossPx: opened.stopLossPx,
+      takeProfitPx: opened.takeProfitPx,
+      protectionError: opened.protectionError,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    await logWebhook(supabase, settings.user_id, payload, 'error', message, ip, tradeId);
+    await log('error', message, tradeId);
+    await notify(`Webhook ERROR on ${symbol}: ${message}`);
     console.error('[webhook]', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
-
-async function logWebhook(
-  supabase: ReturnType<typeof createServiceClient>,
-  userId: string | null,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: any,
-  status: 'processed' | 'rejected' | 'error',
-  errorMessage: string | null,
-  ipAddress: string,
-  tradeId: string | null = null
-) {
-  await supabase.from('webhook_logs').insert({
-    user_id: userId,
-    payload,
-    status,
-    error_message: errorMessage,
-    trade_id: tradeId,
-    ip_address: ipAddress,
-    created_at: new Date().toISOString(),
-  });
 }
