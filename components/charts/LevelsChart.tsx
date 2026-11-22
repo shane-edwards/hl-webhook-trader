@@ -15,6 +15,8 @@ interface Props {
   lines: ChartLine[];
   height?: number;
   className?: string;
+  /** What one candle covers, for the caption: "hourly", "4-hour" and so on. */
+  interval?: string;
 }
 
 // Entry uses the first chart series colour; stop and target use the same
@@ -31,12 +33,12 @@ const UP = 'hsl(var(--muted-foreground))';
 const DOWN = 'hsl(var(--foreground))';
 
 /**
- * Hourly candles with horizontal price lines: support and resistance, and the
+ * Candles with horizontal price lines: support and resistance, and the
  * trade's entry, stop and target. Plain SVG sized to its container, so it
  * stays readable at phone width; the lines follow their props as the user
  * edits the stop or target.
  */
-export function LevelsChart({ candles, lines, height = 200, className }: Props) {
+export function LevelsChart({ candles, lines, height = 200, className, interval = 'hourly' }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
@@ -85,7 +87,7 @@ export function LevelsChart({ candles, lines, height = 200, className }: Props) 
       <div ref={ref} style={{ height }}>
       {view && (
         <svg width={width} height={height} role="img"
-          aria-label={`Hourly price chart with ${lines.filter(l => l.kind !== 'support' && l.kind !== 'resistance').map(l => `${l.label} at ${formatPrice(l.price)}`).join(', ') || 'support and resistance levels'}`}>
+          aria-label={`Price chart, ${interval} candles, with ${lines.filter(l => l.kind !== 'support' && l.kind !== 'resistance').map(l => `${l.label} at ${formatPrice(l.price)}`).join(', ') || 'support and resistance levels'}`}>
           {candles.map((c, i) => {
             const x = i * view.step + view.step / 2, up = c.c >= c.o;
             const top = view.y(Math.max(c.o, c.c)), bottom = view.y(Math.min(c.o, c.c));
@@ -113,7 +115,7 @@ export function LevelsChart({ candles, lines, height = 200, className }: Props) 
             );
           })}
           <text x={0} y={height - 2} fontSize={10} fill="hsl(var(--muted-foreground))">{day(view.first)}</text>
-          <text x={view.plotW} y={height - 2} fontSize={10} textAnchor="end" fill="hsl(var(--muted-foreground))">{day(view.last)} · hourly, UTC</text>
+          <text x={view.plotW} y={height - 2} fontSize={10} textAnchor="end" fill="hsl(var(--muted-foreground))">{day(view.last)} · {interval}, UTC</text>
         </svg>
       )}
       </div>

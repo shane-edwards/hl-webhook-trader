@@ -69,7 +69,7 @@ const MIN_STOP_PCT = 0.5, MAX_STOP_PCT = 12;
  * the stop falls back to the volatility-based distance and the target to
  * TARGET_R times the stop.
  */
-function levels(price: number, dir: 1 | -1, volStopFraction: number, atr: number, sr: Level[]): Levels {
+export function protectionLevels(price: number, dir: 1 | -1, volStopFraction: number, atr: number, sr: Level[]): Levels {
   const volPct = Math.min(MAX_STOP_PCT, Math.max(MIN_STOP_PCT, volStopFraction * 100));
   const buffer = 30 * atr; // 0.3 of an hourly range, in percent: room beyond the level for a wick
   // A stop within one and a half hourly ranges is inside ordinary noise; further than twice the volatility stop is too much risk.
@@ -131,8 +131,8 @@ export function buildSuggestion(symbol: string, bars: Bar[], price: number): Sug
 
   // Turning points within half an hourly range of each other are treated as one level.
   const sr = findLevels(bars, 0.5 * atr);
-  const long = levels(price, 1, median(stops.long), atr, sr);
-  const short = levels(price, -1, median(stops.short), atr, sr);
+  const long = protectionLevels(price, 1, median(stops.long), atr, sr);
+  const short = protectionLevels(price, -1, median(stops.short), atr, sr);
   const supports = sr.filter(l => l.price < price).sort((a, b) => b.price - a.price).slice(0, 3);
   const resistances = sr.filter(l => l.price > price).sort((a, b) => a.price - b.price).slice(0, 3);
 
