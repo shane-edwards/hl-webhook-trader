@@ -57,6 +57,15 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
     if (!symbol || !stop) throw new Error('ticket did not pre-fill from the idea');
     await shot('2-ticket-market');
 
+    // Another timeframe: the chart reloads and the stop is re-sized from those candles.
+    await dialog.getByRole('radio', { name: '4 hour' }).click();
+    await page.waitForFunction(prev => { const v = document.querySelector('#tt-sl')?.value; return v && v !== prev; }, stop, { timeout: 30_000 });
+    console.log(`      on the 4-hour chart the stop is ${await dialog.locator('#tt-sl').inputValue()}%`);
+    await dialog.locator('svg[role="img"]').waitFor({ timeout: 20_000 });
+    await shot('2b-ticket-4h');
+    await dialog.getByRole('radio', { name: '1 hour' }).click();
+    await page.waitForFunction(prev => document.querySelector('#tt-sl')?.value === prev, stop, { timeout: 30_000 });
+
     await dialog.getByRole('radio', { name: 'Limit price' }).click();
     await dialog.getByRole('button', { name: /Use nearest/ }).click().catch(() => dialog.locator('#tt-limit').fill('1'));
     await shot('3-ticket-limit');

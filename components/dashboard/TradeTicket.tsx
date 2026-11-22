@@ -14,6 +14,7 @@ import { LevelsChart, type ChartCandle, type ChartLine } from '@/components/char
 import type { Market } from '@/lib/hyperliquid/public';
 import type { Settings } from '@/types';
 import type { Suggestion } from '@/lib/suggestions';
+import { TIMEFRAMES, type Timeframe, type TimeframeLevels } from '@/lib/timeframes';
 
 interface Props {
   settings: Settings | null;
@@ -59,6 +60,10 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [suggesting, setSuggesting] = useState(false);
   const [candles, setCandles] = useState<ChartCandle[]>([]);
+  // The trade's horizon: which candles the chart shows and which the stop and target are sized from.
+  const [timeframe, setTimeframe] = useState<Timeframe>('1h');
+  const [tfLevels, setTfLevels] = useState<TimeframeLevels | null>(null);
+  const [tfError, setTfError] = useState<string | null>(null);
   // Once the user types their own stop or target, suggestions stop overwriting it.
   const [edited, setEdited] = useState({ sl: false, tp: false });
 
@@ -71,7 +76,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
   useEffect(() => {
     if (!open) return;
     const sym = symbol.trim().toUpperCase();
-    setSuggestion(null); setCandles([]);
+    setSuggestion(null);
     if (!sym) return;
     setSuggesting(true);
     const id = setTimeout(() => {
@@ -80,14 +85,35 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
         .then(d => { const s = d?.suggestions?.[0]; setSuggestion(s && !s.error ? s : null); })
         .catch(() => setSuggestion(null))
         .finally(() => setSuggesting(false));
-      fetch(`/api/candles?symbol=${encodeURIComponent(sym)}&hours=120`)
-        .then(r => (r.ok ? r.json() : null)).then(d => setCandles(d?.candles ?? [])).catch(() => setCandles([]));
     }, 400);
     return () => clearTimeout(id);
   }, [open, symbol]);
 
+  // Candles and levels for the chosen timeframe. Reloaded when the market or the timeframe changes.
+  useEffect(() => {
+    if (!open) return;
+    const sym = symbol.trim().toUpperCase();
+    setCandles([]); setTfLevels(null); setTfError(null);
+    if (!sym) return;
+    let live = true;
+    const id = setTimeout(() => {
+      fetch(`/api/levels?symbol=${encodeURIComponent(sym)}&tf=${timeframe}`)
+        .then(async r => ({ ok: r.ok, d: await r.json().catch(() => null) }))
+        .then(({ ok, d }) => {
+          if (!live) return;
+          if (!ok) { setTfError(d?.error ?? 'Could not load this timeframe'); return; }
+          setCandles(d.candles ?? []); setTfLevels(d.levels ?? null);
+        })
+        .catch(() => { if (live) setTfError('Could not load this timeframe'); });
+    }, 400);
+    return () => { live = false; clearTimeout(id); };
+  }, [open, symbol, timeframe]);
+
   // Pre-fill the stop and target for the chosen side, unless the user has set their own.
-  const suggested = suggestion ? suggestion[side] : null;
+  // On the 1-hour timeframe the stop also takes in what the tested rules use; on the others it is sized from
+  // that timeframe's own candles. Either way the levels drawn are the ones the stop and target were placed against.
+  const frame = timeframe === '1h' && suggestion ? suggestion : tfLevels;
+  const suggested = frame ? frame[side] : null;
   useEffect(() => {
     if (!suggested) return;
     if (!edited.sl) setStopLoss(String(suggested.stopLossPct));
@@ -137,8 +163,8 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
 
   const lines = useMemo<ChartLine[]>(() => {
     const out: ChartLine[] = [];
-    for (const l of suggestion?.supports ?? []) out.push({ kind: 'support', label: 'Support', price: l.price });
-    for (const l of suggestion?.resistances ?? []) out.push({ kind: 'resistance', label: 'Resist.', price: l.price });
+    for (const l of frame?.supports ?? []) out.push({ kind: 'support', label: 'Support', price: l.price });
+    for (const l of frame?.resistances ?? []) out.push({ kind: 'resistance', label: 'Resist.', price: l.price });
     if (entry) {
       out.push({ kind: 'entry', label: isLimit ? 'Limit' : 'Entry', price: entry });
       if (sl > 0) out.push({ kind: 'stop', label: 'Stop', price: entry * (1 - (dir * sl) / 100) });
@@ -146,7 +172,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
       if (tp2 > 0 && managed) out.push({ kind: 'target', label: 'Target 2', price: entry * (1 + (dir * tp2) / 100) });
     }
     return out;
-  }, [suggestion, entry, isLimit, sl, tp, tp2, dir, managed]);
+  }, [frame, entry, isLimit, sl, tp, tp2, dir, managed]);
 
   // What a market order of this size would cost against the book right now.
   useEffect(() => {
@@ -184,7 +210,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
           }),
           note,
           // What the ticket showed, so the trade can be tagged in the journal.
-          context: suggestion ? { bias: suggestion.bias, suggestedStopPct: suggestion[side].stopLossPct } : null,
+          context: suggestion || suggested ? { bias: suggestion?.bias ?? null, suggestedStopPct: suggested?.stopLossPct ?? null, timeframe } : null,
         }),
       });
       const data = await res.json();
@@ -208,7 +234,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
     }
   }
 
-  const nearest = side === 'long' ? suggestion?.supports[0] : suggestion?.resistances[0];
+  const nearest = side === 'long' ? frame?.supports[0] : frame?.resistances[0];
 
   return (
     <>
@@ -249,7 +275,20 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
               </div>
             </div>
 
-            {candles.length > 0 && <LevelsChart candles={candles} lines={lines} height={190} className="rounded-lg border border-border bg-secondary/30 px-2 py-1.5" />}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label>Timeframe</Label>
+                <Segmented aria-label="Chart and stop timeframe" value={timeframe} onChange={v => { setTimeframe(v); setEdited({ sl: false, tp: false }); }}
+                  options={(Object.keys(TIMEFRAMES) as Timeframe[]).map(k => ({ value: k, label: TIMEFRAMES[k].label }))} />
+              </div>
+              {candles.length > 0 && <LevelsChart candles={candles} lines={lines} height={190} interval={`${TIMEFRAMES[timeframe].label.toLowerCase()} candles`} className="rounded-lg border border-border bg-secondary/30 px-2 py-1.5" />}
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {tfError ? <span className="text-warning">{tfError}. </span> : null}
+                For a trade held {TIMEFRAMES[timeframe].hold}. The stop, target and levels are taken from {TIMEFRAMES[timeframe].label.toLowerCase()} candles over {TIMEFRAMES[timeframe].span}
+                {tfLevels ? ` (one candle moves about ${tfLevels.atrPct}%)` : ''}. Changing the timeframe re-fills the stop and target.
+                {timeframe === '15m' && ' On a stop this tight, fees and slippage are a large share of the risk.'}
+              </p>
+            </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -401,11 +440,12 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
                     </span>
                     <span className="text-muted-foreground">{suggestion.summary}</span>
                   </p>
+                  {timeframe !== '1h' && <p className="text-muted-foreground mt-1">The read above is always from the hourly and 4-hour rules; only the stop and target change with the timeframe.</p>}
                   {suggestion.bias !== 'neutral' && suggestion.bias !== side && (
                     <p className="text-warning mt-1">You are going {side}, against what the rules read.</p>
                   )}
                   <p className="text-muted-foreground mt-1">
-                    Suggested for a {side}: stop {suggestion[side].stopLossPct}% {suggestion[side].stopBasis}; target {suggestion[side].takeProfitPct}% {suggestion[side].targetBasis}.{' '}
+                    {suggested ? <>Suggested for a {side} on the {TIMEFRAMES[timeframe].label.toLowerCase()} chart: stop {suggested.stopLossPct}% {suggested.stopBasis}; target {suggested.takeProfitPct}% {suggested.targetBasis}.{' '}</> : 'Loading the stop and target for this timeframe… '}
                     {(edited.sl || edited.tp) && (
                       <button type="button" className="text-primary hover:underline" onClick={() => setEdited({ sl: false, tp: false })}>Use suggested</button>
                     )}

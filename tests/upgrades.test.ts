@@ -11,6 +11,7 @@ import { openPosition, closePositionFully } from '../lib/execution';
 import { cancelLimitEntry, managePending, placeLimitEntry } from '../lib/pending';
 import { estimateFill, liquidityVerdict } from '../lib/liquidity';
 import { runFastPass } from '../lib/upkeep';
+import { atrFraction, buildTimeframeLevels } from '../lib/timeframes';
 import { attributeCosts, exitFromFills, NO_FILL_NOTE, syncAccount } from '../lib/reconcile';
 import { buildScorecard, resolveOutcome } from '../lib/scorecard';
 import { evaluateHealth } from '../lib/health';
@@ -687,4 +688,31 @@ test('alerts: ntfy needs only a topic; urgent messages are sent at high priority
   await notify('Webhook ERROR on BTC: stop — rejected');
   assert.equal(calls[1].headers.Priority, 'high');
   assert.doesNotMatch(calls[1].headers.Title, /[^\x20-\x7E]/, 'header values must be plain ASCII');
+});
+
+// ---------------------------------------------------------------- timeframes
+/** A range-bound series: price oscillates between a floor and a ceiling, `range` wide per bar. */
+function ranging(n: number, barMs: number, range: number): Bar[] {
+  const out: Bar[] = [];
+  for (let i = 0; i < n; i++) {
+    const mid = 100 + 4 * Math.sin(i / 9), next = 100 + 4 * Math.sin((i + 1) / 9);
+    out.push({ t: i * barMs, o: mid, h: Math.max(mid, next) + range / 2, l: Math.min(mid, next) - range / 2, c: next });
+  }
+  return out;
+}
+
+test('timeframes: stop and target are sized from the chosen candles, on the correct side, wider on slower charts', () => {
+  const fast = buildTimeframeLevels('15m', ranging(400, 900_000, 0.2), 100);
+  const slow = buildTimeframeLevels('1d', ranging(400, 86_400_000, 2), 100);
+  assert.equal(fast.timeframe, '15m');
+  assert.ok(slow.atrPct > fast.atrPct * 2, 'a daily candle moves more than a 15-minute one');
+  assert.ok(slow.long.stopLossPct > fast.long.stopLossPct, 'so the daily stop is further away');
+  for (const f of [fast, slow]) {
+    assert.ok(f.long.stopPrice < 100 && f.long.targetPrice > 100);
+    assert.ok(f.short.stopPrice > 100 && f.short.targetPrice < 100);
+    assert.ok(f.long.takeProfitPct >= f.long.stopLossPct * 1.5 - 0.11, 'target pays at least 1.5 times the risk');
+    assert.ok(f.supports.every(l => l.price < 100) && f.resistances.every(l => l.price > 100));
+    assert.ok(f.supports.length > 0 && f.resistances.length > 0, 'the range floor and ceiling are found as levels');
+  }
+  assert.ok(Math.abs(atrFraction([{ t: 0, o: 100, h: 100, l: 100, c: 100 }, { t: 1, o: 100, h: 102, l: 99, c: 100 }]) - 0.03) < 1e-9);
 });
