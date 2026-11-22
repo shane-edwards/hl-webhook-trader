@@ -173,6 +173,20 @@ export class HyperliquidClient {
       .map(c => ({ time: c.t, close: parseFloat(c.c) }));
   }
 
+  /** Completed hourly candles, oldest first. The candle still forming is dropped. */
+  async getHourlyCandles(coin: string, count: number): Promise<Array<{ t: number; o: number; h: number; l: number; c: number }>> {
+    const endTime = Date.now();
+    const startTime = endTime - (count + 2) * 3_600_000;
+    const raw = await this.infoRequest<Array<{ t: number; T: number; o: string; h: string; l: string; c: string }>>({
+      type: 'candleSnapshot',
+      req: { coin: coin.toUpperCase(), interval: '1h', startTime, endTime },
+    });
+    return (raw ?? [])
+      .filter(c => c.T < endTime)
+      .sort((x, y) => x.t - y.t)
+      .map(c => ({ t: c.t, o: parseFloat(c.o), h: parseFloat(c.h), l: parseFloat(c.l), c: parseFloat(c.c) }));
+  }
+
   async setLeverage(coin: string, leverage: number, isCross = true): Promise<void> {
     const { index, meta } = await this.getAsset(coin);
     if (!Number.isInteger(leverage) || leverage < 1) {

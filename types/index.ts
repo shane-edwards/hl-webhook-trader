@@ -1,6 +1,6 @@
 export type TradeSide = 'long' | 'short';
 export type TradeStatus = 'open' | 'closed' | 'cancelled';
-export type SignalSource = 'webhook' | 'manual';
+export type SignalSource = 'webhook' | 'manual' | 'autopilot';
 export type StrategyRunStatus = 'held' | 'traded' | 'dry_run' | 'error';
 
 export interface Trade {

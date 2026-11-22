@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/dashboard': { title: 'Dashboard', description: 'Account, positions and automation at a glance' },
+  '/autopilot': { title: 'Autopilot', description: 'Scans markets and trades by tested rules, within your risk limits' },
   '/trades': { title: 'Trades', description: 'Every trade this app has placed' },
   '/markets': { title: 'Markets', description: 'Live funding, open interest and volume across Hyperliquid' },
   '/lab': { title: 'Strategy Lab', description: 'Backtest ideas with real costs before risking money' },

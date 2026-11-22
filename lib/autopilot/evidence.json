@@ -1,0 +1,239 @@
+{
+  "generatedThrough": "2026-11-22",
+  "coins": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "splitDate": "2023-01-01",
+  "strategies": [
+    {
+      "id": "trend_pullback",
+      "allowShort": false,
+      "liveEligible": false,
+      "early": {
+        "annualReturn": -0.014074800302359747,
+        "sharpe": 0.07038046058414517,
+        "maxDrawdown": 0.27401613650650736,
+        "tradesPerYear": 65.81463317976916,
+        "winRate": 0.3824175824175824,
+        "avgGrossBps": 6.163070665037201,
+        "avgNetBps": -10.446126885053507,
+        "profitFactor": 0.9463107464779595,
+        "trades": 455
+      },
+      "late": {
+        "annualReturn": -0.08394149763170655,
+        "sharpe": -0.47583968949238864,
+        "maxDrawdown": 0.4418617129541168,
+        "tradesPerYear": 56.57355570536683,
+        "winRate": 0.37972768532526474,
+        "avgGrossBps": 5.659725739700782,
+        "avgNetBps": -13.29000098456101,
+        "profitFactor": 0.8920474319544186,
+        "trades": 661
+      },
+      "recent": {
+        "annualReturn": -0.07923034442235499,
+        "sharpe": -0.597071668964584,
+        "maxDrawdown": 0.2391348587609582,
+        "tradesPerYear": 48.44937854470857,
+        "winRate": 0.3781818181818182,
+        "avgGrossBps": 1.3516235260057903,
+        "avgNetBps": -15.42127987600996,
+        "profitFactor": 0.8567505865330729,
+        "trades": 275
+      }
+    },
+    {
+      "id": "trend_pullback",
+      "allowShort": true,
+      "liveEligible": false,
+      "early": {
+        "annualReturn": -0.13069346024525286,
+        "sharpe": -0.21571871321649796,
+        "maxDrawdown": 0.47347629508421407,
+        "tradesPerYear": 128.88096299598752,
+        "winRate": 0.39057239057239057,
+        "avgGrossBps": 0.11677210106871917,
+        "avgNetBps": -15.141648709318192,
+        "profitFactor": 0.9200481447400237,
+        "trades": 891
+      },
+      "late": {
+        "annualReturn": -0.08708742008243042,
+        "sharpe": -0.3113433130550578,
+        "maxDrawdown": 0.4074739287968683,
+        "tradesPerYear": 111.6065304686813,
+        "winRate": 0.39263803680981596,
+        "avgGrossBps": 10.486603563741513,
+        "avgNetBps": -5.930639412661751,
+        "profitFactor": 0.950763710226229,
+        "trades": 1304
+      },
+      "recent": {
+        "annualReturn": -0.019569615497374127,
+        "sharpe": 0.016433610747065834,
+        "maxDrawdown": 0.23825106442192356,
+        "tradesPerYear": 113.28345601544588,
+        "winRate": 0.4059097978227061,
+        "avgGrossBps": 16.113318202304818,
+        "avgNetBps": 1.1569620799039382,
+        "profitFactor": 1.0099959821835176,
+        "trades": 643
+      }
+    },
+    {
+      "id": "trend_breakout",
+      "allowShort": false,
+      "liveEligible": true,
+      "early": {
+        "annualReturn": 0.5452335615500199,
+        "sharpe": 1.2969735887630092,
+        "maxDrawdown": 0.2641200082013484,
+        "tradesPerYear": 51.20523108931491,
+        "winRate": 0.3700564971751412,
+        "avgGrossBps": 167.1757647525379,
+        "avgNetBps": 133.924324933805,
+        "profitFactor": 1.6870761803333854,
+        "trades": 354
+      },
+      "late": {
+        "annualReturn": 0.1948764087122603,
+        "sharpe": 0.8262218384484068,
+        "maxDrawdown": 0.2573587730008666,
+        "tradesPerYear": 47.672421373508804,
+        "winRate": 0.29443447037701975,
+        "avgGrossBps": 74.57238430599001,
+        "avgNetBps": 44.144324978236284,
+        "profitFactor": 1.3207298931618494,
+        "trades": 557
+      },
+      "recent": {
+        "annualReturn": -0.007095619928802477,
+        "sharpe": 0.06576155639065043,
+        "maxDrawdown": 0.2573587730008693,
+        "tradesPerYear": 44.92578737782068,
+        "winRate": 0.26666666666666666,
+        "avgGrossBps": 26.730090810516632,
+        "avgNetBps": 2.9586046592542434,
+        "profitFactor": 1.0227768759742146,
+        "trades": 255
+      }
+    },
+    {
+      "id": "trend_breakout",
+      "allowShort": true,
+      "liveEligible": false,
+      "early": {
+        "annualReturn": 0.30769202261215245,
+        "sharpe": 0.7464671229035086,
+        "maxDrawdown": 0.38790225614015306,
+        "tradesPerYear": 103.42299499678012,
+        "winRate": 0.32727272727272727,
+        "avgGrossBps": 82.98780968149168,
+        "avgNetBps": 55.01738473348241,
+        "profitFactor": 1.2565270430774307,
+        "trades": 715
+      },
+      "late": {
+        "annualReturn": 0.03735203899302597,
+        "sharpe": 0.2879107259649687,
+        "maxDrawdown": 0.38425296916591445,
+        "tradesPerYear": 92.09250520268489,
+        "winRate": 0.2815985130111524,
+        "avgGrossBps": 38.80491199652187,
+        "avgNetBps": 14.854706961164199,
+        "profitFactor": 1.1028110847334573,
+        "trades": 1076
+      },
+      "recent": {
+        "annualReturn": 0.059169571303417046,
+        "sharpe": 0.3415238434151938,
+        "maxDrawdown": 0.3749137887676256,
+        "tradesPerYear": 94.43224327259564,
+        "winRate": 0.291044776119403,
+        "avgGrossBps": 32.84790876203364,
+        "avgNetBps": 13.760484107328752,
+        "profitFactor": 1.1011231165157154,
+        "trades": 536
+      }
+    },
+    {
+      "id": "momentum_burst",
+      "allowShort": false,
+      "liveEligible": false,
+      "early": {
+        "annualReturn": 0.005564453840662065,
+        "sharpe": 0.11921352482845506,
+        "maxDrawdown": 0.1892672715794691,
+        "tradesPerYear": 96.91385545152822,
+        "winRate": 0.47313432835820896,
+        "avgGrossBps": 16.15233569717171,
+        "avgNetBps": 0.6928200186002657,
+        "profitFactor": 1.0068671070889812,
+        "trades": 670
+      },
+      "late": {
+        "annualReturn": -0.1309720153385605,
+        "sharpe": -1.150813659166864,
+        "maxDrawdown": 0.522784771130373,
+        "tradesPerYear": 89.61045812937833,
+        "winRate": 0.3839541547277937,
+        "avgGrossBps": 1.347317206682353,
+        "avgNetBps": -14.91643677675439,
+        "profitFactor": 0.7904966621603295,
+        "trades": 1047
+      },
+      "recent": {
+        "annualReturn": -0.07087996064272128,
+        "sharpe": -0.736603857875421,
+        "maxDrawdown": 0.1543709020578773,
+        "tradesPerYear": 74.8763122963678,
+        "winRate": 0.40941176470588236,
+        "avgGrossBps": 6.29239745657048,
+        "avgNetBps": -9.23163981253496,
+        "profitFactor": 0.8486365620252404,
+        "trades": 425
+      }
+    },
+    {
+      "id": "momentum_burst",
+      "allowShort": true,
+      "liveEligible": false,
+      "early": {
+        "annualReturn": -0.18641681426125478,
+        "sharpe": -0.6955286738891863,
+        "maxDrawdown": 0.5024559811279006,
+        "tradesPerYear": 189.48828453955517,
+        "winRate": 0.4351145038167939,
+        "avgGrossBps": 2.2077767204302376,
+        "avgNetBps": -12.761998773521,
+        "profitFactor": 0.8821626091262227,
+        "trades": 1310
+      },
+      "late": {
+        "annualReturn": -0.24585028816667054,
+        "sharpe": -1.5157453510778012,
+        "maxDrawdown": 0.7291488596566789,
+        "tradesPerYear": 170.91889673769674,
+        "winRate": 0.3780671006509765,
+        "avgGrossBps": 0.018335701779653966,
+        "avgNetBps": -15.614470490769424,
+        "profitFactor": 0.7887577557816938,
+        "trades": 1997
+      },
+      "recent": {
+        "annualReturn": -0.1312874767562906,
+        "sharpe": -0.69034559744017,
+        "maxDrawdown": 0.269871016669067,
+        "tradesPerYear": 169.30855556896344,
+        "winRate": 0.3922996878251821,
+        "avgGrossBps": 7.832534558656161,
+        "avgNetBps": -7.372560370892887,
+        "profitFactor": 0.8939484413852566,
+        "trades": 961
+      }
+    }
+  ]
+}

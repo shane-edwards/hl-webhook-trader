@@ -4,7 +4,11 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { encrypt } from '@/lib/encryption';
 import { generateWebhookSecret } from '@/lib/utils';
 
+import { STRATEGIES } from '@/lib/autopilot/strategies';
+
 export const dynamic = 'force-dynamic';
+
+const STRATEGY_IDS = new Set(STRATEGIES.map(s => s.id));
 
 export async function GET() {
   const supabase = await createClient();
@@ -55,8 +59,13 @@ const NUMERIC_FIELDS: Array<[string, number, number, string, boolean?]> = [
   ['slippage_percent', 0.01, 10, 'Slippage (%)'],
   ['strategy_target_vol', 0.05, 1.5, 'Strategy target volatility'],
   ['strategy_max_leverage', 0.1, 5, 'Strategy max leverage'],
+  ['autopilot_risk_per_trade_pct', 0.05, 5, 'Risk per trade (%)'],
+  ['autopilot_max_positions', 1, 20, 'Max positions', true],
+  ['autopilot_max_leverage', 0.1, 10, 'Max leverage per position'],
+  ['autopilot_daily_loss_limit_pct', 0.5, 50, 'Daily loss limit (%)'],
+  ['autopilot_max_drawdown_pct', 1, 90, 'Max drawdown (%)'],
 ];
-const BOOLEAN_FIELDS = ['webhook_enabled', 'is_testnet', 'strategy_enabled', 'strategy_dry_run'];
+const BOOLEAN_FIELDS = ['webhook_enabled', 'is_testnet', 'strategy_enabled', 'strategy_dry_run', 'autopilot_enabled', 'autopilot_allow_short'];
 
 export async function PUT(request: Request) {
   const supabase = await createClient();
@@ -102,6 +111,21 @@ export async function PUT(request: Request) {
     const v = Number(raw);
     if (!Number.isFinite(v) || v < 0.05 || v > 50) return bad('Stop-loss and take-profit must be between 0.05% and 50%, or empty');
     update[field] = v;
+  }
+
+  if (body.autopilot_mode != null) {
+    if (body.autopilot_mode !== 'paper' && body.autopilot_mode !== 'live') return bad('Autopilot mode must be paper or live');
+    update.autopilot_mode = body.autopilot_mode;
+  }
+  if (body.autopilot_symbols != null) {
+    const list = Array.isArray(body.autopilot_symbols) ? body.autopilot_symbols.map((x: unknown) => String(x).trim().toUpperCase()).filter(Boolean) : null;
+    if (!list || list.length === 0 || list.length > 20 || list.some((x: string) => !/^[A-Z0-9]{1,20}$/.test(x))) return bad('Give between 1 and 20 market symbols, e.g. BTC, ETH, SOL');
+    update.autopilot_symbols = [...new Set(list)];
+  }
+  if (body.autopilot_strategies != null) {
+    const list = Array.isArray(body.autopilot_strategies) ? body.autopilot_strategies.map(String) : null;
+    if (!list || list.some((id: string) => !STRATEGY_IDS.has(id))) return bad('Unknown autopilot strategy');
+    update.autopilot_strategies = [...new Set(list)];
   }
 
   if (body.webhook_secret != null) {

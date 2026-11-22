@@ -24,3 +24,12 @@ export function hlClientFromSettings(settings: CredentialSettings | null | undef
     isTestnet: process.env.HL_TESTNET === 'true' || settings?.is_testnet === true,
   });
 }
+
+/**
+ * A client for reading public market data only (candles, prices). It signs
+ * with a throwaway key that controls nothing, and always reads mainnet, where
+ * the real prices are.
+ */
+export function marketDataClient(): HyperliquidClient {
+  return createHLClient({ privateKey: '0x' + '01'.repeat(32), isTestnet: false });
+}

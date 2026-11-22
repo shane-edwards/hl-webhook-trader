@@ -34,7 +34,7 @@ export interface OpenParams {
   slippagePercent: number;
   stopLossPct: number | null;
   takeProfitPct: number | null;
-  source: 'webhook' | 'manual';
+  source: 'webhook' | 'manual' | 'autopilot';
   payload?: Record<string, unknown> | null;
 }
 
