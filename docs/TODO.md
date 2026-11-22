@@ -96,10 +96,10 @@ Next actions, in order. Start here if picking this up in a new session.
           notes = 'No position and no closing fill found on the exchange; cancelled without a profit or loss'
       WHERE notes LIKE 'No position and no closing fill found on the exchange; exit price is the current price%';
       ```
-- [ ] **Run migration 006** (`supabase/migrations/006_trading_upgrades.sql`). Not applied: the session was not
+- [x] **Run migration 006** (applied 2026-11-22) (`supabase/migrations/006_trading_upgrades.sql`). Not applied: the session was not
       permitted to write to the production database. Until it is run, limit orders, managed exits, whole-market
       ideas, the live scorecard, health heartbeats and the new limit settings are off.
-- [ ] **Run migration 007** (`supabase/migrations/007_execution.sql`), after 006. It adds the entry-cost columns, chase
+- [x] **Run migration 007** (applied 2026-11-22; jobs `hl-fast`, `hl-market`, `hl-strategy` and `hl-cron-cleanup` are scheduled) (`supabase/migrations/007_execution.sql`), after 006. It adds the entry-cost columns, chase
       entries and the alert log, and schedules everything on Supabase: `hl-fast` (every 10 seconds, only while
       something is open), `hl-market` and `hl-strategy`. It copies the site address and secret from the existing
       `hl-autopilot` job, so nothing has to be typed in. The daily strategy has no scheduler until this is run
@@ -127,8 +127,7 @@ Execution round (started 2026-11-22). Ticked as each is finished:
       added as a channel that needs no bot or account, only `NTFY_TOPIC`. Urgent alerts are sent at high priority.
       Still needs the owner to choose a channel and set its variable in Vercel
 - [x] Code deployed to production (Vercel, from `master`)
-- [ ] Database: migrations 006 and 007 run (see the checklist above). Until then the execution round is switched off:
-      the app behaves as before, with market entries, the order-book check and the close-if-no-stop rule active
+- [x] Database: migrations 006 and 007 run. First market scan and health heartbeats confirmed
 
 The 18 items:
 
