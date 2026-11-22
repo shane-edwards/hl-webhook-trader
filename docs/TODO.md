@@ -181,6 +181,9 @@ The 18 items:
 - **Stops at support/resistance did not beat volatility-only stops.** On identical entries they were slightly worse in
   all three periods (0.07 percentage points per idea). The level-based placement was kept because nothing shows the
   alternative is better by a margin that matters, but it should not be described as an improvement.
+- **The timeframe the stop is sized from does not create an edge either.** Identical entries with stops from 15-minute,
+  1-hour, 4-hour and daily candles (about 2,900 ideas each): between -0.04R and +0.02R per idea after costs, and none
+  positive in all three periods. See `backtest/TIMEFRAMES.md`. The ticket shows this under the chart.
 - **Volume breakout** passes the gate on BTC/ETH/SOL (long and short: +13% a year since 2023, +9% from 2025) and is
   `paperOnly`, like MACD trend. Ten variants are now in `evidence.json`; the existing eight are unchanged.
 
