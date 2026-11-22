@@ -9,7 +9,7 @@ import { limitOrderWire, orderAction, triggerOrderWire } from '../lib/hyperliqui
 import { buildExitLegs, manageExits, nextExitStep, type PlanRow } from '../lib/exits';
 import { openPosition, closePositionFully } from '../lib/execution';
 import { managePending, placeLimitEntry } from '../lib/pending';
-import { attributeCosts, exitFromFills } from '../lib/reconcile';
+import { attributeCosts, exitFromFills, NO_FILL_NOTE, syncAccount } from '../lib/reconcile';
 import { buildScorecard, resolveOutcome } from '../lib/scorecard';
 import { evaluateHealth } from '../lib/health';
 import { buildDailySummary } from '../lib/upkeep';
@@ -282,6 +282,26 @@ test('reconcile: exit price comes from the closing fills after the entry, size-w
   ];
   assert.deepEqual(exitFromFills(fills, 'BTC', 900), { price: 117.5, time: 3_000 });
   assert.equal(exitFromFills(fills, 'SOL', 0), null);
+});
+
+test('reconcile: a stale open row with no position and no closing fill is cancelled, never given a made-up P&L', async (t) => {
+  // The exchange's fill and funding history is read over HTTP; stand in an empty one.
+  t.mock.method(globalThis, 'fetch', async () => new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }));
+  const ex = new SimExchange({ BTC: 61_000 });
+  const old = new Date(Date.now() - 150 * 86_400_000).toISOString();
+  const { db, tables } = memoryDb({ trades: [
+    { id: 'stale', user_id: USER, symbol: 'BTC', side: 'short', status: 'open', entry_price: 65_000, size: 0.01, leverage: 2, entry_time: old, pnl: null },
+    { id: 'fresh', user_id: USER, symbol: 'ETH', side: 'long', status: 'open', entry_price: 1_700, size: 1, leverage: 2, entry_time: new Date().toISOString(), pnl: null },
+  ] });
+  const r = await syncAccount(ex.client, db, USER);
+  const stale = tables.trades.find(x => x.id === 'stale')!;
+  assert.equal(stale.status, 'cancelled');
+  assert.equal(stale.pnl, null);
+  assert.equal(stale.exit_price, undefined);
+  assert.equal(stale.notes, NO_FILL_NOTE);
+  assert.match(r.notes[0], /marked cancelled with no profit or loss/);
+  // A row opened moments ago is left alone: its fill may not be in the history yet.
+  assert.equal(tables.trades.find(x => x.id === 'fresh')!.status, 'open');
 });
 
 test('true costs: fees, funding and realised P&L are attributed per trade; overlapping rows share one position', () => {

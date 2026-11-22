@@ -153,7 +153,8 @@ Sharpe from daily returns only with 30 or more of them. Sortino, Calmar, recover
 exposure cap (default 3x) and account daily loss limit (default 5%), editable in Settings.
 
 **11. Reconcile.** Same module as item 8: open rows with no position behind them are settled from the exchange's
-closing fills, or at the current price with a note when no fill is found.
+closing fills. When the exchange shows neither a position nor a closing fill, the rows are cancelled without a
+profit or loss (there is no honest exit price).
 
 **12. Alerts and daily summary.** Email channel added (`lib/notify.ts`); summary in `lib/upkeep.ts`. Needs a channel
 configured (see above).
