@@ -1,0 +1,17 @@
+{
+  "generatedThrough": "2026-11-22",
+  "configurationsTested": 16,
+  "confirmedOnHoldout": 1,
+  "early": {
+    "annualReturn": 0.14582578623956288
+  },
+  "late": {
+    "annualReturn": 0.16489395782465843,
+    "sharpe": 0.7266530787587367,
+    "maxDrawdown": 0.3031434608553507,
+    "avgNetBps": null
+  },
+  "recent": {
+    "annualReturn": 0.21028358516855938
+  }
+}

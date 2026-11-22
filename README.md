@@ -138,6 +138,10 @@ The autopilot looks at each market you list, on completed hourly candles, and tr
 
 **Scalping search.** `npm run backtest:scalp` tests 517 short-term configurations in five families on 15-minute data, selecting on 2020–2024 and checking once on 2025 onward. None passed, with or without fees; see [`backtest/SCALPING.md`](backtest/SCALPING.md). No scalping strategy has been added to the autopilot for that reason. The search is there to test new ideas the same way.
 
+**Other studies.** [`backtest/UNIVERSE.md`](backtest/UNIVERSE.md) tests the eligible strategy on 22 coins and 16 cross-coin ranking rules. [`backtest/POPULAR.md`](backtest/POPULAR.md) tests eight strategies taken from TradingView's public community scripts plus the common indicator strategies (26 variants). The pattern across all of them: long-only trend rules made money through 2024 and nothing in 2025–2026, when the market fell.
+
+**Cross-coin momentum (paper only).** Once a week it ranks 19 large coins by 90-day return and holds the strongest quarter long and the weakest quarter short in equal size. It was the one ranking rule that held up on unseen data, which may be luck, so it cannot trade real money. Select it on the Autopilot page to start a paper record.
+
 **Risk rules** (all adjustable on the Autopilot page):
 - Position size is set so a stopped-out trade loses a fixed share of equity (default 0.5%), capped at a leverage limit per position.
 - Every live position gets a stop-loss on the exchange. If the stop cannot be placed, the position is closed immediately.
