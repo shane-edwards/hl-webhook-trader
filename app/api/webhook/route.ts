@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
-import { closeOpenTrades } from '@/lib/trade-records';
+import { closePositionFully, openPosition, protectionPercent, MAX_LEVERAGE } from '@/lib/execution';
 import { parseWebhookPayload, planSignal, redactPayload } from '@/lib/webhook';
 import { notify } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MAX_LEVERAGE = 50;
 const MIN_SECRET_LENGTH = 16;
 
 export async function POST(request: Request) {
@@ -69,6 +68,12 @@ export async function POST(request: Request) {
   const sizeUsd = signal.sizeUsd ?? Number(settings.default_order_size_usd);
   const maxPositionSizeUsd = Number(settings.max_position_size_usd);
   const slippage = Number(settings.slippage_percent);
+  // Per-signal stop/target (percent from entry) override the defaults from Settings.
+  const raw = body as Record<string, unknown>;
+  const stopLossPct = protectionPercent(raw.stop_loss_pct ?? settings.default_stop_loss_percent);
+  const takeProfitPct = protectionPercent(raw.take_profit_pct ?? settings.default_take_profit_percent);
+  if (raw.stop_loss_pct != null && stopLossPct == null) return reject('stop_loss_pct must be between 0.05 and 50', 400);
+  if (raw.take_profit_pct != null && takeProfitPct == null) return reject('take_profit_pct must be between 0.05 and 50', 400);
 
   let tradeId: string | null = null;
 
@@ -93,73 +98,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: plan.reason }, { status: 200 });
     }
 
-    let closeFill: { fillPrice: number; filledSize: number } | null = null;
+    let reversed = false;
     if (plan.type === 'close' || plan.type === 'reverse') {
-      const closed = await hl.closePosition(symbol, slippage);
-      if (!closed.fullyClosed) {
-        throw new Error(`Only ${closed.filledSize} of ${position!.size} ${symbol} closed; position is still open on the exchange`);
-      }
-      const ids = await closeOpenTrades(supabase, userId, symbol, closed.fillPrice);
-      tradeId = ids[0] ?? null;
-      closeFill = closed;
+      const closed = await closePositionFully(hl, supabase, userId, symbol, slippage);
+      tradeId = closed.tradeIds[0] ?? null;
+      reversed = true;
 
       if (plan.type === 'close') {
         await log('processed', null, tradeId);
         await notify(`Webhook: closed ${symbol} at ${closed.fillPrice}`);
-        return NextResponse.json({ success: true, action: 'close', symbol, fillPrice: closed.fillPrice, size: closed.filledSize });
+        return NextResponse.json({ success: true, action: 'close', symbol, fillPrice: closed.fillPrice, size: closed.size });
       }
     }
 
     const side = plan.side;
-    const result = await hl.placeMarketOrder({
-      coin: symbol,
-      isBuy: side === 'long',
-      sizeUsd,
-      leverage,
-      reduceOnly: false,
-      slippagePercent: slippage,
+    const opened = await openPosition(hl, supabase, {
+      userId, symbol, side, sizeUsd, leverage, slippagePercent: slippage,
+      stopLossPct, takeProfitPct, source: 'webhook', payload,
     });
-
-    const now = new Date().toISOString();
-    const { data: trade, error: insertError } = await supabase
-      .from('trades')
-      .insert({
-        user_id: userId,
-        symbol,
-        side,
-        status: 'open',
-        entry_price: result.fillPrice,
-        size: result.sizeInContracts,
-        size_usd: result.sizeInContracts * result.fillPrice,
-        leverage,
-        entry_time: now,
-        signal_source: 'webhook',
-        webhook_payload: payload,
-        hyperliquid_order_id: result.orderId,
-        created_at: now,
-        updated_at: now,
-      })
-      .select('id')
-      .single();
-
-    if (insertError) {
-      // The order is live on the exchange; make the missing record loud rather than silent.
-      throw new Error(`Order ${result.orderId} filled but could not be recorded: ${insertError.message}`);
-    }
-
-    tradeId = trade.id;
-    await log('processed', null, tradeId);
-    await notify(`Webhook: opened ${side} ${result.sizeInContracts} ${symbol} at ${result.fillPrice} (${leverage}x)`);
+    tradeId = opened.tradeId;
+    await log('processed', opened.protectionError ? `Opened WITHOUT stop/target: ${opened.protectionError}` : null, tradeId);
+    await notify(
+      `Webhook: opened ${side} ${opened.size} ${symbol} at ${opened.fillPrice} (${leverage}x)` +
+        (opened.stopLossPx ? `, stop ${opened.stopLossPx.toFixed(2)}` : '') +
+        (opened.takeProfitPx ? `, target ${opened.takeProfitPx.toFixed(2)}` : '') +
+        (opened.protectionError ? `. WARNING: stop/target NOT placed (${opened.protectionError})` : '')
+    );
 
     return NextResponse.json({
       success: true,
       action: side,
-      reversed: closeFill != null,
+      reversed,
       symbol,
-      fillPrice: result.fillPrice,
-      size: result.sizeInContracts,
+      fillPrice: opened.fillPrice,
+      size: opened.size,
       leverage,
       tradeId,
+      stopLossPx: opened.stopLossPx,
+      takeProfitPx: opened.takeProfitPx,
+      protectionError: opened.protectionError,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

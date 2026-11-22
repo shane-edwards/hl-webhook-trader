@@ -277,3 +277,22 @@ test('research: spot-first pays less funding than perp-only for the same signal'
   const spot = runTrend({ source: 'bitstamp', startDate: '2020-01-01', spotFirst: true });
   assert.ok(spot.fundingPaid < perp.fundingPaid);
 });
+
+// ---------- stops and targets ----------
+
+import { protectionPercent, protectionPrices } from '../lib/execution';
+
+test('protection: percent validation and trigger prices on the correct side of entry', () => {
+  assert.equal(protectionPercent(''), null);
+  assert.equal(protectionPercent(null), null);
+  assert.equal(protectionPercent('1.5'), 1.5);
+  assert.equal(protectionPercent(0), null);
+  assert.equal(protectionPercent(80), null);
+  assert.equal(protectionPercent('abc'), null);
+
+  const long = protectionPrices('long', 100, 2, 5);
+  assert.ok(Math.abs(long.stopLossPx! - 98) < 1e-9 && Math.abs(long.takeProfitPx! - 105) < 1e-9);
+  const short = protectionPrices('short', 100, 2, 5);
+  assert.ok(Math.abs(short.stopLossPx! - 102) < 1e-9 && Math.abs(short.takeProfitPx! - 95) < 1e-9);
+  assert.deepEqual(protectionPrices('long', 100, null, null), { stopLossPx: undefined, takeProfitPx: undefined });
+});

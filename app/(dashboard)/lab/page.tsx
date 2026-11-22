@@ -59,7 +59,7 @@ export default function LabPage() {
   const [targetVol, setTargetVol] = useState('40');
   const [maxLeverage, setMaxLeverage] = useState('2');
   const [preset, setPreset] = useState('default');
-  const [spotFirst, setSpotFirst] = useState(false);
+  const spotFirst = false; // perps only: this platform trades perpetuals
   const [allowShort, setAllowShort] = useState(false);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<LabResult | null>(null);
@@ -166,13 +166,6 @@ export default function LabPage() {
               </Select>
             </div>
 
-            <label className="flex items-start justify-between gap-3 cursor-pointer">
-              <span>
-                <span className="text-sm font-medium block">Hold spot for the first 1×</span>
-                <span className="text-xs text-muted-foreground">Pay funding only on the leveraged part</span>
-              </span>
-              <Switch checked={spotFirst} onCheckedChange={setSpotFirst} />
-            </label>
             <label className={cn('flex items-start justify-between gap-3 cursor-pointer', spotFirst && 'opacity-50')}>
               <span>
                 <span className="text-sm font-medium block">Short in downtrends</span>
@@ -321,6 +314,22 @@ export default function LabPage() {
         </div>
 
         {/* Research */}
+        <section className="surface p-5" aria-label="Scalping and swing study">
+          <h2 className="text-sm font-semibold">Scalping vs swing: what survived costs</h2>
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-3xl">
+            Eight textbook rules were run on hourly BTC, ETH and SOL data since 2020 with Hyperliquid fees, slippage and funding.
+            Every scalping and intraday rule (RSI dips, fading spikes, fast EMA crosses, 24-hour breakouts) <span className="text-loss font-medium">lost
+            16–38% a year after costs</span>: their average trade made under 10 basis points before fees, and a round trip costs about 13.
+            Slow trend rules that trade a few dozen times a year or less (20-day breakouts, price above its 30-day average) stayed
+            profitable, <span className="text-foreground font-medium">+26% to +31% a year since 2023</span>, with deep drawdowns.
+          </p>
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed max-w-3xl">
+            <span className="text-foreground font-medium">What that means for your own strategies:</span> check the average profit per trade
+            before fees. If it is not comfortably above 13 basis points, no amount of leverage or win rate will save it. Full table
+            in <code className="bg-secondary px-1 py-0.5 rounded">backtest/INTRADAY.md</code>.
+          </p>
+        </section>
+
         <div className="pt-2">
           <h2 className="text-base font-semibold tracking-tight">Research notes</h2>
           <p className="text-sm text-muted-foreground mt-0.5">Other ideas tested on the same data. Full write-up in <code className="text-xs bg-secondary px-1 py-0.5 rounded">backtest/RESULTS.md</code>.</p>

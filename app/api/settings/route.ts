@@ -94,6 +94,16 @@ export async function PUT(request: Request) {
     }
   }
 
+  // Default stop-loss / take-profit distance for webhook entries. Empty clears it.
+  for (const field of ['default_stop_loss_percent', 'default_take_profit_percent']) {
+    if (!(field in body)) continue;
+    const raw = body[field];
+    if (raw == null || raw === '') { update[field] = null; continue; }
+    const v = Number(raw);
+    if (!Number.isFinite(v) || v < 0.05 || v > 50) return bad('Stop-loss and take-profit must be between 0.05% and 50%, or empty');
+    update[field] = v;
+  }
+
   if (body.webhook_secret != null) {
     if (typeof body.webhook_secret !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(body.webhook_secret)) {
       return bad('Webhook secret must be 16–128 letters, digits, "-" or "_"');

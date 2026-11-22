@@ -42,6 +42,9 @@ export interface Settings {
   hl_private_key_encrypted?: string | null;
   is_testnet: boolean;
   slippage_percent: number;
+  // Default stop/target for webhook entries, percent from entry (migration 003)
+  default_stop_loss_percent?: number | null;
+  default_take_profit_percent?: number | null;
   // Built-in strategy (present once migration 002 has been applied)
   strategy_enabled?: boolean;
   strategy_dry_run?: boolean;

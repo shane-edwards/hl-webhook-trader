@@ -34,19 +34,10 @@ export function ActivePositions() {
   }, [fetchPositions]);
 
   async function handleClose(symbol: string) {
-    // Find the open trade for this symbol and close it
     setClosing(symbol);
     try {
-      const tradesRes = await fetch(`/api/trades?status=open&symbol=${symbol}`);
-      const tradesData = await tradesRes.json();
-      const trade = tradesData.trades?.[0];
-
-      if (!trade) {
-        toast.error(`No open trade record found for ${symbol}`);
-        return;
-      }
-
-      const res = await fetch(`/api/trades/${trade.id}`, { method: 'DELETE' });
+      // Closes by symbol, so it also works for positions this app has no record of.
+      const res = await fetch(`/api/trade?symbol=${encodeURIComponent(symbol)}`, { method: 'DELETE' });
       const data = await res.json();
 
       if (!res.ok) {

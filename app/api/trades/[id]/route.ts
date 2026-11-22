@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
-import { closeOpenTrades } from '@/lib/trade-records';
+import { closePositionFully } from '@/lib/execution';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,11 +64,7 @@ export async function DELETE(
 
     // Closing on the exchange closes the whole position, so every open record
     // for the symbol is settled, not just the one that was clicked.
-    const closed = await hl.closePosition(trade.symbol, Number(settings.slippage_percent));
-    if (!closed.fullyClosed) {
-      throw new Error(`Only ${closed.filledSize} of ${position.size} ${trade.symbol} closed; try again`);
-    }
-    await closeOpenTrades(supabase, user.id, trade.symbol, closed.fillPrice, MANUAL_NOTE);
+    const closed = await closePositionFully(hl, supabase, user.id, trade.symbol, Number(settings.slippage_percent), MANUAL_NOTE);
 
     const { data: updated } = await supabase.from('trades').select('*').eq('id', id).single();
     return NextResponse.json({ trade: updated, fillPrice: closed.fillPrice });

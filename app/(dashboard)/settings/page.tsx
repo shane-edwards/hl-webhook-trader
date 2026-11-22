@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import { generateWebhookSecret } from '@/lib/utils';
 import { StrategyCard } from '@/components/settings/StrategyCard';
+import { WalletCard } from '@/components/settings/WalletCard';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -30,6 +31,8 @@ export default function SettingsPage() {
   const [maxPosition, setMaxPosition] = useState('1000');
   const [riskPercent, setRiskPercent] = useState('2');
   const [slippage, setSlippage] = useState('2');
+  const [stopLoss, setStopLoss] = useState('');
+  const [takeProfit, setTakeProfit] = useState('');
   const [webhookEnabled, setWebhookEnabled] = useState(false);
   const [webhookSecret, setWebhookSecret] = useState('');
   const [hlWalletAddress, setHlWalletAddress] = useState('');
@@ -48,6 +51,8 @@ export default function SettingsPage() {
         setMaxPosition(s.max_position_size_usd.toString());
         setRiskPercent(s.risk_per_trade_percent.toString());
         setSlippage(s.slippage_percent.toString());
+        setStopLoss(s.default_stop_loss_percent == null ? '' : String(s.default_stop_loss_percent));
+        setTakeProfit(s.default_take_profit_percent == null ? '' : String(s.default_take_profit_percent));
         setWebhookEnabled(s.webhook_enabled);
         setWebhookSecret(s.webhook_secret);
         setHlWalletAddress(s.hl_wallet_address ?? '');
@@ -71,6 +76,10 @@ export default function SettingsPage() {
         max_position_size_usd: parseFloat(maxPosition),
         risk_per_trade_percent: parseFloat(riskPercent),
         slippage_percent: parseFloat(slippage),
+        // Only sent once migration 003 has added the columns.
+        ...(settings?.default_stop_loss_percent !== undefined
+          ? { default_stop_loss_percent: stopLoss.trim() || null, default_take_profit_percent: takeProfit.trim() || null }
+          : {}),
         webhook_enabled: webhookEnabled,
         webhook_secret: webhookSecret,
         hl_wallet_address: hlWalletAddress,
@@ -132,6 +141,15 @@ export default function SettingsPage() {
       <Header />
 
       <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-3xl">
+        {settings && (
+          <WalletCard
+            address={settings.hl_wallet_address ?? null}
+            hasKey={!!hasPrivateKey}
+            isTestnet={isTestnet}
+            onChanged={fetchSettings}
+          />
+        )}
+
         {/* Trading Parameters */}
         <Card>
           <CardHeader>
@@ -200,6 +218,20 @@ export default function SettingsPage() {
                 />
                 <p className="text-xs text-muted-foreground">Price buffer for IOC orders</p>
               </div>
+              {settings?.default_stop_loss_percent !== undefined && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>Default Stop-Loss (%)</Label>
+                    <Input type="number" min="0.05" max="50" step="0.1" placeholder="None" value={stopLoss} onChange={e => setStopLoss(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Placed on the exchange after every webhook entry</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Default Take-Profit (%)</Label>
+                    <Input type="number" min="0.05" max="50" step="0.1" placeholder="None" value={takeProfit} onChange={e => setTakeProfit(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">A signal can override both with stop_loss_pct / take_profit_pct</p>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -286,10 +318,10 @@ export default function SettingsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-primary" />
-              <CardTitle className="text-base">Hyperliquid Credentials</CardTitle>
+              <CardTitle className="text-base">Network and manual key (advanced)</CardTitle>
             </div>
             <CardDescription>
-              Your wallet credentials are encrypted at rest using AES-256-GCM
+              Choose the network before connecting a wallet. Pasting a key by hand is only needed if you cannot use the Wallet card above
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">

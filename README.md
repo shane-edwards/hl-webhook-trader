@@ -8,6 +8,9 @@ A professional Next.js trading application that receives TradingView webhook ale
 - **Hyperliquid Trading** — Market long/short/close with configurable leverage and size
 - **Built-in BTC strategy** — Optional daily volatility-targeted trend strategy that runs on a cron with no TradingView needed ([backtest](backtest/RESULTS.md))
 - **Live Dashboard** — Account value and P&L straight from the exchange (including fees and funding paid), positions, automation status
+- **Wallet connect** — Link your Hyperliquid wallet (SafePal, MetaMask, any WalletConnect wallet) with one signature. The app gets a trade-only key; it can never withdraw
+- **Trade ticket** — Place market orders from the dashboard with stop-loss and take-profit held on the exchange
+- **Stop-loss / take-profit on webhook trades** — Per signal (`stop_loss_pct`, `take_profit_pct`) or as defaults in Settings
 - **Kill switch** — One button pauses all automation and closes every position
 - **Markets scanner** — Live funding, premium, open interest and volume for every Hyperliquid perp, sortable
 - **Strategy Lab** — Run the trend strategy on 10 coins with your own settings against buy & hold, with real costs; plus research notes on funding capture and multi-coin trend
@@ -45,7 +48,7 @@ npm install
 ### 2. Create a Supabase project
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Go to **SQL Editor** and run the migrations in order: `supabase/migrations/001_initial.sql`, then `002_strategy_and_hardening.sql`
+2. Go to **SQL Editor** and run the migrations in order: `001_initial.sql`, `002_strategy_and_hardening.sql`, `003_protection.sql` (all in `supabase/migrations/`)
 3. Copy your project URL, anon key, and service role key
 
 ### 3. Environment variables
@@ -76,7 +79,12 @@ In Supabase Dashboard → **Authentication** → **Users** → **Add user**
 ### 6. Configure in the app
 
 1. Log in and go to **Settings**
-2. Create an **API wallet** on Hyperliquid (More → API). Enter its private key, and your main account address as the Account Address (start on **Testnet**). An API wallet can trade but cannot withdraw, so a leaked key cannot drain the account.
+2. Choose the network (start on **Testnet**), then use the **Wallet** card to connect:
+   - **SafePal / any mobile wallet:** open the app's URL inside the wallet's built-in browser (SafePal → DApp tab) and tap *Connect wallet in this browser*. No extra setup.
+   - **Desktop with a browser-extension wallet:** same button.
+   - **WalletConnect QR:** set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` (free at cloud.reown.com) and use the WalletConnect button.
+
+   You sign one "approve agent" message. That authorises a separate trading key, created and stored encrypted by this app, which can place and cancel orders but **cannot withdraw or transfer funds**. Your wallet's own key never leaves the wallet. The wallet must already have deposited to Hyperliquid. Revoke any time with *Disconnect*, or on Hyperliquid under More → API. (Pasting an API wallet key by hand still works under the advanced card.)
 3. Configure leverage, order size, and slippage
 4. Enable webhook trading and copy your webhook secret
 5. Copy the Webhook URL
@@ -101,7 +109,7 @@ In your TradingView alert:
 
 For plain (non-strategy) alerts send `"action"` instead: `buy`/`long`, `sell`/`short`, `close`. Because TradingView uses "sell" for both "exit long" and "go short", an opposite-side `action` only **closes** the open position; it does not reverse.
 
-Optional fields: `leverage` (whole number) and `size_usd` override the defaults from Settings.
+Optional fields: `leverage` (whole number) and `size_usd` override the defaults from Settings; `stop_loss_pct` and `take_profit_pct` (percent from entry, e.g. `1.5`) place a stop-loss and take-profit on the exchange right after the entry fills.
 
 Rules the webhook enforces:
 
@@ -126,6 +134,7 @@ Add all environment variables from `.env.local` to your Vercel project settings.
 - **Markets** (`/markets`) reads Hyperliquid's public market data. No setup needed.
 - **Strategy Lab** (`/lab`) runs backtests on the price and funding history cached in `backtest/data/` (refresh with `npm run backtest:fetch`, then redeploy). What the studies found, including what did *not* work, is in [`backtest/RESULTS.md`](backtest/RESULTS.md).
 - **Telegram alerts:** set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (see `.env.example`).
+- **Scalping vs swing study:** [`backtest/INTRADAY.md`](backtest/INTRADAY.md) (`npm run backtest:intraday`). Short version: every textbook scalping rule lost money after fees; slow trend rules did not.
 
 Research results are not live features: the spot-first and funding-capture ideas are backtested only. The live runner trades the BTC perp.
 

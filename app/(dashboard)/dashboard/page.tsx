@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { Stat } from '@/components/ui/stat';
 import { AccountPanel } from '@/components/dashboard/AccountPanel';
 import { AutomationPanel } from '@/components/dashboard/AutomationPanel';
+import { TradeTicket } from '@/components/dashboard/TradeTicket';
 import { RecentTrades } from '@/components/dashboard/RecentTrades';
 import { ActivePositions } from '@/components/dashboard/ActivePositions';
 import { calculateAnalytics } from '@/lib/analytics';
@@ -72,7 +73,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <Header onRefresh={() => fetchData(true)} refreshing={refreshing} />
+      <Header onRefresh={() => fetchData(true)} refreshing={refreshing} actions={<TradeTicket settings={settings} onTraded={() => fetchData(true)} />} />
 
       <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-[1400px] mx-auto">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">

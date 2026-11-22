@@ -1,5 +1,4 @@
 import { ethers } from 'ethers';
-import * as msgpack from '@msgpack/msgpack';
 import type {
   AssetMeta,
   MetaResponse,
@@ -11,6 +10,7 @@ import type {
   ExchangeResponse,
 } from './types';
 import { formatPrice, formatSize } from './format';
+import { signL1Action } from './signing';
 
 const MAINNET_URL = 'https://api.hyperliquid.xyz';
 const TESTNET_URL = 'https://api.hyperliquid-testnet.xyz';
@@ -18,20 +18,6 @@ const REQUEST_TIMEOUT_MS = 10_000;
 
 /** Hyperliquid rejects orders below this notional. */
 export const MIN_ORDER_USD = 10;
-
-const EIP712_DOMAIN = {
-  name: 'Exchange',
-  version: '1',
-  chainId: 1337,
-  verifyingContract: '0x0000000000000000000000000000000000000000',
-} as const;
-
-const AGENT_TYPES = {
-  Agent: [
-    { name: 'source', type: 'string' },
-    { name: 'connectionId', type: 'bytes32' },
-  ],
-};
 
 export class HyperliquidClient {
   private wallet: ethers.Wallet;
@@ -72,37 +58,11 @@ export class HyperliquidClient {
     return res.json();
   }
 
-  private actionHash(action: unknown, vaultAddress: string | null, nonce: number): string {
-    const msgPackBytes = msgpack.encode(action);
-    const extra = vaultAddress ? 29 : 9;
-    const data = new Uint8Array(msgPackBytes.length + extra);
-    data.set(msgPackBytes);
-    const view = new DataView(data.buffer);
-    view.setBigUint64(msgPackBytes.length, BigInt(nonce), false);
-    if (vaultAddress) {
-      data[msgPackBytes.length + 8] = 1;
-      data.set(ethers.getBytes(vaultAddress), msgPackBytes.length + 9);
-    } else {
-      data[msgPackBytes.length + 8] = 0;
-    }
-    return ethers.hexlify(ethers.keccak256(data));
-  }
-
-  private async signAction(action: unknown, nonce: number) {
-    const connectionId = this.actionHash(action, null, nonce);
-    const sig = await this.wallet.signTypedData(EIP712_DOMAIN, AGENT_TYPES, {
-      source: this.isMainnet ? 'a' : 'b',
-      connectionId,
-    });
-    const { r, s, v } = ethers.Signature.from(sig);
-    return { r, s, v };
-  }
-
   private async sendAction(action: unknown): Promise<ExchangeResponse> {
     // Nonces must be unique per signer; keep them strictly increasing within this client.
     const nonce = Math.max(Date.now(), this.lastNonce + 1);
     this.lastNonce = nonce;
-    const signature = await this.signAction(action, nonce);
+    const signature = await signL1Action(this.wallet, action, nonce, this.isMainnet);
 
     const res = await fetch(`${this.baseUrl}/exchange`, {
       method: 'POST',
@@ -285,6 +245,83 @@ export class HyperliquidClient {
     if (!reduceOnly) await this.setLeverage(coin, leverage);
 
     return this.placeIocOrder({ coin, isBuy, size: sizeUsd / markPrice, reduceOnly, slippagePercent });
+  }
+
+  /**
+   * Places exchange-side protective orders on the open position: a stop-loss
+   * and/or take-profit that trigger a reduce-only market order. They live on
+   * the exchange, so they still work if this app is down. `size` is in coins;
+   * the orders shrink with the position (positionTpsl grouping).
+   */
+  async placeProtectiveOrders(params: {
+    coin: string;
+    /** Side of the position being protected. */
+    side: 'long' | 'short';
+    size: number;
+    stopLossPx?: number;
+    takeProfitPx?: number;
+  }): Promise<{ stopLossOid: string | null; takeProfitOid: string | null }> {
+    const { coin, side, size, stopLossPx, takeProfitPx } = params;
+    const { index, meta } = await this.getAsset(coin);
+    const closeIsBuy = side === 'short';
+    const sizeStr = formatSize(size, meta.szDecimals);
+    if (parseFloat(sizeStr) === 0) throw new Error('Protective order size too small for this asset');
+
+    const build = (triggerPx: number, tpsl: 'sl' | 'tp') => ({
+      a: index,
+      b: closeIsBuy,
+      // Worst price the triggered market order may fill at: 10% through the trigger.
+      p: formatPrice(triggerPx * (closeIsBuy ? 1.1 : 0.9), meta.szDecimals),
+      s: sizeStr,
+      r: true,
+      t: { trigger: { isMarket: true, triggerPx: formatPrice(triggerPx, meta.szDecimals), tpsl } },
+    });
+    const kinds: Array<'sl' | 'tp'> = [];
+    const orders = [];
+    if (stopLossPx != null) { orders.push(build(stopLossPx, 'sl')); kinds.push('sl'); }
+    if (takeProfitPx != null) { orders.push(build(takeProfitPx, 'tp')); kinds.push('tp'); }
+    if (orders.length === 0) return { stopLossOid: null, takeProfitOid: null };
+
+    const result = await this.sendAction({ type: 'order', orders, grouping: 'positionTpsl' });
+    if (result.status !== 'ok' || typeof result.response !== 'object') {
+      throw new Error(`Protective orders rejected: ${JSON.stringify(result.response ?? result)}`);
+    }
+    const statuses = result.response.data?.statuses ?? [];
+    const out: { stopLossOid: string | null; takeProfitOid: string | null } = { stopLossOid: null, takeProfitOid: null };
+    kinds.forEach((kind, i) => {
+      const st = statuses[i] as { error?: string; resting?: { oid: number } } | string | undefined;
+      if (st && typeof st === 'object' && st.error) throw new Error(`${kind === 'sl' ? 'Stop-loss' : 'Take-profit'} rejected: ${st.error}`);
+      const oid = st && typeof st === 'object' && st.resting ? String(st.resting.oid) : null;
+      if (kind === 'sl') out.stopLossOid = oid; else out.takeProfitOid = oid;
+    });
+    return out;
+  }
+
+  /** Open orders for a coin, including untriggered stop-loss / take-profit orders. */
+  async getOpenOrders(coin?: string): Promise<Array<{ coin: string; oid: number; isTrigger: boolean; reduceOnly: boolean; triggerPx: number; side: 'buy' | 'sell'; size: number; orderType: string }>> {
+    const raw = await this.infoRequest<Array<Record<string, unknown>>>({ type: 'frontendOpenOrders', user: this.address });
+    return (raw ?? [])
+      .filter(o => !coin || o.coin === coin.toUpperCase())
+      .map(o => ({
+        coin: String(o.coin),
+        oid: Number(o.oid),
+        isTrigger: o.isTrigger === true,
+        reduceOnly: o.reduceOnly === true,
+        triggerPx: parseFloat(String(o.triggerPx ?? '0')),
+        side: o.side === 'B' ? 'buy' as const : 'sell' as const,
+        size: parseFloat(String(o.sz ?? '0')),
+        orderType: String(o.orderType ?? ''),
+      }));
+  }
+
+  /** Cancels every open order on a coin (used to clear stale stops once a position is closed). */
+  async cancelOpenOrders(coin: string): Promise<number> {
+    const orders = await this.getOpenOrders(coin);
+    if (orders.length === 0) return 0;
+    const { index } = await this.getAsset(coin);
+    const result = await this.sendAction({ type: 'cancel', cancels: orders.map(o => ({ a: index, o: o.oid })) });
+    if (result.status !== 'ok') throw new Error(`Cancel failed: ${JSON.stringify(result.response ?? result)}`);
+    return orders.length;
   }
 
   /**

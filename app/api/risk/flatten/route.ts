@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
-import { closeOpenTrades } from '@/lib/trade-records';
+import { closePositionFully } from '@/lib/execution';
 import { notify } from '@/lib/notify';
 
 export const dynamic = 'force-dynamic';
@@ -31,9 +31,7 @@ export async function POST() {
     const positions = await hl.getPositions();
     for (const p of positions) {
       try {
-        const closed = await hl.closePosition(p.symbol, Number(settings.slippage_percent));
-        if (!closed.fullyClosed) throw new Error(`only ${closed.filledSize} of ${p.size} filled`);
-        await closeOpenTrades(supabase, user.id, p.symbol, closed.fillPrice, 'Closed by kill switch');
+        const closed = await closePositionFully(hl, supabase, user.id, p.symbol, Number(settings.slippage_percent), 'Closed by kill switch');
         results.push({ symbol: p.symbol, closed: true, fillPrice: closed.fillPrice });
       } catch (err) {
         results.push({ symbol: p.symbol, closed: false, error: err instanceof Error ? err.message : 'Unknown error' });

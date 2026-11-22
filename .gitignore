@@ -29,3 +29,6 @@ next-env.d.ts
 # OS
 .DS_Store
 Thumbs.db
+
+# Hourly research data (large; fetched on demand by npm run backtest:intraday)
+backtest/data/intraday/
