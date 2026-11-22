@@ -99,9 +99,14 @@ Next actions, in order. Start here if picking this up in a new session.
 - [ ] **Run migration 006** (`supabase/migrations/006_trading_upgrades.sql`). Not applied: the session was not
       permitted to write to the production database. Until it is run, limit orders, managed exits, whole-market
       ideas, the live scorecard, health heartbeats and the new limit settings are off.
-- [ ] **Schedule the `hl-market` job** (the statement is at the bottom of migration 006), after the migration.
+- [ ] **Run migration 007** (`supabase/migrations/007_execution.sql`), after 006. It adds the entry-cost columns, chase
+      entries and the alert log, and schedules everything on Supabase: `hl-fast` (every 10 seconds, only while
+      something is open), `hl-market` and `hl-strategy`. It copies the site address and secret from the existing
+      `hl-autopilot` job, so nothing has to be typed in. The daily strategy has no scheduler until this is run
+      (`vercel.json` no longer has a cron); it is switched off today, so nothing is missed.
 - [ ] **Run `npm run testnet:check`** with a funded Hyperliquid testnet key (item 17).
-- [ ] **Configure an alert channel** in Vercel: Telegram or email (item 12).
+- [ ] **Configure an alert channel** in Vercel (item 12, E6). Quickest: install the ntfy app, subscribe to a long random
+      topic, set `NTFY_TOPIC` to it, redeploy. Telegram and email also work.
 - [ ] Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` (item 18).
 
 Execution round (started 2026-11-22). Ticked as each is finished:
@@ -121,7 +126,9 @@ Execution round (started 2026-11-22). Ticked as each is finished:
 - [x] E6. Alerts: every alert is kept in a log on the dashboard (table `alerts`, migration 007), and ntfy push was
       added as a channel that needs no bot or account, only `NTFY_TOPIC`. Urgent alerts are sent at high priority.
       Still needs the owner to choose a channel and set its variable in Vercel
-- [ ] Deployed
+- [x] Code deployed to production (Vercel, from `master`)
+- [ ] Database: migrations 006 and 007 run (see the checklist above). Until then the execution round is switched off:
+      the app behaves as before, with market entries, the order-book check and the close-if-no-stop rule active
 
 The 18 items:
 
