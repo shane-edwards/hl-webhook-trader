@@ -131,7 +131,7 @@ export default function SettingsPage() {
     <div className="flex flex-col min-h-full">
       <Header />
 
-      <div className="p-4 lg:p-6 space-y-5 flex-1 max-w-3xl">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-3xl">
         {/* Trading Parameters */}
         <Card>
           <CardHeader>

@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { closeOpenTrades } from '@/lib/trade-records';
 import { parseWebhookPayload, planSignal, redactPayload } from '@/lib/webhook';
+import { notify } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -104,6 +105,7 @@ export async function POST(request: Request) {
 
       if (plan.type === 'close') {
         await log('processed', null, tradeId);
+        await notify(`Webhook: closed ${symbol} at ${closed.fillPrice}`);
         return NextResponse.json({ success: true, action: 'close', symbol, fillPrice: closed.fillPrice, size: closed.filledSize });
       }
     }
@@ -147,6 +149,7 @@ export async function POST(request: Request) {
 
     tradeId = trade.id;
     await log('processed', null, tradeId);
+    await notify(`Webhook: opened ${side} ${result.sizeInContracts} ${symbol} at ${result.fillPrice} (${leverage}x)`);
 
     return NextResponse.json({
       success: true,
@@ -161,6 +164,7 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     await log('error', message, tradeId);
+    await notify(`Webhook ERROR on ${symbol}: ${message}`);
     console.error('[webhook]', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -7,8 +7,8 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
-  title: 'HL Webhook Trader',
-  description: 'Automated perpetual trading on Hyperliquid via TradingView webhooks',
+  title: 'HL Trader',
+  description: 'Automated trading, market scanning and strategy research on Hyperliquid',
   icons: { icon: '/favicon.ico' },
 };
 
@@ -22,9 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           position="top-right"
           toastOptions={{
             style: {
-              background: 'hsl(0 0% 8%)',
-              border: '1px solid hsl(0 0% 15%)',
-              color: 'hsl(210 40% 96%)',
+              background: 'hsl(225 16% 9%)',
+              border: '1px solid hsl(225 12% 17%)',
+              color: 'hsl(220 20% 96%)',
             },
           }}
         />

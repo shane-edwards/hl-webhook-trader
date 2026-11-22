@@ -7,7 +7,11 @@ A professional Next.js trading application that receives TradingView webhook ale
 - **TradingView Integration** — Receive webhook signals and execute perp orders automatically
 - **Hyperliquid Trading** — Market long/short/close with configurable leverage and size
 - **Built-in BTC strategy** — Optional daily volatility-targeted trend strategy that runs on a cron with no TradingView needed ([backtest](backtest/RESULTS.md))
-- **Live Dashboard** — Portfolio overview, equity curve, active positions, recent trades
+- **Live Dashboard** — Account value and P&L straight from the exchange (including fees and funding paid), positions, automation status
+- **Kill switch** — One button pauses all automation and closes every position
+- **Markets scanner** — Live funding, premium, open interest and volume for every Hyperliquid perp, sortable
+- **Strategy Lab** — Run the trend strategy on 10 coins with your own settings against buy & hold, with real costs; plus research notes on funding capture and multi-coin trend
+- **Telegram alerts** (optional) — Trades, strategy runs, errors and kill-switch use
 - **Trade Management** — Manually cancel/close any active position from the UI
 - **Performance Analytics** — Sharpe ratio, Sortino ratio, max drawdown, Calmar ratio, win rate, profit factor, expectancy, Kelly %, VaR, and more
 - **Monthly P&L Charts** — Visualize performance over time
@@ -114,6 +118,16 @@ npx vercel
 ```
 
 Add all environment variables from `.env.local` to your Vercel project settings.
+
+---
+
+## Research tools
+
+- **Markets** (`/markets`) reads Hyperliquid's public market data. No setup needed.
+- **Strategy Lab** (`/lab`) runs backtests on the price and funding history cached in `backtest/data/` (refresh with `npm run backtest:fetch`, then redeploy). What the studies found, including what did *not* work, is in [`backtest/RESULTS.md`](backtest/RESULTS.md).
+- **Telegram alerts:** set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (see `.env.example`).
+
+Research results are not live features: the spot-first and funding-capture ideas are backtested only. The live runner trades the BTC perp.
 
 ---
 

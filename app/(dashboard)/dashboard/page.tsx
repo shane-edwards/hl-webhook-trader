@@ -2,22 +2,23 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/layout/Header';
-import { StatsCard } from '@/components/dashboard/StatsCard';
-import { EquityCurve } from '@/components/dashboard/EquityCurve';
+import { Stat } from '@/components/ui/stat';
+import { AccountPanel } from '@/components/dashboard/AccountPanel';
+import { AutomationPanel } from '@/components/dashboard/AutomationPanel';
 import { RecentTrades } from '@/components/dashboard/RecentTrades';
 import { ActivePositions } from '@/components/dashboard/ActivePositions';
-import { WebhookStatus } from '@/components/dashboard/WebhookStatus';
-import { calculateAnalytics, buildEquityCurve } from '@/lib/analytics';
-import { formatCurrency, formatPercent } from '@/lib/utils';
+import { calculateAnalytics } from '@/lib/analytics';
+import { formatCurrency } from '@/lib/utils';
 import type { Trade, Settings } from '@/types';
-import {
-  DollarSign, TrendingUp, Target, Activity, Zap, Shield,
-} from 'lucide-react';
+import type { AccountTruth } from '@/lib/hyperliquid/public';
 import { toast } from 'sonner';
 
 export default function DashboardPage() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [account, setAccount] = useState<AccountTruth | null>(null);
+  const [accountLoaded, setAccountLoaded] = useState(false);
+  const [positionsKey, setPositionsKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -34,6 +35,13 @@ export default function DashboardPage() {
       ]);
       setTrades(tradesData.trades ?? []);
       setSettings(settingsData.settings ?? null);
+      setPositionsKey(k => k + 1);
+      // Exchange history is slower and optional; never block the page on it.
+      fetch('/api/account')
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => setAccount(d?.account ?? null))
+        .catch(() => {})
+        .finally(() => setAccountLoaded(true));
     } catch {
       toast.error('Failed to load data');
     } finally {
@@ -57,110 +65,55 @@ export default function DashboardPage() {
   }
 
   const metrics = calculateAnalytics(trades);
-  const equityData = buildEquityCurve(trades);
   const openTrades = trades.filter(t => t.status === 'open');
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? (typeof window !== 'undefined' ? window.location.origin : '');
   const webhookUrl = `${appUrl}/api/webhook`;
-
-  const pnlTrend = metrics.totalPnl > 0 ? 'up' : metrics.totalPnl < 0 ? 'down' : 'neutral';
+  const tone = (v: number, good = 0) => (v > good ? 'up' : v < good ? 'down' : 'neutral');
 
   return (
     <div className="flex flex-col min-h-full">
       <Header onRefresh={() => fetchData(true)} refreshing={refreshing} />
 
-      <div className="p-4 lg:p-6 space-y-5 flex-1">
-        {/* Webhook status */}
-        {settings && (
-          <WebhookStatus
-            enabled={settings.webhook_enabled}
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-[1400px] mx-auto">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
+          <div className="xl:col-span-2">
+            <AccountPanel
+              account={account}
+              loading={!accountLoaded}
+              isTestnet={settings?.is_testnet ?? true}
+              notConnected={accountLoaded && account === null}
+            />
+          </div>
+          <AutomationPanel
+            settings={settings}
+            loading={loading}
             webhookUrl={webhookUrl}
-            onToggle={handleWebhookToggle}
-          />
-        )}
-
-        {/* Stats row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-          <StatsCard
-            title="Total P&L"
-            value={formatCurrency(metrics.totalPnl)}
-            subtitle={`${formatPercent(metrics.totalPnlPercent)} overall`}
-            icon={DollarSign}
-            trend={pnlTrend}
-            loading={loading}
-            iconColor={metrics.totalPnl >= 0 ? 'text-profit' : 'text-loss'}
-          />
-          <StatsCard
-            title="Win Rate"
-            value={`${metrics.winRate.toFixed(1)}%`}
-            subtitle={`${metrics.winningTrades}W / ${metrics.losingTrades}L`}
-            icon={Target}
-            trend={metrics.winRate >= 50 ? 'up' : 'down'}
-            loading={loading}
-          />
-          <StatsCard
-            title="Sharpe Ratio"
-            value={isFinite(metrics.sharpeRatio) ? metrics.sharpeRatio.toFixed(2) : '—'}
-            subtitle="Risk-adjusted return"
-            icon={Activity}
-            trend={metrics.sharpeRatio >= 1 ? 'up' : metrics.sharpeRatio < 0 ? 'down' : 'neutral'}
-            loading={loading}
-          />
-          <StatsCard
-            title="Max Drawdown"
-            value={`${metrics.maxDrawdown.toFixed(1)}%`}
-            subtitle={formatCurrency(metrics.maxDrawdownDollar)}
-            icon={Shield}
-            trend={metrics.maxDrawdown < 10 ? 'up' : metrics.maxDrawdown > 25 ? 'down' : 'neutral'}
-            loading={loading}
+            onToggleWebhook={handleWebhookToggle}
+            onFlattened={() => fetchData(true)}
           />
         </div>
 
-        {/* Secondary stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-          <StatsCard
-            title="Active Trades"
-            value={openTrades.length.toString()}
-            subtitle={`of ${trades.length} total`}
-            icon={Zap}
-            loading={loading}
-          />
-          <StatsCard
-            title="Profit Factor"
-            value={isFinite(metrics.profitFactor) ? metrics.profitFactor.toFixed(2) : '∞'}
-            subtitle="Gross profit / gross loss"
-            icon={TrendingUp}
-            trend={metrics.profitFactor >= 1.5 ? 'up' : metrics.profitFactor < 1 ? 'down' : 'neutral'}
-            loading={loading}
-          />
-          <StatsCard
-            title="Expectancy"
-            value={formatCurrency(metrics.expectancy)}
-            subtitle="Per trade average"
-            icon={Target}
-            trend={metrics.expectancy > 0 ? 'up' : metrics.expectancy < 0 ? 'down' : 'neutral'}
-            loading={loading}
-          />
-          <StatsCard
-            title="Total Trades"
-            value={metrics.totalTrades.toString()}
-            subtitle={`Avg ${metrics.avgLeverage.toFixed(1)}x leverage`}
-            icon={Activity}
-            loading={loading}
-          />
-        </div>
-
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <EquityCurve data={equityData} loading={loading} />
+        <div>
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-0.5 mb-2.5">
+            <h2 className="text-sm font-semibold">Webhook trade log</h2>
+            <p className="text-xs text-muted-foreground">Closed trades placed by this app, before fees and funding</p>
           </div>
-          <div>
-            <ActivePositions />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+            <Stat label="Total P&L" value={formatCurrency(metrics.totalPnl)} hint={`${metrics.totalTrades} closed · ${openTrades.length} open`} tone={tone(metrics.totalPnl)} loading={loading} />
+            <Stat label="Win rate" value={`${metrics.winRate.toFixed(1)}%`} hint={`${metrics.winningTrades} wins · ${metrics.losingTrades} losses`} loading={loading} />
+            <Stat label="Profit factor" value={isFinite(metrics.profitFactor) ? metrics.profitFactor.toFixed(2) : '∞'} hint="Gross profit ÷ gross loss" tone={tone(metrics.profitFactor, 1)} loading={loading} />
+            <Stat label="Average trade" value={formatCurrency(metrics.expectancy)} hint={`Largest loss ${formatCurrency(metrics.largestLoss)}`} tone={tone(metrics.expectancy)} loading={loading} />
           </div>
         </div>
 
-        {/* Recent trades */}
-        <RecentTrades trades={trades} loading={loading} />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
+          <div className="xl:col-span-2 order-2 xl:order-1">
+            <RecentTrades trades={trades} loading={loading} />
+          </div>
+          <div className="order-1 xl:order-2">
+            <ActivePositions key={positionsKey} />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
     <div className="flex flex-col min-h-full">
       <Header onRefresh={() => fetchTrades(true)} refreshing={refreshing} />
 
-      <div className="p-4 lg:p-6 space-y-6 flex-1">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-[1400px] mx-auto">
         {/* Risk-adjusted returns */}
         <div>
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">

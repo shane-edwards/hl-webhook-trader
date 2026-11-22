@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
+import { notify } from '@/lib/notify';
 import { runStrategyOnce, runToRow, strategyConfigFromSettings, type StrategyRunResult } from '@/lib/strategy/run';
 
 export const runtime = 'nodejs';
@@ -42,6 +43,10 @@ export async function GET(request: Request) {
     }
     if (result.status === 'error') console.error('[strategy]', result.message);
     await supabase.from('strategy_runs').insert(runToRow(settings.user_id, result));
+    // Quiet days ("held") are not worth a message; trades, dry-run signals and errors are.
+    if (result.status !== 'held') {
+      await notify(`Strategy ${cfg.symbol} ${result.status === 'error' ? 'ERROR' : result.status}: ${result.message}`);
+    }
     summary.push({ status: result.status, message: result.message });
   }
 

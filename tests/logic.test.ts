@@ -254,3 +254,26 @@ test('strategyConfigFromSettings defaults to dry run unless explicitly disabled'
   assert.equal(strategyConfigFromSettings({ strategy_dry_run: false }).dryRun, false);
   assert.equal(strategyConfigFromSettings({ strategy_dry_run: false }, true).dryRun, true);
 });
+
+// ---------- research studies (run on the cached datasets) ----------
+
+import { runCarry, runBasketTrend, runTrend } from '../backtest/research';
+
+test('research: funding capture is low-volatility and the basket averages its sleeves', () => {
+  const carry = runCarry({ coin: 'BTC' });
+  assert.ok(carry.dates.length > 1000);
+  assert.ok(carry.stats.vol < 0.05, `delta-neutral carry should be quiet, got vol ${carry.stats.vol}`);
+  assert.ok(carry.shareOfDaysPositive > 0.5 && carry.shareOfDaysPositive <= 1);
+  // Sitting out when funding is low can only reduce time in the trade.
+  assert.ok(runCarry({ coin: 'BTC', minAnnualFunding: 0.05 }).shareOfDaysInTrade < 1);
+
+  const basket = runBasketTrend(['BTC', 'ETH'], '2022-01-01');
+  assert.equal(basket.perCoin.length, 2);
+  assert.ok(basket.stats.avgExposure >= 0 && basket.stats.avgExposure <= 2);
+});
+
+test('research: spot-first pays less funding than perp-only for the same signal', () => {
+  const perp = runTrend({ source: 'bitstamp', startDate: '2020-01-01' });
+  const spot = runTrend({ source: 'bitstamp', startDate: '2020-01-01', spotFirst: true });
+  assert.ok(spot.fundingPaid < perp.fundingPaid);
+});

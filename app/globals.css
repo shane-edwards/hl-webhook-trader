@@ -4,26 +4,31 @@
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 210 40% 96%;
-    --card: 0 0% 8%;
-    --card-foreground: 210 40% 96%;
-    --popover: 0 0% 8%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 239 84% 67%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 0 0% 12%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 0 0% 14%;
-    --accent-foreground: 210 40% 96%;
-    --destructive: 0 62% 55%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 239 84% 67%;
-    --radius: 0.5rem;
+    /* Cool near-black surfaces; one blue accent; green/red reserved for profit/loss. */
+    --background: 225 20% 4%;
+    --foreground: 220 20% 96%;
+    --card: 225 16% 7.5%;
+    --card-foreground: 220 20% 96%;
+    --popover: 225 16% 9%;
+    --popover-foreground: 220 20% 96%;
+    --primary: 213 77% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 225 13% 11.5%;
+    --secondary-foreground: 220 20% 96%;
+    --muted: 225 13% 11.5%;
+    --muted-foreground: 220 10% 58%;
+    --accent: 225 13% 13.5%;
+    --accent-foreground: 220 20% 96%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 225 12% 14.5%;
+    --input: 225 12% 17%;
+    --ring: 213 77% 56%;
+    --radius: 0.625rem;
+
+    /* Chart series (validated for colour-blind separation on the card surface). */
+    --series-1: #3987e5;
+    --series-2: #c98500;
   }
 }
 
@@ -32,29 +37,90 @@
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-
   html {
     color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
   }
 
-  /* Custom scrollbar */
+  body {
+    @apply bg-background text-foreground antialiased font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    /* A faint glow behind the top of the page gives the flat surfaces some depth. */
+    background-image:
+      radial-gradient(1200px 500px at 70% -10%, hsl(213 77% 56% / 0.07), transparent 60%),
+      radial-gradient(800px 400px at 0% 0%, hsl(260 60% 60% / 0.04), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: hsl(213 77% 56% / 0.35);
+  }
+
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: hsl(var(--background));
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
-    border-radius: 3px;
+    border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground));
+    background: hsl(220 10% 30%);
+  }
+
+  /* Number inputs: no spinner arrows, they fight the clean look and are easy to mis-click. */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
+
+@layer components {
+  /* Small uppercase label used above values and sections. */
+  .eyebrow {
+    @apply text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground;
+  }
+
+  /* Figures: monospaced digits so columns line up and values do not jitter. */
+  .num {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+
+  .surface {
+    @apply rounded-xl border border-border bg-card;
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.03), 0 1px 2px hsl(0 0% 0% / 0.3);
+  }
+
+  .data-table {
+    @apply w-full text-sm;
+  }
+  .data-table th {
+    @apply eyebrow px-2 sm:px-3 py-2.5 text-right font-medium whitespace-nowrap select-none;
+  }
+  .data-table td {
+    @apply px-2 sm:px-3 py-2.5 text-right whitespace-nowrap border-t border-border/70;
+  }
+  .data-table th:first-child,
+  .data-table td:first-child {
+    @apply text-left pl-4;
+  }
+  .data-table th:last-child,
+  .data-table td:last-child {
+    @apply pr-4;
+  }
+  .data-table tbody tr {
+    @apply transition-colors;
+  }
+  .data-table tbody tr:hover {
+    @apply bg-accent/50;
   }
 }
 
@@ -64,38 +130,26 @@
   .bg-profit { background-color: #22c55e; }
   .bg-loss { background-color: #ef4444; }
 
-  .glow-green {
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
-  }
-  .glow-red {
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
-  }
-  .glow-primary {
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
-  }
+  .glow-green { box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); }
+  .glow-red { box-shadow: 0 0 20px rgba(239, 68, 68, 0.15); }
+  .glow-primary { box-shadow: 0 0 20px hsl(213 77% 56% / 0.18); }
 
-  .trading-card {
-    @apply bg-card border border-border rounded-lg p-4;
-  }
+  .trading-card { @apply bg-card border border-border rounded-lg p-4; }
+  .stat-value { @apply text-2xl font-semibold tabular-nums; }
+  .mono { @apply font-mono; }
 
-  .stat-value {
-    @apply text-2xl font-bold tabular-nums;
-  }
-
-  .mono {
-    font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
-  }
+  /* Respect the phone's home-indicator area under the bottom nav. */
+  .pb-safe { padding-bottom: max(0.375rem, env(safe-area-inset-bottom)); }
 }
 
-/* Recharts overrides */
-.recharts-tooltip-wrapper {
-  outline: none !important;
-}
-.recharts-default-tooltip {
-  background-color: hsl(var(--card)) !important;
-  border: 1px solid hsl(var(--border)) !important;
-  border-radius: 8px !important;
-}
-.recharts-tooltip-label {
-  color: hsl(var(--foreground)) !important;
+/* Recharts */
+.recharts-tooltip-wrapper { outline: none !important; }
+.recharts-surface { overflow: visible; }
+.recharts-cartesian-axis-tick-value { font-family: var(--font-mono), ui-monospace, monospace; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
