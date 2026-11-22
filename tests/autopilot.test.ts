@@ -232,7 +232,40 @@ test('MACD trend: acts only when a 4-hour bar completes, and stays on paper desp
 });
 
 // ---- trade suggestions ----
-import { buildSuggestion, TARGET_R } from '../lib/suggestions';
+import { buildSuggestion } from '../lib/suggestions';
+import { findLevels, stopBeyondLevel, targetBeforeLevel } from '../lib/levels';
+
+test('levels: repeated turning points form support and resistance; stops go beyond, targets before', () => {
+  // A market that bounces between about 100 and 110 five times, ending mid-range at 105.
+  const bars: Bar[] = [];
+  let t = Date.UTC(2026, 0, 1);
+  const leg = (from: number, to: number, n: number) => {
+    for (let i = 1; i <= n; i++) {
+      const c = from + ((to - from) * i) / n, o = from + ((to - from) * (i - 1)) / n;
+      bars.push({ t, o, h: Math.max(o, c) + 0.05, l: Math.min(o, c) - 0.05, c });
+      t += 3_600_000;
+    }
+  };
+  leg(105, 100, 30);
+  for (let k = 0; k < 5; k++) { leg(100, 110, 60); leg(110, 100, 60); }
+  leg(100, 105, 30);
+  const found = findLevels(bars, 0.005);
+  const support = found.filter(l => l.price < 105).sort((a, b) => b.touches - a.touches)[0];
+  const resistance = found.filter(l => l.price > 105).sort((a, b) => b.touches - a.touches)[0];
+  assert.ok(Math.abs(support.price - 100) < 0.5 && support.touches >= 3, JSON.stringify(support));
+  assert.ok(Math.abs(resistance.price - 110) < 0.5 && resistance.touches >= 3, JSON.stringify(resistance));
+
+  const stop = stopBeyondLevel(found, 105, 1, 0.3, 0.5, 10)!;
+  assert.ok(stop.price < 100 && stop.price > 99, `long stop should sit just under support, got ${stop.price}`);
+  const shortStop = stopBeyondLevel(found, 105, -1, 0.3, 0.5, 10)!;
+  assert.ok(shortStop.price > 110 && shortStop.price < 111);
+  // Resistance is about 4.7% away; against a 5% stop that pays under 1.5 times the risk, so it is not offered.
+  assert.equal(targetBeforeLevel(found, 105, 1, 0.15, 5, 1.5, 4), null);
+  const target = targetBeforeLevel(found, 105, 1, 0.15, 2, 1.5, 4)!;
+  assert.ok(target.price < 110 && target.price > 109);
+  // A level hugging the price is ignored as noise.
+  assert.equal(stopBeyondLevel(found, 100.2, 1, 0.3, 1, 3), null);
+});
 
 test('suggestions: a breakout in an uptrend reads long, with stops on the correct side and a 2R target', () => {
   const now = Date.UTC(2026, 5, 1);
@@ -244,7 +277,9 @@ test('suggestions: a breakout in an uptrend reads long, with stops on the correc
   assert.ok(s.factors.some(f => f.counted && f.vote === 2), 'a tested rule should be signalling an entry');
   for (const side of [s.long, s.short]) {
     assert.ok(side.stopLossPct >= 0.5 && side.stopLossPct <= 12);
-    assert.ok(Math.abs(side.takeProfitPct - side.stopLossPct * TARGET_R) < 0.11);
+    // A target is never worth less than 1.5 times the stop, wherever it came from.
+    assert.ok(side.takeProfitPct >= 1.5 * side.stopLossPct - 0.11 && side.takeProfitPct <= 4 * side.stopLossPct + 0.11);
+    assert.ok(side.stopBasis.length > 0 && side.targetBasis.length > 0);
   }
   assert.ok(s.long.stopPrice < price && s.long.targetPrice > price);
   assert.ok(s.short.stopPrice > price && s.short.targetPrice < price);

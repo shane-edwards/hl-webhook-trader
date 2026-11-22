@@ -102,6 +102,12 @@ export function TradeIdeas({ onTrade }: Props) {
                         </li>
                       ))}
                     </ul>
+                    <p className="text-xs text-muted-foreground pt-1">
+                      <span className="font-medium text-foreground">Levels:</span>{' '}
+                      support {r.supports.length ? r.supports.map(l => `$${formatPrice(l.price)} (${l.touches})`).join(', ') : 'none found'} ·
+                      resistance {r.resistances.length ? r.resistances.map(l => `$${formatPrice(l.price)} (${l.touches})`).join(', ') : 'none found'}
+                      <span className="opacity-70"> — touches in brackets, last 30 days</span>
+                    </p>
                     <p className="text-[11px] text-muted-foreground pt-1">
                       Score {r.score > 0 ? '+' : ''}{r.score}: +2 or more reads long, −2 or less reads short. 24-hour volatility {r.atrPct}% per hour bar.
                     </p>

@@ -6,6 +6,7 @@
 // testing count toward the direction; the others are shown but carry no vote.
 import { computeIndicators, STRATEGIES, WARMUP_BARS, type Bar } from '@/lib/autopilot/strategies';
 import evidence from '@/lib/autopilot/evidence.json';
+import { findLevels, stopBeyondLevel, targetBeforeLevel, type Level } from '@/lib/levels';
 
 export type Bias = 'long' | 'short' | 'neutral';
 
@@ -18,7 +19,11 @@ export interface Factor {
   counted: boolean;
 }
 
-export interface Levels { stopLossPct: number; takeProfitPct: number; stopPrice: number; targetPrice: number }
+export interface Levels {
+  stopLossPct: number; takeProfitPct: number; stopPrice: number; targetPrice: number;
+  /** Where each number came from, in plain words. */
+  stopBasis: string; targetBasis: string;
+}
 
 export interface Suggestion {
   symbol: string;
@@ -32,6 +37,9 @@ export interface Suggestion {
   /** Suggested protection for a trade in each direction, whichever side the user picks. */
   long: Levels;
   short: Levels;
+  /** Nearest support below and resistance above the price (up to three each), from the last 30 days of hourly candles. */
+  supports: Level[];
+  resistances: Level[];
   /** 24h average true range as a percent of price: the yardstick the levels are built from. */
   atrPct: number;
   /** True when there was not enough history for the trend rules, so only volatility-based levels are given. */
@@ -49,10 +57,27 @@ const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); cons
 export const TARGET_R = 2;
 const MIN_STOP_PCT = 0.5, MAX_STOP_PCT = 12;
 
-function levels(price: number, dir: 1 | -1, stopFraction: number): Levels {
-  const stopLossPct = round(Math.min(MAX_STOP_PCT, Math.max(MIN_STOP_PCT, stopFraction * 100)), 1);
-  const takeProfitPct = round(stopLossPct * TARGET_R, 1);
-  return { stopLossPct, takeProfitPct, stopPrice: price * (1 - (dir * stopLossPct) / 100), targetPrice: price * (1 + (dir * takeProfitPct) / 100) };
+/**
+ * Stop and target for one direction. Support and resistance come first: the
+ * stop goes just beyond the nearest level that has held, the target just
+ * before the next level in the way. Where no level sits at a usable distance
+ * the stop falls back to the volatility-based distance and the target to
+ * TARGET_R times the stop.
+ */
+function levels(price: number, dir: 1 | -1, volStopFraction: number, atr: number, sr: Level[]): Levels {
+  const volPct = Math.min(MAX_STOP_PCT, Math.max(MIN_STOP_PCT, volStopFraction * 100));
+  const buffer = 30 * atr; // 0.3 of an hourly range, in percent: room beyond the level for a wick
+  // A stop within one and a half hourly ranges is inside ordinary noise; further than twice the volatility stop is too much risk.
+  const s = stopBeyondLevel(sr, price, dir, buffer, Math.max(MIN_STOP_PCT, 150 * atr), Math.min(MAX_STOP_PCT, 2 * volPct));
+  const stopLossPct = round(s ? s.pct : volPct, 1);
+  const t = targetBeforeLevel(sr, price, dir, buffer / 2, stopLossPct, 1.5, 4);
+  const takeProfitPct = round(t ? t.pct : stopLossPct * TARGET_R, 1);
+  return {
+    stopLossPct, takeProfitPct,
+    stopPrice: price * (1 - (dir * stopLossPct) / 100), targetPrice: price * (1 + (dir * takeProfitPct) / 100),
+    stopBasis: s ? s.basis : 'sized from recent volatility (no usable level nearby)',
+    targetBasis: t ? t.basis : `${TARGET_R} times the stop (no level in the way at a worthwhile distance)`,
+  };
 }
 
 /**
@@ -98,22 +123,22 @@ export function buildSuggestion(symbol: string, bars: Bar[], price: number): Sug
     }
   }
 
-  const structure = (dir: 1 | -1) => {
-    const ref = dir === 1 ? ind.low24[i] : ind.high24[i];
-    return Number.isFinite(ref) ? Math.abs(price - ref) / price + 0.25 * atr : 0;
-  };
-  const long = levels(price, 1, Math.max(median(stops.long), Math.min(structure(1), 4 * atr)));
-  const short = levels(price, -1, Math.max(median(stops.short), Math.min(structure(-1), 4 * atr)));
+  // Turning points within half an hourly range of each other are treated as one level.
+  const sr = findLevels(bars, 0.5 * atr);
+  const long = levels(price, 1, median(stops.long), atr, sr);
+  const short = levels(price, -1, median(stops.short), atr, sr);
+  const supports = sr.filter(l => l.price < price).sort((a, b) => b.price - a.price).slice(0, 3);
+  const resistances = sr.filter(l => l.price > price).sort((a, b) => a.price - b.price).slice(0, 3);
 
   const score = factors.reduce((a, f) => a + (f.counted ? f.vote : 0), 0);
   const bias: Bias = score >= 2 ? 'long' : score <= -2 ? 'short' : 'neutral';
   const strength = Math.abs(score) >= 4 ? 'strong' : Math.abs(score) >= 2 ? 'moderate' : 'none';
   const entries = factors.filter(f => f.counted && Math.abs(f.vote) === 2).length;
   const summary = limitedHistory
-    ? 'Not enough price history for the trend rules. Stop and target are sized from recent volatility only.'
+    ? 'Not enough price history for the trend rules. Stop and target come from nearby price levels and recent volatility only.'
     : bias === 'neutral'
       ? 'The rules disagree or see no trend. No trade is suggested; if you trade anyway, keep the size small.'
       : `${strength === 'strong' ? 'Strong' : 'Moderate'} ${bias} read: ${entries ? `${entries} tested rule${entries > 1 ? 's' : ''} signalling an entry now, ` : 'no fresh entry signal, but '}the trend measures lean ${bias}.`;
 
-  return { symbol, price, bias, score, strength, summary, factors, long, short, atrPct: round(atr * 100, 2), limitedHistory };
+  return { symbol, price, bias, score, strength, summary, factors, long, short, supports, resistances, atrPct: round(atr * 100, 2), limitedHistory };
 }
