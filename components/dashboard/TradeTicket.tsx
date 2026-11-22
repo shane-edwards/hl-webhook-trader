@@ -192,7 +192,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
                     <p className="text-warning mt-1">You are going {side}, against what the rules read.</p>
                   )}
                   <p className="text-muted-foreground mt-1">
-                    Suggested for a {side}: stop {suggestion[side].stopLossPct}%, target {suggestion[side].takeProfitPct}% (twice the stop), sized from recent volatility and the last 24 hours&apos; range.{' '}
+                    Suggested for a {side}: stop {suggestion[side].stopLossPct}% {suggestion[side].stopBasis}; target {suggestion[side].takeProfitPct}% {suggestion[side].targetBasis}.{' '}
                     {(edited.sl || edited.tp) && (
                       <button type="button" className="text-primary hover:underline" onClick={() => setEdited({ sl: false, tp: false })}>Use suggested</button>
                     )}
