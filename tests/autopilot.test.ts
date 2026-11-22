@@ -230,3 +230,33 @@ test('MACD trend: acts only when a 4-hour bar completes, and stays on paper desp
   assert.equal(isLiveEligible('macd_trend', false), false);
   assert.equal(isLiveEligible('macd_trend', true), false);
 });
+
+// ---- trade suggestions ----
+import { buildSuggestion, TARGET_R } from '../lib/suggestions';
+
+test('suggestions: a breakout in an uptrend reads long, with stops on the correct side and a 2R target', () => {
+  const now = Date.UTC(2026, 5, 1);
+  const bars = uptrend(now, WARMUP_BARS + 20, true);
+  const price = bars[bars.length - 1].c;
+  const s = buildSuggestion('BTC', bars, price);
+  assert.equal(s.bias, 'long');
+  assert.ok(s.score >= 2);
+  assert.ok(s.factors.some(f => f.counted && f.vote === 2), 'a tested rule should be signalling an entry');
+  for (const side of [s.long, s.short]) {
+    assert.ok(side.stopLossPct >= 0.5 && side.stopLossPct <= 12);
+    assert.ok(Math.abs(side.takeProfitPct - side.stopLossPct * TARGET_R) < 0.11);
+  }
+  assert.ok(s.long.stopPrice < price && s.long.targetPrice > price);
+  assert.ok(s.short.stopPrice > price && s.short.targetPrice < price);
+  // Rules that failed testing may be shown but never move the score.
+  assert.ok(s.factors.filter(f => !f.counted).every(f => f.vote === 0));
+});
+
+test('suggestions: with little history it stays neutral but still sizes a stop from volatility', () => {
+  const now = Date.UTC(2026, 5, 1);
+  const bars = uptrend(now, 200, false);
+  const s = buildSuggestion('NEWCOIN', bars, bars[bars.length - 1].c);
+  assert.equal(s.limitedHistory, true);
+  assert.equal(s.bias, 'neutral');
+  assert.ok(s.long.stopLossPct >= 0.5);
+});

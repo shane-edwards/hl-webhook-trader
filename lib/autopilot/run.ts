@@ -179,9 +179,13 @@ export async function runAutopilot(hl: HyperliquidClient, db: Db, userId: string
       for (const id of cfg.strategies) {
         const strategy: StrategyDef | undefined = getStrategy(id);
         if (!strategy) continue;
-        if (mode === 'live' && !isLiveEligible(id, cfg.allowShort)) continue; // paper-only strategy
+        // Direction is decided per strategy. On paper, shorts follow the setting. With real
+        // money a strategy may short only if its long-and-short version is live-eligible;
+        // otherwise it falls back to long-only, if that version is eligible.
+        const shortOk = cfg.allowShort && (mode === 'paper' || isLiveEligible(id, true));
+        if (mode === 'live' && !isLiveEligible(id, shortOk)) continue; // paper-only strategy
 
-        const sig = strategy.evaluate(m.ind, m.bars, m.last, 0, cfg.allowShort);
+        const sig = strategy.evaluate(m.ind, m.bars, m.last, 0, shortOk);
         if (sig.target === 0) continue;
         const barT = m.bars[m.last].t;
         // Only act on a fresh signal: the bar that just closed, within the last two hours.

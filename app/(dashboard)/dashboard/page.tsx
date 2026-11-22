@@ -6,6 +6,7 @@ import { Stat } from '@/components/ui/stat';
 import { AccountPanel } from '@/components/dashboard/AccountPanel';
 import { AutomationPanel } from '@/components/dashboard/AutomationPanel';
 import { TradeTicket } from '@/components/dashboard/TradeTicket';
+import { TradeIdeas } from '@/components/dashboard/TradeIdeas';
 import { RecentTrades } from '@/components/dashboard/RecentTrades';
 import { ActivePositions } from '@/components/dashboard/ActivePositions';
 import { calculateAnalytics } from '@/lib/analytics';
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const [account, setAccount] = useState<AccountTruth | null>(null);
   const [accountLoaded, setAccountLoaded] = useState(false);
   const [positionsKey, setPositionsKey] = useState(0);
+  const [preset, setPreset] = useState<{ symbol: string; side: 'long' | 'short'; nonce: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -73,7 +75,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <Header onRefresh={() => fetchData(true)} refreshing={refreshing} actions={<TradeTicket settings={settings} onTraded={() => fetchData(true)} />} />
+      <Header onRefresh={() => fetchData(true)} refreshing={refreshing} actions={<TradeTicket settings={settings} onTraded={() => fetchData(true)} preset={preset} />} />
 
       <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-[1400px] mx-auto">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
@@ -93,6 +95,8 @@ export default function DashboardPage() {
             onFlattened={() => fetchData(true)}
           />
         </div>
+
+        <TradeIdeas onTrade={(symbol, side) => setPreset({ symbol, side, nonce: Date.now() })} />
 
         <div>
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-0.5 mb-2.5">
