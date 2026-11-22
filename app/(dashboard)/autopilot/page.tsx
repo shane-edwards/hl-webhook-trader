@@ -31,6 +31,7 @@ interface EventRow { id: string; mode: string; level: 'info' | 'trade' | 'warn' 
 interface Data {
   available: boolean; hasWallet?: boolean; isTestnet?: boolean; evidenceThrough: string; evidenceCoins: string[];
   strategies: StrategyInfo[];
+  scalpSearch?: { tested: number; confirmed: number; through: string };
   state?: { day_start_equity: number | null; peak_equity: number | null; halted_reason: string | null; paper_equity: number; last_run_at: string | null } | null;
   positions?: Position[]; events?: EventRow[];
 }
@@ -249,6 +250,17 @@ export default function AutopilotPage() {
                     </div>
                   );
                 })}
+                {data.scalpSearch && (
+                  <div className="surface p-4 text-xs text-muted-foreground leading-relaxed">
+                    <span className="text-foreground font-medium">Scalping search:</span> {data.scalpSearch.tested} short-term
+                    configurations (wick fades with resting orders, 15-minute breakouts, stop-run reversals, BTC lead-lag, pairs) were
+                    tested on 15-minute data through {data.scalpSearch.through}.{' '}
+                    <span className={data.scalpSearch.confirmed > 0 ? 'text-profit font-medium' : 'text-foreground font-medium'}>
+                      {data.scalpSearch.confirmed} held up on unseen data
+                    </span>
+                    {data.scalpSearch.confirmed === 0 && ', so none has been added here'}. Details in <code className="bg-secondary px-1 rounded">backtest/SCALPING.md</code>.
+                  </div>
+                )}
               </section>
 
               {/* Risk */}

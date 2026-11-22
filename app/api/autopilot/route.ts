@@ -5,6 +5,7 @@ import { configFromSettings, runAutopilot } from '@/lib/autopilot/run';
 import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { STRATEGIES } from '@/lib/autopilot/strategies';
 import evidence from '@/lib/autopilot/evidence.json';
+import scalpSearch from '@/lib/autopilot/scalp-evidence.json';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -28,7 +29,10 @@ export async function GET() {
     id: s.id, name: s.name, style: s.style, description: s.description, horizon: s.horizon,
     evidence: evidence.strategies.filter(e => e.id === s.id),
   }));
-  const base = { strategies, evidenceThrough: evidence.generatedThrough, evidenceCoins: evidence.coins };
+  const base = {
+    strategies, evidenceThrough: evidence.generatedThrough, evidenceCoins: evidence.coins,
+    scalpSearch: { tested: scalpSearch.tested, confirmed: scalpSearch.confirmed.length, through: scalpSearch.generatedThrough },
+  };
 
   // The autopilot columns and tables only exist after migration 004.
   if (!settings || settings.autopilot_enabled === undefined) return NextResponse.json({ ...base, available: false });

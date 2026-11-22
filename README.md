@@ -136,6 +136,8 @@ The autopilot looks at each market you list, on completed hourly candles, and tr
 
 **Strategies and the live gate.** The rules live in `lib/autopilot/strategies.ts`; the same code is backtested by `npm run backtest:autopilot`, which writes [`backtest/AUTOPILOT.md`](backtest/AUTOPILOT.md) and `lib/autopilot/evidence.json`. A strategy may trade real money only if that evidence shows it profitable in both 2020–2022 and 2023+, with an average trade that clears costs by more than 15 basis points. Today one of six variants passes (trend breakout, long only). The two short-horizon, scalp-style rules lost money after fees and are locked to paper mode. The gate is code, not a setting.
 
+**Scalping search.** `npm run backtest:scalp` tests 517 short-term configurations in five families on 15-minute data, selecting on 2020–2024 and checking once on 2025 onward. None passed, with or without fees; see [`backtest/SCALPING.md`](backtest/SCALPING.md). No scalping strategy has been added to the autopilot for that reason. The search is there to test new ideas the same way.
+
 **Risk rules** (all adjustable on the Autopilot page):
 - Position size is set so a stopped-out trade loses a fixed share of equity (default 0.5%), capped at a leverage limit per position.
 - Every live position gets a stop-loss on the exchange. If the stop cannot be placed, the position is closed immediately.
