@@ -26,9 +26,15 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
 
-  // Allow webhook endpoint without auth
-  if (pathname.startsWith('/api/webhook')) {
+  // Machine endpoints authenticate themselves (webhook secret / CRON_SECRET).
+  // Exact matches only, so /api/webhook-logs still goes through session auth.
+  if (pathname === '/api/webhook' || pathname === '/api/cron/strategy') {
     return NextResponse.next();
+  }
+
+  // API callers get a 401, not a redirect to an HTML login page.
+  if (!user && pathname.startsWith('/api/') && !pathname.startsWith('/api/auth')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   // Allow auth callback

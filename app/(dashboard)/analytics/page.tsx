@@ -7,7 +7,7 @@ import { PnLChart } from '@/components/analytics/PnLChart';
 import { DrawdownChart } from '@/components/analytics/DrawdownChart';
 import { EquityCurve } from '@/components/dashboard/EquityCurve';
 import { calculateAnalytics, buildEquityCurve, buildMonthlyPnL } from '@/lib/analytics';
-import { formatCurrency, formatPercent } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import type { Trade } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import {

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateWebhookSecret } from '@/lib/utils';
+import { StrategyCard } from '@/components/settings/StrategyCard';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -173,6 +174,7 @@ export default function SettingsPage() {
                   value={maxPosition}
                   onChange={e => setMaxPosition(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">Webhook signals that would exceed this are rejected</p>
               </div>
               <div className="space-y-1.5">
                 <Label>Risk per Trade (%)</Label>
@@ -184,7 +186,7 @@ export default function SettingsPage() {
                   value={riskPercent}
                   onChange={e => setRiskPercent(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">For reference / position sizing</p>
+                <p className="text-xs text-muted-foreground">For reference only — not enforced</p>
               </div>
               <div className="space-y-1.5">
                 <Label>Slippage Tolerance (%)</Label>
@@ -263,12 +265,18 @@ export default function SettingsPage() {
               <pre className="text-xs text-muted-foreground overflow-x-auto">
 {`{
   "secret": "${webhookSecret || 'YOUR_SECRET'}",
-  "action": "{{strategy.order.action}}",
+  "position": "{{strategy.market_position}}",
   "symbol": "{{syminfo.basecurrency}}",
   "price": {{close}},
   "comment": "{{strategy.order.comment}}"
 }`}
               </pre>
+              <p className="text-xs text-muted-foreground mt-2">
+                <code className="bg-background px-1 rounded">position</code> is the strategy&apos;s position after the
+                order (long, short or flat), so exits and reversals are unambiguous. For plain alerts send{' '}
+                <code className="bg-background px-1 rounded">&quot;action&quot;: &quot;buy&quot; | &quot;sell&quot; | &quot;close&quot;</code>{' '}
+                instead; an opposite-side action closes the open position without reversing.
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -301,7 +309,7 @@ export default function SettingsPage() {
             <Separator />
 
             <div className="space-y-1.5">
-              <Label>Wallet Address (0x...)</Label>
+              <Label>Account Address (0x...)</Label>
               <Input
                 type="text"
                 placeholder="0x..."
@@ -309,6 +317,9 @@ export default function SettingsPage() {
                 onChange={e => setHlWalletAddress(e.target.value)}
                 className="font-mono text-xs"
               />
+              <p className="text-xs text-muted-foreground">
+                The account that holds your funds. Required when the key below is an API wallet key.
+              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -331,6 +342,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
+                Use an API wallet key (Hyperliquid → More → API): it can trade but cannot withdraw.
                 Leave blank to keep the existing key. The key is encrypted before storage.
                 Alternatively, set <code className="bg-secondary px-1 rounded">HL_PRIVATE_KEY</code> in Vercel env vars.
               </p>
@@ -356,6 +368,8 @@ export default function SettingsPage() {
             )}
           </Button>
         </div>
+
+        {settings && <StrategyCard settings={settings} onSaved={setSettings} />}
       </div>
     </div>
   );

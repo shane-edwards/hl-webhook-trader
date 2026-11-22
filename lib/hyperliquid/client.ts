@@ -10,9 +10,14 @@ import type {
   HyperliquidConfig,
   ExchangeResponse,
 } from './types';
+import { formatPrice, formatSize } from './format';
 
 const MAINNET_URL = 'https://api.hyperliquid.xyz';
 const TESTNET_URL = 'https://api.hyperliquid-testnet.xyz';
+const REQUEST_TIMEOUT_MS = 10_000;
+
+/** Hyperliquid rejects orders below this notional. */
+export const MIN_ORDER_USD = 10;
 
 const EIP712_DOMAIN = {
   name: 'Exchange',
@@ -32,16 +37,25 @@ export class HyperliquidClient {
   private wallet: ethers.Wallet;
   private baseUrl: string;
   private isMainnet: boolean;
+  private accountAddress: string;
+  private lastNonce = 0;
   private assetCache: Map<string, { index: number; meta: AssetMeta }> = new Map();
 
   constructor(config: HyperliquidConfig) {
     this.wallet = new ethers.Wallet(config.privateKey);
     this.isMainnet = !config.isTestnet;
     this.baseUrl = config.isTestnet ? TESTNET_URL : MAINNET_URL;
+
+    // With an API (agent) wallet the key signs orders but the funds and
+    // positions live on the main account, so state is read from that address.
+    const account = config.accountAddress?.trim();
+    if (account && !ethers.isAddress(account)) throw new Error('Invalid Hyperliquid account address');
+    this.accountAddress = account ? ethers.getAddress(account) : this.wallet.address;
   }
 
+  /** The account whose balance and positions are traded. */
   get address(): string {
-    return this.wallet.address;
+    return this.accountAddress;
   }
 
   private async infoRequest<T>(body: unknown): Promise<T> {
@@ -49,6 +63,7 @@ export class HyperliquidClient {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       const text = await res.text();
@@ -84,13 +99,16 @@ export class HyperliquidClient {
   }
 
   private async sendAction(action: unknown): Promise<ExchangeResponse> {
-    const nonce = Date.now();
+    // Nonces must be unique per signer; keep them strictly increasing within this client.
+    const nonce = Math.max(Date.now(), this.lastNonce + 1);
+    this.lastNonce = nonce;
     const signature = await this.signAction(action, nonce);
 
     const res = await fetch(`${this.baseUrl}/exchange`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, nonce, signature }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       const text = await res.text();
@@ -110,6 +128,7 @@ export class HyperliquidClient {
     const { universe } = await this.getMeta();
     const index = universe.findIndex(a => a.name === normalized);
     if (index === -1) throw new Error(`Asset not found: ${coin}`);
+    if (universe[index].isDelisted) throw new Error(`Asset is delisted: ${coin}`);
 
     const entry = { index, meta: universe[index] };
     this.assetCache.set(normalized, entry);
@@ -164,6 +183,11 @@ export class HyperliquidClient {
     return positions;
   }
 
+  async getPosition(coin: string): Promise<HyperliquidPosition | null> {
+    const positions = await this.getPositions();
+    return positions.find(p => p.symbol === coin.toUpperCase()) ?? null;
+  }
+
   async getAccountSummary(): Promise<AccountSummary> {
     const state = await this.getRawUserState();
     const ms = state.marginSummary ?? {};
@@ -175,8 +199,28 @@ export class HyperliquidClient {
     };
   }
 
+  /** Completed daily candles, oldest first. The candle still forming today is dropped. */
+  async getDailyCandles(coin: string, days: number): Promise<Array<{ time: number; close: number }>> {
+    const endTime = Date.now();
+    const startTime = endTime - (days + 2) * 86_400_000;
+    const raw = await this.infoRequest<Array<{ t: number; T: number; c: string }>>({
+      type: 'candleSnapshot',
+      req: { coin: coin.toUpperCase(), interval: '1d', startTime, endTime },
+    });
+    return raw
+      .filter(c => c.T < endTime)
+      .sort((a, b) => a.t - b.t)
+      .map(c => ({ time: c.t, close: parseFloat(c.c) }));
+  }
+
   async setLeverage(coin: string, leverage: number, isCross = true): Promise<void> {
-    const { index } = await this.getAsset(coin);
+    const { index, meta } = await this.getAsset(coin);
+    if (!Number.isInteger(leverage) || leverage < 1) {
+      throw new Error(`Leverage must be a whole number of at least 1 (got ${leverage})`);
+    }
+    if (leverage > meta.maxLeverage) {
+      throw new Error(`Leverage ${leverage}x exceeds the ${meta.maxLeverage}x maximum for ${meta.name}`);
+    }
     const result = await this.sendAction({
       type: 'updateLeverage',
       asset: index,
@@ -188,78 +232,102 @@ export class HyperliquidClient {
     }
   }
 
-  async placeMarketOrder(params: OrderParams): Promise<OrderResult> {
-    const { coin, isBuy, sizeUsd, leverage, reduceOnly = false, slippagePercent = 2 } = params;
+  /**
+   * Sends an immediate-or-cancel limit order priced through the book by
+   * `slippagePercent` (a market order with a worst-price guard). Throws unless
+   * the exchange confirms a fill; the returned size is what actually filled,
+   * which can be less than requested.
+   */
+  async placeIocOrder(params: {
+    coin: string;
+    isBuy: boolean;
+    /** Size in coins. */
+    size: number;
+    reduceOnly: boolean;
+    slippagePercent?: number;
+  }): Promise<OrderResult> {
+    const { coin, isBuy, size, reduceOnly, slippagePercent = 2 } = params;
+    const [{ index, meta }, markPrice] = await Promise.all([this.getAsset(coin), this.getMarkPrice(coin)]);
 
-    const [{ index, meta }, markPrice] = await Promise.all([
-      this.getAsset(coin),
-      this.getMarkPrice(coin),
-    ]);
-
-    if (!reduceOnly) {
-      await this.setLeverage(coin, leverage);
-    }
-
-    const sizeInContracts = sizeUsd / markPrice;
-    const sizeRounded = parseFloat(sizeInContracts.toFixed(meta.szDecimals));
-
-    if (sizeRounded === 0) throw new Error('Order size too small for this asset');
+    const sizeStr = formatSize(size, meta.szDecimals);
+    if (parseFloat(sizeStr) === 0) throw new Error('Order size too small for this asset');
 
     const slipFactor = isBuy ? 1 + slippagePercent / 100 : 1 - slippagePercent / 100;
-    const limitPx = roundToTickSize(markPrice * slipFactor, markPrice);
+    const limitPx = formatPrice(markPrice * slipFactor, meta.szDecimals);
 
-    const action = {
+    const result = await this.sendAction({
       type: 'order',
-      orders: [{ a: index, b: isBuy, p: limitPx.toString(), s: sizeRounded.toString(), r: reduceOnly, t: { limit: { tif: 'Ioc' } } }],
+      orders: [{ a: index, b: isBuy, p: limitPx, s: sizeStr, r: reduceOnly, t: { limit: { tif: 'Ioc' } } }],
       grouping: 'na',
-    };
+    });
 
-    const result = await this.sendAction(action);
-    const statuses = result.response?.data?.statuses ?? [];
-    const status = statuses[0];
-
+    if (result.status !== 'ok' || typeof result.response !== 'object') {
+      throw new Error(`Order rejected: ${JSON.stringify(result.response ?? result)}`);
+    }
+    const status = result.response.data?.statuses?.[0];
     if (!status) throw new Error(`Order failed: ${JSON.stringify(result)}`);
     if (status.error) throw new Error(`Order error: ${status.error}`);
+    if (!status.filled) throw new Error(`Order did not fill: ${JSON.stringify(status)}`);
 
-    const fillPrice = parseFloat(status.filled?.avgPx ?? limitPx.toString());
-    const orderId = (status.filled?.oid ?? status.resting?.oid ?? 0).toString();
-
-    return { orderId, fillPrice, sizeInContracts: sizeRounded };
+    return {
+      orderId: status.filled.oid.toString(),
+      fillPrice: parseFloat(status.filled.avgPx),
+      sizeInContracts: parseFloat(status.filled.totalSz),
+    };
   }
 
-  async closePosition(coin: string, slippagePercent = 2): Promise<{ fillPrice: number }> {
-    const positions = await this.getPositions();
-    const position = positions.find(p => p.symbol === coin.toUpperCase());
+  /** Opens or adds to a position sized in USD notional, setting leverage first. */
+  async placeMarketOrder(params: OrderParams): Promise<OrderResult> {
+    const { coin, isBuy, sizeUsd, leverage, reduceOnly = false, slippagePercent = 2 } = params;
+    if (!(sizeUsd >= MIN_ORDER_USD)) throw new Error(`Order size must be at least $${MIN_ORDER_USD}`);
+
+    const markPrice = await this.getMarkPrice(coin);
+    if (!reduceOnly) await this.setLeverage(coin, leverage);
+
+    return this.placeIocOrder({ coin, isBuy, size: sizeUsd / markPrice, reduceOnly, slippagePercent });
+  }
+
+  /**
+   * Closes the whole position with reduce-only orders. An IOC order can fill
+   * partially, so this retries on the remainder and reports whether the
+   * position is actually flat. `fillPrice` is the size-weighted average.
+   */
+  async closePosition(
+    coin: string,
+    slippagePercent = 2
+  ): Promise<{ fillPrice: number; filledSize: number; side: 'long' | 'short'; fullyClosed: boolean }> {
+    const position = await this.getPosition(coin);
     if (!position) throw new Error(`No open position for ${coin}`);
 
-    const { index, meta } = await this.getAsset(coin);
-    const markPrice = await this.getMarkPrice(coin);
-    const isBuy = position.side === 'short';
-    const slipFactor = isBuy ? 1 + slippagePercent / 100 : 1 - slippagePercent / 100;
-    const limitPx = roundToTickSize(markPrice * slipFactor, markPrice);
-    const sizeRounded = parseFloat(position.size.toFixed(meta.szDecimals));
+    const { meta } = await this.getAsset(coin);
+    const dust = 10 ** -meta.szDecimals / 2;
+    let remaining = position.size;
+    let filledSize = 0;
+    let notional = 0;
 
-    const action = {
-      type: 'order',
-      orders: [{ a: index, b: isBuy, p: limitPx.toString(), s: sizeRounded.toString(), r: true, t: { limit: { tif: 'Ioc' } } }],
-      grouping: 'na',
-    };
+    for (let attempt = 0; attempt < 3 && remaining > dust; attempt++) {
+      let fill: OrderResult;
+      try {
+        fill = await this.placeIocOrder({
+          coin,
+          isBuy: position.side === 'short',
+          size: remaining,
+          reduceOnly: true,
+          slippagePercent,
+        });
+      } catch (err) {
+        if (filledSize === 0) throw err;
+        break; // keep what already filled; the caller sees fullyClosed = false
+      }
+      filledSize += fill.sizeInContracts;
+      notional += fill.sizeInContracts * fill.fillPrice;
+      remaining -= fill.sizeInContracts;
+    }
 
-    const result = await this.sendAction(action);
-    const status = result.response?.data?.statuses?.[0];
-    if (status?.error) throw new Error(`Close error: ${status.error}`);
-
-    return { fillPrice: parseFloat(status?.filled?.avgPx ?? limitPx.toString()) };
+    return { fillPrice: notional / filledSize, filledSize, side: position.side, fullyClosed: remaining <= dust };
   }
 }
 
 export function createHLClient(config: HyperliquidConfig): HyperliquidClient {
   return new HyperliquidClient(config);
-}
-
-// Hyperliquid tick sizes are derived from price magnitude:
-// >=10000 → $1, >=1000 → $0.1, >=100 → $0.01, >=10 → $0.001, else $0.0001
-function roundToTickSize(price: number, markPrice: number): number {
-  const decimals = markPrice >= 10000 ? 0 : markPrice >= 1000 ? 1 : markPrice >= 100 ? 2 : markPrice >= 10 ? 3 : 4;
-  return parseFloat(price.toFixed(decimals));
 }
