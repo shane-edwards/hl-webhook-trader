@@ -89,12 +89,14 @@ export function PortfolioLimitsCard({ settings, onSaved }: Props) {
             {channels === null ? 'checking…' : channels.length ? channels.join(' and ') : 'none configured, so no alert or summary can be delivered yet.'}
           </p>
           {channels !== null && channels.length === 0 && (
-            <p>
-              Telegram: create a bot with @BotFather, then set <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code> in Vercel.
-              Email: set <code>RESEND_API_KEY</code> and <code>ALERT_EMAIL_TO</code>. Redeploy after adding them.
-            </p>
+            <div className="space-y-1.5">
+              <p>Every alert is kept in the log on the dashboard. To get them on your phone, set one of these in Vercel (Project, Settings, Environment Variables) and redeploy:</p>
+              <p><span className="font-medium text-foreground">ntfy, the quickest:</span> install the free ntfy app, subscribe to a long random topic name of your own, and set <code>NTFY_TOPIC</code> to that name. No account or bot. Anyone who knows the name can read the alerts, so treat it like a password.</p>
+              <p><span className="font-medium text-foreground">Telegram:</span> create a bot with @BotFather, then set <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code>.</p>
+              <p><span className="font-medium text-foreground">Email:</span> set <code>RESEND_API_KEY</code> and <code>ALERT_EMAIL_TO</code>.</p>
+            </div>
           )}
-          {channels !== null && channels.length > 0 && <button type="button" className="text-primary hover:underline" onClick={testAlert}>Send a test alert</button>}
+          {channels !== null && <button type="button" className="text-primary hover:underline" onClick={testAlert}>Send a test alert</button>}
         </div>
 
         <div className="flex justify-end">

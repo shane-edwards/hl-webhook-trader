@@ -38,6 +38,8 @@ export interface OrderResult {
   fillPrice: number;
   /** Size that actually filled, in coins. */
   sizeInContracts: number;
+  /** Mid price when the order was sent: what the fill is measured against. */
+  decisionPrice?: number;
 }
 
 export interface AccountSummary {

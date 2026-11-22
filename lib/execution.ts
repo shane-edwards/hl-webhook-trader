@@ -42,6 +42,42 @@ export interface OpenParams {
   exit?: ExitOptions | null;
   /** Account-wide limits; the defaults apply when omitted, so no entry path skips them. */
   limits?: PortfolioLimits;
+  /** Send the order as this many equal market orders a few seconds apart (1-5). Each must be at least $10. */
+  slices?: number;
+  /** Pause between slices in milliseconds (tests shorten it). */
+  slicePauseMs?: number;
+  /**
+   * When a stop was asked for and cannot be placed or cannot be seen resting afterwards, close the position
+   * at once rather than leave it open with no stop. On for manual and webhook entries.
+   */
+  closeIfUnprotected?: boolean;
+}
+
+export const MAX_SLICES = 5;
+/** Pause between slices: long enough for the book to refill, short enough to finish inside one request. */
+export const SLICE_PAUSE_MS = 2_000;
+
+/** Entry cost against the price when the order was sent, in basis points. Positive = paid more than the mid. */
+export function slippageBps(side: 'long' | 'short', decisionPrice: number, fillPrice: number): number {
+  return ((side === 'long' ? fillPrice - decisionPrice : decisionPrice - fillPrice) / decisionPrice) * 1e4;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TradeInsert = Record<string, any>;
+
+/**
+ * Inserts a trade row. The execution columns arrive with migration 007; if they are not there yet the
+ * row is written without them rather than lost.
+ */
+export async function insertTrade(db: Db, row: TradeInsert): Promise<{ id: string }> {
+  const first = await db.from('trades').insert(row).select('id').single();
+  if (!first.error) return first.data;
+  const rest: TradeInsert = { ...row };
+  delete rest.decision_price; delete rest.slippage_bps; delete rest.order_type;
+  if (Object.keys(rest).length === Object.keys(row).length) throw new Error(first.error.message);
+  const second = await db.from('trades').insert(rest).select('id').single();
+  if (second.error) throw new Error(second.error.message);
+  return second.data;
 }
 
 export interface OpenResult {
@@ -55,48 +91,57 @@ export interface OpenResult {
   protectionError: string | null;
   /** Set when the orders were placed but something about the exit plan was reduced (e.g. too small to split). */
   exitWarning: string | null;
+  /** Entry cost against the mid price when the order was sent, in basis points. */
+  slippageBps: number;
+  /** True when the stop could not be placed and the position was therefore closed again at once. */
+  closedUnprotected: boolean;
 }
 
 export async function openPosition(hl: HyperliquidClient, db: Db, p: OpenParams): Promise<OpenResult> {
   // Every entry, whatever sent it, passes the account-wide limits first.
   await assertWithinPortfolioLimits(hl, db, p.userId, p.sizeUsd, p.limits ?? DEFAULT_PORTFOLIO_LIMITS);
 
-  const fill = await hl.placeMarketOrder({
-    coin: p.symbol,
-    isBuy: p.side === 'long',
-    sizeUsd: p.sizeUsd,
-    leverage: p.leverage,
-    reduceOnly: false,
-    slippagePercent: p.slippagePercent,
+  const slices = Math.min(MAX_SLICES, Math.max(1, Math.floor(p.slices ?? 1)));
+  let fill = await hl.placeMarketOrder({
+    coin: p.symbol, isBuy: p.side === 'long', sizeUsd: p.sizeUsd / slices, leverage: p.leverage, reduceOnly: false, slippagePercent: p.slippagePercent,
   });
+  // The whole order is measured against the price when the first slice was sent.
+  const decisionPrice = fill.decisionPrice ?? fill.fillPrice;
+  let sliceNote: string | null = null;
+  for (let k = 1; k < slices; k++) {
+    await new Promise(r => setTimeout(r, p.slicePauseMs ?? SLICE_PAUSE_MS));
+    try {
+      const next = await hl.placeMarketOrder({
+        coin: p.symbol, isBuy: p.side === 'long', sizeUsd: p.sizeUsd / slices, leverage: p.leverage, reduceOnly: false, slippagePercent: p.slippagePercent,
+      });
+      const size = fill.sizeInContracts + next.sizeInContracts;
+      fill = { ...fill, fillPrice: (fill.fillPrice * fill.sizeInContracts + next.fillPrice * next.sizeInContracts) / size, sizeInContracts: size };
+    } catch (err) {
+      // Keep what filled: the position is real and still gets its record and its stop.
+      sliceNote = `Only ${k} of ${slices} slices filled (${err instanceof Error ? err.message : err})`;
+      break;
+    }
+  }
 
   const now = new Date().toISOString();
-  const { data: trade, error } = await db
-    .from('trades')
-    .insert({
-      user_id: p.userId,
-      symbol: p.symbol,
-      side: p.side,
-      status: 'open',
-      entry_price: fill.fillPrice,
-      size: fill.sizeInContracts,
-      size_usd: fill.sizeInContracts * fill.fillPrice,
-      leverage: p.leverage,
-      entry_time: now,
-      signal_source: p.source,
-      webhook_payload: p.payload ?? null,
-      hyperliquid_order_id: fill.orderId,
-      created_at: now,
-      updated_at: now,
-    })
-    .select('id')
-    .single();
-  // The order is live on the exchange; make a missing record loud rather than silent.
-  if (error) throw new Error(`Order ${fill.orderId} filled but could not be recorded: ${error.message}`);
+  let trade: { id: string };
+  try {
+    trade = await insertTrade(db, {
+      user_id: p.userId, symbol: p.symbol, side: p.side, status: 'open',
+      entry_price: fill.fillPrice, size: fill.sizeInContracts, size_usd: fill.sizeInContracts * fill.fillPrice,
+      leverage: p.leverage, entry_time: now, signal_source: p.source, webhook_payload: p.payload ?? null,
+      hyperliquid_order_id: fill.orderId, created_at: now, updated_at: now,
+      decision_price: decisionPrice, slippage_bps: slippageBps(p.side, decisionPrice, fill.fillPrice), order_type: slices > 1 ? 'sliced' : 'market',
+    });
+  } catch (err) {
+    // The order is live on the exchange; make a missing record loud rather than silent.
+    throw new Error(`Order ${fill.orderId} filled but could not be recorded: ${err instanceof Error ? err.message : err}`);
+  }
 
   const result: OpenResult = {
     tradeId: trade.id, orderId: fill.orderId, fillPrice: fill.fillPrice, size: fill.sizeInContracts,
-    stopLossPx: null, takeProfitPx: null, protectionError: null, exitWarning: null,
+    stopLossPx: null, takeProfitPx: null, protectionError: null, exitWarning: sliceNote,
+    slippageBps: slippageBps(p.side, decisionPrice, fill.fillPrice), closedUnprotected: false,
   };
 
   const managed = isManaged(p.exit, p.takeProfitPct != null);
@@ -115,7 +160,7 @@ export async function openPosition(hl: HyperliquidClient, db: Db, p: OpenParams)
         const oids = await hl.placeTriggerOrders({ coin: p.symbol, side: p.side, legs, grouping: 'na' });
         result.stopLossPx = plan.stop_px;
         result.takeProfitPx = plan.tp1_px;
-        result.exitWarning = warning;
+        result.exitWarning = [sliceNote, warning].filter(Boolean).join('. ') || null;
         // The plan row is what lets the scan move the stop later. The orders above already rest on the exchange.
         await db.from('position_plans').update({ status: 'done', updated_at: now }).eq('user_id', p.userId).eq('symbol', p.symbol).eq('status', 'active');
         const { error: planError } = await db.from('position_plans').insert({
@@ -130,8 +175,23 @@ export async function openPosition(hl: HyperliquidClient, db: Db, p: OpenParams)
         result.stopLossPx = prices.stopLossPx ?? null;
         result.takeProfitPx = prices.takeProfitPx ?? null;
       }
+      // Do not take the exchange's word for it: look for the stop actually resting.
+      if (result.stopLossPx != null) {
+        const resting = await hl.getOpenOrders(p.symbol);
+        if (!resting.some(o => o.isTrigger && o.reduceOnly && /stop/i.test(o.orderType))) throw new Error('the stop-loss was accepted but is not resting on the exchange');
+      }
     } catch (err) {
       result.protectionError = err instanceof Error ? err.message : 'Unknown error';
+    }
+    // A stop was asked for and is not there: an open position with no stop is the one state not allowed to persist.
+    const wantedStop = p.stopLossPct != null || (managed && p.exit?.trailPct != null);
+    if (result.protectionError && wantedStop && p.closeIfUnprotected) {
+      try {
+        await closePositionFully(hl, db, p.userId, p.symbol, p.slippagePercent, `Closed at once: the stop-loss could not be placed (${result.protectionError})`);
+        result.closedUnprotected = true;
+      } catch (err) {
+        result.protectionError += `. It could NOT be closed either (${err instanceof Error ? err.message : err}): close it by hand now`;
+      }
     }
   }
   return result;

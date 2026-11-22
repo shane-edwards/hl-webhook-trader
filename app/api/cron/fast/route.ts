@@ -1,0 +1,44 @@
+import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/lib/supabase/server';
+import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
+import { runFastPass } from '@/lib/upkeep';
+import { cronAuthorized } from '@/lib/cron-auth';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
+// The fast scan. Called every 10 seconds by Supabase's scheduler, but only
+// while there is an open trade, a managed exit plan or a resting entry (the
+// schedule itself checks; see supabase/migrations/007_execution.sql), so an
+// idle account costs nothing.
+//
+// It does the time-critical part of the five-minute scan: moving trailing and
+// break-even stops, following limit and chase entries, and noticing a position
+// that has just been closed on the exchange. Everything slower (Autopilot,
+// fee sync, daily summary) stays on the five-minute scan.
+export async function GET(request: Request) {
+  if (!cronAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = createServiceClient();
+
+  const [plans, pending, open] = await Promise.all([
+    supabase.from('position_plans').select('user_id').eq('status', 'active'),
+    supabase.from('pending_orders').select('user_id').eq('status', 'resting'),
+    supabase.from('trades').select('user_id').eq('status', 'open'),
+  ]);
+  const users = [...new Set([...(plans.data ?? []), ...(pending.data ?? []), ...(open.data ?? [])].map(r => r.user_id as string))];
+  if (!users.length) return NextResponse.json({ ran: 0 });
+
+  const { data: rows, error } = await supabase.from('settings').select('*').in('user_id', users);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  let notes = 0, errors = 0;
+  for (const settings of rows ?? []) {
+    const hl = (() => { try { return hlClientFromSettings(settings); } catch { return null; } })();
+    if (!hl) continue;
+    const r = await runFastPass(hl, supabase, settings);
+    notes += r.notes.length; errors += r.errors.length;
+    if (r.errors.length) console.error('[fast]', r.errors.join(' | '));
+  }
+  return NextResponse.json({ ran: rows?.length ?? 0, notes, errors });
+}

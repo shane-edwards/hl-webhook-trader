@@ -132,3 +132,34 @@ export function equityStats(history: AccountHistory | null | undefined): EquityS
   }
   return { points, pnl: pnl[pnl.length - 1].v - pnl[0].v, returnPct: index - 100, maxDrawdownPct: maxDd, sharpe, days: rets.length };
 }
+
+export interface ExecutionRow {
+  type: string; trades: number;
+  /** Average distance of the fill from the mid price when the order was sent, basis points. Positive = cost. */
+  avgSlippageBps: number | null;
+  /** Total fees as a share of the size traded (entry and exit together), basis points. Null until fees are synced. */
+  feeBps: number | null;
+  /** Slippage expressed in dollars over these trades. */
+  slippageUsd: number;
+}
+
+const ORDER_LABEL: Record<string, string> = { market: 'Market', sliced: 'Market, sliced', chase: 'Chase', limit: 'Limit' };
+
+/** Entry cost by how the order was sent. Only trades that recorded a decision price are counted. */
+export function executionStats(trades: Trade[]): ExecutionRow[] {
+  const measured = trades.filter(t => t.slippage_bps != null && t.status !== 'cancelled');
+  const row = (type: string, list: Trade[]): ExecutionRow => {
+    const size = list.reduce((a, t) => a + Number(t.size_usd), 0);
+    const costed = list.filter(t => t.fills_synced_at != null);
+    const costedSize = costed.reduce((a, t) => a + Number(t.size_usd), 0);
+    return {
+      type, trades: list.length,
+      // Weighted by size, so one large bad fill is not hidden by several small good ones.
+      avgSlippageBps: size > 0 ? list.reduce((a, t) => a + Number(t.slippage_bps) * Number(t.size_usd), 0) / size : null,
+      feeBps: costedSize > 0 ? (costed.reduce((a, t) => a + Number(t.fees ?? 0), 0) / costedSize) * 1e4 : null,
+      slippageUsd: list.reduce((a, t) => a + (Number(t.slippage_bps) / 1e4) * Number(t.size_usd), 0),
+    };
+  };
+  const types = [...new Set(measured.map(t => t.order_type ?? 'market'))].sort();
+  return [row('All measured entries', measured), ...types.map(k => row(ORDER_LABEL[k] ?? k, measured.filter(t => (t.order_type ?? 'market') === k)))];
+}

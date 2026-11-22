@@ -10,7 +10,7 @@ A professional Next.js trading application that receives TradingView webhook ale
 - **Live Dashboard** — Account value and P&L straight from the exchange (including fees and funding paid), positions, automation status
 - **Wallet connect** — Link your Hyperliquid wallet (SafePal, MetaMask, any WalletConnect wallet) with one signature. The app gets a trade-only key; it can never withdraw
 - **Trade ticket** — Market or post-only limit entries, sized by the amount you are prepared to lose, with a chart of support, resistance, entry, stop and target that follows your edits
-- **Managed exits** — Split take-profit, stop to break-even after the first target, and a trailing stop. Stops and targets rest on the exchange; moving a stop is done by the five-minute scan, so it only moves that often
+- **Managed exits** — Split take-profit, stop to break-even after the first target, and a trailing stop. Stops and targets rest on the exchange; moving a stop is done by this app about every ten seconds while a position is open
 - **Account limits** — A cap on total exposure and a daily loss limit that apply to every entry, manual, webhook or Autopilot
 - **Stop-loss / take-profit on webhook trades** — Per signal (`stop_loss_pct`, `take_profit_pct`) or as defaults in Settings
 - **Autopilot** — Scans your chosen markets and opens and closes positions by tested rules, sized by risk, every position with an exchange-side stop. Paper mode builds a track record before any real money is used
@@ -22,7 +22,7 @@ A professional Next.js trading application that receives TradingView webhook ale
 - **Kill switch** — One button pauses all automation and closes every position
 - **Markets scanner** — Live funding, premium, open interest and volume for every Hyperliquid perp, sortable
 - **Strategy Lab** — Run the trend strategy on 10 coins with your own settings against buy & hold, with real costs; plus research notes on funding capture and multi-coin trend
-- **Alerts** (optional) — Telegram and/or email: trades, strategy runs, errors, kill-switch use, a daily summary, and a warning when a scheduled scan or the database stops responding
+- **Alerts** — Every alert is kept in a log on the dashboard. Optional phone channels, ntfy push (no account needed), Telegram and/or email: trades, strategy runs, errors, kill-switch use, a daily summary, and a warning when a scheduled scan or the database stops responding
 - **Health check** — `/api/health` reports whether the database and the scheduled scans are alive (public, no account data), so an outside uptime monitor can watch it
 - **Trade Management** — Manually cancel/close any active position from the UI
 - **Performance Analytics** — Return, drawdown and Sharpe measured on the exchange's own account-value history (deposits excluded); per-trade statistics net of fees and funding. Metrics that could not be computed honestly were removed
@@ -172,16 +172,17 @@ The autopilot looks at each market you list, on completed hourly candles, and tr
 
 ## Scheduled jobs and database migrations
 
-Run the files in `supabase/migrations/` in order (001 to 006). Each is additive, and the app keeps working before a
+Run the files in `supabase/migrations/` in order (001 to 007). Each is additive, and the app keeps working before a
 new one is run: features that need it say so.
 
 | Job | Endpoint | Scheduler | What it does |
 |---|---|---|---|
 | Trading scan | `/api/cron/autopilot` | Supabase `pg_cron`, every 5 minutes (see 004) | Autopilot, limit-order follow-up, moving managed stops, reconciling the trade log with the exchange, daily summary |
 | Market scan | `/api/cron/market` | Supabase `pg_cron`, every 5 minutes (see 006) | Trade ideas for every liquid market, alerts on changes, scoring earlier ideas |
-| Daily strategy | `/api/cron/strategy` | Vercel Cron, daily | The BTC trend strategy; also checks that the two scans and the database are alive |
+| Fast scan | `/api/cron/fast` | Supabase `pg_cron`, every 10 seconds, only while a trade, exit plan or resting entry is open (see 007) | Moves trailing and break-even stops, follows limit and chase entries, settles a trade the moment its position closes |
+| Daily strategy | `/api/cron/strategy` | Supabase `pg_cron`, daily (see 007) | The BTC trend strategy; also checks that the scans and the database are alive |
 
-All three require `Authorization: Bearer $CRON_SECRET`. Each scan records a heartbeat and alerts if the other has not
+No Vercel cron jobs are used, so the free plan is enough. All four require `Authorization: Bearer $CRON_SECRET`. Each scan records a heartbeat and alerts if the other has not
 succeeded for 20 minutes.
 
 ## Checking changes

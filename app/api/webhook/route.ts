@@ -115,8 +115,14 @@ export async function POST(request: Request) {
     const side = plan.side;
     const opened = await openPosition(hl, supabase, {
       userId, symbol, side, sizeUsd, leverage, slippagePercent: slippage,
-      stopLossPct, takeProfitPct, source: 'webhook', payload, limits: portfolioLimitsFromSettings(settings),
+      stopLossPct, takeProfitPct, source: 'webhook', payload, limits: portfolioLimitsFromSettings(settings), closeIfUnprotected: true,
     });
+    if (opened.closedUnprotected) {
+      const message = `${symbol} ${side} was opened and closed again at once: its stop-loss could not be placed (${opened.protectionError})`;
+      await log('error', message, opened.tradeId);
+      await notify(`Webhook: ${message}`);
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
     tradeId = opened.tradeId;
     await log('processed', opened.protectionError ? `Opened WITHOUT stop/target: ${opened.protectionError}` : null, tradeId);
     await notify(

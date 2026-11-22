@@ -80,8 +80,76 @@ simulated exchange, and read-only calls.
 
 ## To-do list
 
-Updated 2026-11-22 after a session that worked through all 18 items. What follows is what was built for each,
-and what is still open. The open items are collected first.
+Updated 2026-11-22 after a session that worked through all 18 items. Code for all of them is merged to `master`
+and live (pull requests #8 and #9).
+
+### Checklist
+
+Next actions, in order. Start here if picking this up in a new session.
+
+- [ ] **Correct 19 trade records.** The reconcile step's first production run closed 19 stale BTC webhook rows from
+      June at the current price, writing a made-up combined loss of about -$2,145. The code is fixed (#9); the rows are
+      not. Run once in the Supabase SQL editor:
+      ```sql
+      UPDATE public.trades
+      SET status = 'cancelled', exit_price = NULL, pnl = NULL, pnl_percentage = NULL, duration_seconds = NULL,
+          notes = 'No position and no closing fill found on the exchange; cancelled without a profit or loss'
+      WHERE notes LIKE 'No position and no closing fill found on the exchange; exit price is the current price%';
+      ```
+- [ ] **Run migration 006** (`supabase/migrations/006_trading_upgrades.sql`). Not applied: the session was not
+      permitted to write to the production database. Until it is run, limit orders, managed exits, whole-market
+      ideas, the live scorecard, health heartbeats and the new limit settings are off.
+- [ ] **Run migration 007** (`supabase/migrations/007_execution.sql`), after 006. It adds the entry-cost columns, chase
+      entries and the alert log, and schedules everything on Supabase: `hl-fast` (every 10 seconds, only while
+      something is open), `hl-market` and `hl-strategy`. It copies the site address and secret from the existing
+      `hl-autopilot` job, so nothing has to be typed in. The daily strategy has no scheduler until this is run
+      (`vercel.json` no longer has a cron); it is switched off today, so nothing is missed.
+- [ ] **Run `npm run testnet:check`** with a funded Hyperliquid testnet key (item 17).
+- [ ] **Configure an alert channel** in Vercel (item 12, E6). Quickest: install the ntfy app, subscribe to a long random
+      topic, set `NTFY_TOPIC` to it, redeploy. Telegram and email also work.
+- [ ] Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` (item 18).
+
+Execution round (started 2026-11-22). Ticked as each is finished:
+
+- [x] E2. Stops move within seconds, not every five minutes. `/api/cron/fast`, called every 10 seconds by Supabase's
+      scheduler only while something is open; the daily strategy moved off Vercel cron too (`vercel.json` is empty).
+      Needs migrations 006 and 007
+- [x] E3. Entry cost measured on every fill (price when sent, slippage, order type; table on Analytics). Chase entries
+      rest at the best bid or ask, follow the market, then take the rest at market; the ticket defaults to them once
+      migration 007 is in. Market orders can be sent as 2 to 5 slices. Needs migration 007
+- [x] E4. Order-book check: the ticket shows the expected slippage for the size, and the server refuses a market order
+      the visible book cannot absorb within the slippage limit (`lib/liquidity.ts`, `/api/book`)
+- [x] E5. A manual or webhook position whose stop is rejected, or is not found resting afterwards, is closed at once
+      (the Autopilot already did this). The exchange's own dead-man's switch was NOT used: `scheduleCancel` cancels
+      every open order, stops included, so it would remove protection exactly when the app is down. A resting entry is
+      already safe without the app, because its stop is attached on the exchange and activates on the fill
+- [x] E6. Alerts: every alert is kept in a log on the dashboard (table `alerts`, migration 007), and ntfy push was
+      added as a channel that needs no bot or account, only `NTFY_TOPIC`. Urgent alerts are sent at high priority.
+      Still needs the owner to choose a channel and set its variable in Vercel
+- [x] Code deployed to production (Vercel, from `master`)
+- [ ] Database: migrations 006 and 007 run (see the checklist above). Until then the execution round is switched off:
+      the app behaves as before, with market entries, the order-book check and the close-if-no-stop rule active
+
+The 18 items:
+
+- [x] 1. Size by risk in the trade ticket
+- [x] 2. Chart in the ticket and the ideas panel
+- [x] 3. Better exits (split target, break-even, trailing). Needs migration 006; not yet tried on an exchange
+- [x] 4. Limit-order entries. Needs migration 006; not yet tried on an exchange
+- [x] 5. Trade ideas across the whole market. Needs migration 006 and the `hl-market` job
+- [x] 6. Scorecard for suggestions. Historical replay done; the live record needs migration 006
+- [x] 7. Trade journal
+- [x] 8. True profit per trade. Needs migration 006; not yet seen on this account, which has no fills
+- [x] 9. Fix the Analytics page
+- [x] 10. Portfolio-level limits. Defaults are enforced now; changing them needs migration 006
+- [x] 11. Keep records in step with the exchange. Live; see the 19 rows above
+- [x] 12. Alerts and a daily summary. Built; nothing is delivered until a channel is configured
+- [x] 13. Health monitoring. `/api/health` is live; heartbeats need migration 006
+- [x] 14. Volume-confirmed breakout as a paper strategy
+- [x] 15. Paper record versus backtest
+- [x] 16. Local preview harness
+- [ ] 17. Live-mode test on testnet. Script written, **not run**
+- [x] 18. Smaller items, except the WalletConnect project id
 
 ### Still open (needs the account owner, or a real exchange)
 

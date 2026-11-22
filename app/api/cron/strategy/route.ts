@@ -10,14 +10,13 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-// Called once a day shortly after the 00:00 UTC candle close (see vercel.json).
-// Vercel Cron sends `Authorization: Bearer $CRON_SECRET` automatically.
+// Called once a day shortly after the 00:00 UTC candle close by Supabase's scheduler
+// (job hl-strategy, see supabase/migrations/007_execution.sql), with `Authorization: Bearer $CRON_SECRET`.
 export async function GET(request: Request) {
   if (!cronAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const supabase = createServiceClient();
-  // This job runs on Vercel's scheduler, independent of the one that drives the
-  // five-minute scans, so it doubles as the watchdog for them and the database.
+  // A once-a-day second look at the two scans and the database.
   await alertOnStalePeers(supabase, null).catch(() => {});
 
   const { data: rows, error } = await supabase.from('settings').select('*').eq('strategy_enabled', true);

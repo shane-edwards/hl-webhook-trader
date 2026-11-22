@@ -10,6 +10,7 @@ import { TradeIdeas } from '@/components/dashboard/TradeIdeas';
 import { Scorecard } from '@/components/dashboard/Scorecard';
 import { OpenOrders } from '@/components/dashboard/OpenOrders';
 import { HealthBanner } from '@/components/dashboard/HealthBanner';
+import { AlertsPanel } from '@/components/dashboard/AlertsPanel';
 import { RecentTrades } from '@/components/dashboard/RecentTrades';
 import { ActivePositions } from '@/components/dashboard/ActivePositions';
 import { calculateAnalytics } from '@/lib/analytics';
@@ -101,6 +102,7 @@ export default function DashboardPage() {
         </div>
 
         <OpenOrders refreshKey={positionsKey} onChanged={() => fetchData(true)} />
+        <AlertsPanel refreshKey={positionsKey} />
 
         <TradeIdeas onTrade={(symbol, side) => setPreset({ symbol, side, nonce: Date.now() })} />
         <Scorecard />

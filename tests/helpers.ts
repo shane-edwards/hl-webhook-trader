@@ -82,6 +82,14 @@ export class SimExchange {
 
   async getAsset(coin: string) { return { index: 0, meta: { name: coin, szDecimals: 3, maxLeverage: 50 } }; }
   async getMarkPrice(coin: string) { return this.prices.get(coin)!; }
+  /** A one-level book around the price: `spread` wide, `depthUsd` deep on each side. */
+  spread = 0; depthUsd = 1e9;
+  async getBook(coin: string) {
+    const px = this.prices.get(coin)!, sz = this.depthUsd / px;
+    return { bids: [{ px: px - this.spread / 2, sz }], asks: [{ px: px + this.spread / 2, sz }] };
+  }
+  /** When set, the next stop-loss placement is rejected (to test what happens to an unprotected position). */
+  rejectStops = false;
   async setLeverage() {}
   async getAccountSummary() { return { totalValue: this.equity, unrealizedPnl: 0, marginUsed: 0, withdrawable: this.equity }; }
   async getPositions() {
@@ -105,9 +113,10 @@ export class SimExchange {
   }
 
   async placeMarketOrder(p: { coin: string; isBuy: boolean; sizeUsd: number }) {
-    const px = this.prices.get(p.coin)!, size = Math.floor((p.sizeUsd / px) * 1000) / 1000;
+    // A market order crosses half the spread.
+    const mid = this.prices.get(p.coin)!, px = mid + (p.isBuy ? 1 : -1) * this.spread / 2, size = Math.floor((p.sizeUsd / px) * 1000) / 1000;
     this.fill(p.coin, p.isBuy, size, px, false);
-    return { orderId: String(++this.seq), fillPrice: px, sizeInContracts: size };
+    return { orderId: String(++this.seq), fillPrice: px, sizeInContracts: size, decisionPrice: mid };
   }
   async closePosition(coin: string) {
     const pos = this.positions.get(coin);
@@ -117,6 +126,7 @@ export class SimExchange {
   }
 
   async placeTriggerOrders(p: { coin: string; side: 'long' | 'short'; legs: TriggerLeg[] }) {
+    if (this.rejectStops && p.legs.some(l => l.kind === 'sl')) throw new Error('Stop-loss rejected: simulated');
     return p.legs.map(l => {
       const oid = ++this.seq;
       this.orders.push({ oid, coin: p.coin, isBuy: p.side === 'short', size: l.size, origSize: l.size, px: l.triggerPx, kind: l.kind, reduceOnly: true, parent: null, active: true, status: 'open' });

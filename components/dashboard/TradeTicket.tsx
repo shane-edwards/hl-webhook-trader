@@ -25,7 +25,8 @@ interface Props {
 
 const QUICK = ['BTC', 'ETH', 'SOL', 'HYPE'];
 type SizeMode = 'risk' | 'usd';
-type OrderType = 'market' | 'limit';
+type OrderType = 'market' | 'chase' | 'limit';
+interface BookInfo { estimate: { slippageBps: number | null; spreadBps: number; depthUsd: number } | null; verdict: { level: 'ok' | 'warn' | 'block'; message: string | null } }
 
 export function TradeTicket({ settings, onTraded, preset }: Props) {
   const [open, setOpen] = useState(false);
@@ -36,6 +37,11 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [limitPx, setLimitPx] = useState('');
   const [expiryHours, setExpiryHours] = useState('24');
+  const [chaseSeconds, setChaseSeconds] = useState('60');
+  const [chaseAvailable, setChaseAvailable] = useState(false);
+  const [typeChosen, setTypeChosen] = useState(false);
+  const [slices, setSlices] = useState('1');
+  const [book, setBook] = useState<BookInfo | null>(null);
   const [sizeMode, setSizeMode] = useState<SizeMode>('risk');
   const [riskUnit, setRiskUnit] = useState<'usd' | 'pct'>('pct');
   const [risk, setRisk] = useState('');
@@ -58,7 +64,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
 
   useEffect(() => {
     if (!preset) return;
-    setSymbol(preset.symbol); setSide(preset.side); setEdited({ sl: false, tp: false }); setOrderType('market'); setOpen(true);
+    setSymbol(preset.symbol); setSide(preset.side); setEdited({ sl: false, tp: false }); setTypeChosen(false); setOpen(true);
   }, [preset]);
 
   // Ask the built-in rules about this market, and load its recent candles (after a short pause while typing).
@@ -95,13 +101,21 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
     setLeverage(v => v || String(Math.round(Number(settings?.default_leverage ?? 3))));
     fetch('/api/markets').then(r => (r.ok ? r.json() : null)).then(d => setMarkets(d?.markets ?? [])).catch(() => {});
     fetch('/api/positions').then(r => (r.ok ? r.json() : null)).then(d => setEquity(d?.account?.totalValue > 0 ? d.account.totalValue : null)).catch(() => {});
+    fetch('/api/orders').then(r => (r.ok ? r.json() : null)).then(d => setChaseAvailable(d?.chase === true)).catch(() => {});
   }, [open, settings]);
+
+  // The cheaper route is the default: a chase pays the maker fee when it can. The user's own choice always wins.
+  useEffect(() => {
+    if (open && !typeChosen) setOrderType(chaseAvailable ? 'chase' : 'market');
+  }, [open, chaseAvailable, typeChosen]);
 
   const market = useMemo(() => markets.find(m => m.coin === symbol.trim().toUpperCase()), [markets, symbol]);
   const dir = side === 'long' ? 1 : -1;
   const price = market?.price;
   const limit = parseFloat(limitPx);
   const isLimit = orderType === 'limit';
+  const isMarket = orderType === 'market';
+  const nSlices = isMarket ? Math.max(1, parseInt(slices) || 1) : 1;
   // Stop and target distances are measured from where the trade would be entered.
   const entry = isLimit ? (limit > 0 ? limit : undefined) : price;
   const sl = parseFloat(stopLoss), tp = parseFloat(takeProfit), tp2 = parseFloat(takeProfit2), share = parseFloat(tp1Share), trailPct = parseFloat(trail);
@@ -118,7 +132,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
   const lev = sizeMode === 'risk' && sized && !sized.error ? Math.max(userLev || 1, sized.leverageNeeded) : userLev;
   const margin = size > 0 && lev > 0 ? size / lev : null;
   const riskUsd = size > 0 && sl > 0 ? (size * sl) / 100 : null;
-  const managed = !isLimit && ((share > 0 && share < 100 && tp > 0) || trailPct > 0);
+  const managed = isMarket && ((share > 0 && share < 100 && tp > 0) || trailPct > 0);
   const limitWrongSide = isLimit && limit > 0 && price != null && (side === 'long' ? limit >= price : limit <= price);
 
   const lines = useMemo<ChartLine[]>(() => {
@@ -134,8 +148,22 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
     return out;
   }, [suggestion, entry, isLimit, sl, tp, tp2, dir, managed]);
 
+  // What a market order of this size would cost against the book right now.
+  useEffect(() => {
+    setBook(null);
+    const sym = symbol.trim().toUpperCase();
+    if (!open || !isMarket || !sym || !(size >= 10)) return;
+    const id = setTimeout(() => {
+      fetch(`/api/book?symbol=${encodeURIComponent(sym)}&side=${side}&sizeUsd=${size / nSlices}`)
+        .then(r => (r.ok ? r.json() : null)).then(d => setBook(d?.verdict ? d : null)).catch(() => {});
+    }, 500);
+    return () => clearTimeout(id);
+  }, [open, isMarket, symbol, side, size, nSlices]);
+
   const blocked =
     !(size >= 10) ? (sized?.error ?? 'Size must be at least $10')
+    : nSlices > 1 && size / nSlices < 10 ? 'Each slice must be at least $10'
+    : isMarket && book?.verdict.level === 'block' ? book.verdict.message
     : !(lev >= 1) ? 'Enter leverage'
     : isLimit && !(limit > 0) ? 'Enter a limit price'
     : limitWrongSide ? `A limit ${side === 'long' ? 'buy must be below' : 'sell must be above'} the current price`
@@ -149,7 +177,8 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol, side, sizeUsd: size, leverage: Math.round(lev), stopLossPct: stopLoss || null, takeProfitPct: takeProfit || null,
-          ...(isLimit ? { limitPx: limit, expiryHours: Number(expiryHours) } : {
+          ...(isLimit ? { limitPx: limit, expiryHours: Number(expiryHours) } : orderType === 'chase' ? { chaseSeconds: Number(chaseSeconds) } : {
+            slices: nSlices,
             tp1Fraction: share > 0 && share < 100 ? share / 100 : null, takeProfit2Pct: takeProfit2 || null,
             breakevenAfterTp1: breakeven, trailPct: trail || null,
           }),
@@ -161,11 +190,13 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
       const data = await res.json();
       if (!res.ok) { toast.error(data.error ?? 'Order failed', { duration: 10000 }); return; }
       if (data.resting) {
-        toast.success(`Limit ${data.side} resting on ${data.symbol} at $${formatPrice(Number(data.order.limit_px))}`);
+        toast.success(data.chase
+          ? `Chasing a ${data.side} on ${data.symbol} from $${formatPrice(Number(data.order.limit_px))}. It appears under open orders until it fills.`
+          : `Limit ${data.side} resting on ${data.symbol} at $${formatPrice(Number(data.order.limit_px))}`);
       } else if (data.protectionError) {
         toast.error(`${data.symbol} ${data.side} opened at $${formatPrice(data.fillPrice)}, but the stop/target was NOT placed: ${data.protectionError}`, { duration: 20000 });
       } else {
-        toast.success(`${data.symbol} ${data.side} opened at $${formatPrice(data.fillPrice)}`);
+        toast.success(`${data.symbol} ${data.side} opened at $${formatPrice(data.fillPrice)}${typeof data.slippageBps === 'number' ? ` (${(data.slippageBps / 100).toFixed(3)}% from the mid price)` : ''}`);
         if (data.exitWarning) toast.warning(data.exitWarning, { duration: 15000 });
       }
       setOpen(false); setNote('');
@@ -223,8 +254,39 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <Label>Entry</Label>
-                <Segmented aria-label="Order type" value={orderType} onChange={setOrderType} options={[{ value: 'market', label: 'Market now' }, { value: 'limit', label: 'Limit price' }]} />
+                <Segmented aria-label="Order type" value={orderType} onChange={v => { setOrderType(v); setTypeChosen(true); }}
+                  options={[{ value: 'market', label: 'Market now' }, ...(chaseAvailable ? [{ value: 'chase' as const, label: 'Chase' }] : []), { value: 'limit', label: 'Limit price' }]} />
               </div>
+              {orderType === 'chase' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="tt-chase">Take the rest at market after</Label>
+                    <select id="tt-chase" value={chaseSeconds} onChange={e => setChaseSeconds(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option>
+                    </select>
+                  </div>
+                  <p className="col-span-2 text-[11px] text-muted-foreground leading-relaxed">
+                    Rests at the best {side === 'long' ? 'bid' : 'ask'} and follows the market (checked about every ten seconds), paying the 0.015% maker fee instead of 0.045% on whatever fills there.
+                    When the time is up the remainder is taken at market, so you do get in. If the market runs away meanwhile you pay more than an immediate market order would have cost; the result is recorded either way.
+                  </p>
+                </div>
+              )}
+              {isMarket && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="tt-slices">Send as</Label>
+                    <select id="tt-slices" value={slices} onChange={e => setSlices(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="1">One order</option><option value="2">2 slices</option><option value="3">3 slices</option><option value="4">4 slices</option><option value="5">5 slices</option>
+                    </select>
+                  </div>
+                  {book?.estimate && (
+                    <p className={cn('text-[11px] leading-relaxed', book.verdict.level === 'ok' ? 'text-muted-foreground' : 'text-warning')}>
+                      {book.verdict.message ?? `Order book: expect about ${((book.estimate.slippageBps ?? 0) / 100).toFixed(3)}% worse than the mid price${nSlices > 1 ? ' per slice' : ''} (spread ${(book.estimate.spreadBps / 100).toFixed(3)}%), plus the 0.045% taker fee.`}
+                    </p>
+                  )}
+                  {nSlices > 1 && <p className="text-[11px] text-muted-foreground">Slices go two seconds apart, so the book can refill between them. The stop is placed once, for the whole position, after the last one.</p>}
+                </div>
+              )}
               {isLimit && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -262,7 +324,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
               </div>
             </div>
 
-            {!isLimit && (
+            {isMarket && (
               <div className="rounded-lg border border-border">
                 <button type="button" onClick={() => setMoreExits(v => !v)} aria-expanded={moreExits} className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium">
                   <span>More exit options{managed || breakeven ? ' (on)' : ''}</span>
@@ -287,8 +349,8 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
                       Stop to break-even after target 1
                     </label>
                     <p className="col-span-2 text-[11px] text-muted-foreground leading-relaxed">
-                      Hyperliquid has no trailing or self-moving stop, so this app moves it for you, and only when its scan runs: about every five minutes.
-                      Between scans the last stop placed still protects the position. With a split, trailing starts once target 1 has filled.
+                      Hyperliquid has no trailing or self-moving stop, so this app moves it for you, checking about every ten seconds.
+                      Between checks the last stop placed still protects the position. With a split, trailing starts once target 1 has filled.
                     </p>
                   </div>
                 )}
@@ -374,7 +436,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
             {blocked && <p className="text-xs text-warning">{blocked}</p>}
             <Button className={cn('w-full h-11 font-semibold', side === 'long' ? 'bg-profit text-black hover:bg-profit/90' : 'bg-loss text-white hover:bg-loss/90')} onClick={submit} disabled={submitting || !!blocked}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isLimit ? `Place limit ${side === 'long' ? 'buy' : 'sell'}` : side === 'long' ? 'Buy / Long' : 'Sell / Short'} {symbol}
+              {isLimit ? `Place limit ${side === 'long' ? 'buy' : 'sell'}` : orderType === 'chase' ? `Chase ${side === 'long' ? 'long' : 'short'}` : side === 'long' ? 'Buy / Long' : 'Sell / Short'} {symbol}
             </Button>
           </div>
         </DialogContent>

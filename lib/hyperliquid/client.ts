@@ -103,6 +103,13 @@ export class HyperliquidClient {
     return this.infoRequest({ type: 'allMids' });
   }
 
+  /** The visible order book (20 levels a side): bids best first, asks best first. */
+  async getBook(coin: string): Promise<{ bids: Array<{ px: number; sz: number }>; asks: Array<{ px: number; sz: number }> }> {
+    const raw = await this.infoRequest<{ levels?: Array<Array<{ px: string; sz: string }>> }>({ type: 'l2Book', coin: coin.toUpperCase() });
+    const side = (rows?: Array<{ px: string; sz: string }>) => (rows ?? []).map(l => ({ px: parseFloat(l.px), sz: parseFloat(l.sz) }));
+    return { bids: side(raw.levels?.[0]), asks: side(raw.levels?.[1]) };
+  }
+
   async getMarkPrice(coin: string): Promise<number> {
     const mids = await this.getAllMids();
     const price = mids[coin.toUpperCase()];
@@ -250,6 +257,7 @@ export class HyperliquidClient {
       orderId: status.filled.oid.toString(),
       fillPrice: parseFloat(status.filled.avgPx),
       sizeInContracts: parseFloat(status.filled.totalSz),
+      decisionPrice: markPrice,
     };
   }
 

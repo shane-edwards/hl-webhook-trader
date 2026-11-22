@@ -10,6 +10,7 @@ import { formatPrice, formatRelativeTime } from '@/lib/utils';
 interface Order {
   id: string; symbol: string; side: 'long' | 'short'; limit_px: number; size: number; size_usd: number;
   stop_loss_pct: number | null; take_profit_pct: number | null; status: string; note: string | null; expires_at: string; created_at: string;
+  mode?: 'limit' | 'chase'; chase_until?: string | null;
 }
 interface Plan {
   id: string; symbol: string; side: 'long' | 'short'; stop_px: number | null; tp1_px: number | null; tp1_fraction: number | null; tp1_done: boolean;
@@ -25,7 +26,7 @@ export function OpenOrders({ refreshKey, onChanged }: { refreshKey: number; onCh
   const load = useCallback(() => {
     fetch('/api/orders').then(r => (r.ok ? r.json() : null)).then(d => { setOrders(d?.orders ?? []); setPlans(d?.plans ?? []); }).catch(() => {});
   }, []);
-  useEffect(() => { load(); const id = setInterval(load, 30_000); return () => clearInterval(id); }, [load, refreshKey]);
+  useEffect(() => { load(); const id = setInterval(load, 10_000); return () => clearInterval(id); }, [load, refreshKey]);
 
   async function cancel(id: string) {
     setCancelling(id);
@@ -48,12 +49,12 @@ export function OpenOrders({ refreshKey, onChanged }: { refreshKey: number; onCh
         {resting.map(o => (
           <li key={o.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3">
             <span className="font-semibold">{o.symbol}</span>
-            <Badge variant={o.side === 'long' ? 'long' : 'short'} className="uppercase">Limit {o.side === 'long' ? 'buy' : 'sell'}</Badge>
+            <Badge variant={o.side === 'long' ? 'long' : 'short'} className="uppercase">{o.mode === 'chase' ? 'Chase' : 'Limit'} {o.side === 'long' ? 'buy' : 'sell'}</Badge>
             <span className="num text-xs text-muted-foreground">
               {Number(o.size)} at ${formatPrice(Number(o.limit_px))} (${Number(o.size_usd).toFixed(0)})
               {o.stop_loss_pct != null && ` · stop ${Number(o.stop_loss_pct)}%`}{o.take_profit_pct != null && ` · target ${Number(o.take_profit_pct)}%`}
             </span>
-            <span className="text-xs text-muted-foreground ml-auto">expires {formatRelativeTime(o.expires_at)}</span>
+            <span className="text-xs text-muted-foreground ml-auto">{o.mode === 'chase' && o.chase_until ? `market ${formatRelativeTime(o.chase_until)}` : `expires ${formatRelativeTime(o.expires_at)}`}</span>
             <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground hover:text-loss" onClick={() => cancel(o.id)} disabled={cancelling === o.id} aria-label={`Cancel limit order on ${o.symbol}`}>
               {cancelling === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}Cancel
             </Button>
@@ -83,7 +84,7 @@ export function OpenOrders({ refreshKey, onChanged }: { refreshKey: number; onCh
       </ul>
       {plans.length > 0 && (
         <p className="px-5 py-2.5 border-t border-border/70 text-[11px] text-muted-foreground">
-          Stops in an exit plan are moved by this app&apos;s scan, about every five minutes. Between scans the last stop placed still rests on the exchange.
+          Stops in an exit plan are moved by this app, about every ten seconds while a position is open. In between, the last stop placed still rests on the exchange.
         </p>
       )}
     </section>

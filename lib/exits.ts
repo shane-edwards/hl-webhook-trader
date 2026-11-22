@@ -2,9 +2,10 @@
 // and a trailing stop.
 //
 // Hyperliquid has no native trailing or "move my stop" order. The stop and
-// targets themselves rest on the exchange, but moving the stop is done by the
-// scheduled scan, so a stop only moves as often as the scan runs (every five
-// minutes). Between scans the last stop placed still protects the position.
+// targets themselves rest on the exchange, but moving the stop is done by this
+// app: by the fast scan about every ten seconds while anything is open, and by
+// the five-minute scan as a fallback. Between passes the last stop placed still
+// protects the position.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { HyperliquidClient, TriggerLeg } from '@/lib/hyperliquid/client';
 import { MIN_ORDER_USD } from '@/lib/hyperliquid/client';
@@ -169,6 +170,7 @@ export async function manageExits(hl: HyperliquidClient, db: Db, userId: string,
         // Position gone (stopped, target 2 filled, or closed by hand): clear what is left of its orders.
         if (!pos) await hl.cancelProtectiveOrders(plan.symbol).catch(() => {});
         await db.from('position_plans').update({ status: 'done', updated_at: now }).eq('id', plan.id);
+        events.push({ symbol: plan.symbol, level: 'info', message: `${plan.symbol} ${plan.side} is closed on the exchange (stop, target or by hand); its exit plan has ended` });
         continue;
       }
       if (step.type === 'close') {
