@@ -1,1 +1,215 @@
-{}
+{
+  "generatedThrough": "2026-09-21",
+  "coins": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "costPct": 0.13,
+  "timeframes": [
+    {
+      "timeframe": "15m",
+      "label": "15 min",
+      "windowDays": 2,
+      "overall": {
+        "ideas": 2901,
+        "avgStopPct": 1.4170286108238515,
+        "avgTargetPct": 2.77073422957601,
+        "hitRate": 37.0014245014245,
+        "undecidedPct": 3.205791106514995,
+        "avgPct": 0.000582003264988636,
+        "avgR": -0.03538114918071601,
+        "avgHeldDays": 0.38487446857405433
+      },
+      "periods": [
+        {
+          "name": "2021-2022",
+          "ideas": 918,
+          "avgStopPct": 1.9096949891067552,
+          "avgTargetPct": 3.7322440087145945,
+          "hitRate": 38.37471783295711,
+          "undecidedPct": 3.485838779956427,
+          "avgPct": 0.08461775499725921,
+          "avgR": 0.03831463689917628,
+          "avgHeldDays": 0.3821259985475669
+        },
+        {
+          "name": "2023-2024",
+          "ideas": 961,
+          "avgStopPct": 1.2348595213319462,
+          "avgTargetPct": 2.41165452653486,
+          "hitRate": 36.135371179039296,
+          "undecidedPct": 4.682622268470343,
+          "avgPct": -0.02660257788189647,
+          "avgR": -0.06755296012020896,
+          "avgHeldDays": 0.40821193201526246
+        },
+        {
+          "name": "2025 onward",
+          "ideas": 763,
+          "avgStopPct": 1.1169069462647445,
+          "avgTargetPct": 2.18348623853211,
+          "hitRate": 37.949400798934754,
+          "undecidedPct": 1.5727391874180863,
+          "avgPct": 0.010700001585015396,
+          "avgR": -0.032903278372345295,
+          "avgHeldDays": 0.37635157273918707
+        }
+      ],
+      "verdict": "No consistent result: positive after costs in 1 of 3 periods (-0.04R per idea overall). That is not an edge."
+    },
+    {
+      "timeframe": "1h",
+      "label": "1 hour",
+      "windowDays": 7,
+      "overall": {
+        "ideas": 2901,
+        "avgStopPct": 2.4155463633229948,
+        "avgTargetPct": 4.713960703205787,
+        "hitRate": 36.69340774328567,
+        "undecidedPct": 1.1720096518441918,
+        "avgPct": 0.0025060198861968272,
+        "avgR": -0.004362915177736181,
+        "avgHeldDays": 1.051691945306217
+      },
+      "periods": [
+        {
+          "name": "2021-2022",
+          "ideas": 918,
+          "avgStopPct": 3.2770152505446637,
+          "avgTargetPct": 6.375925925925926,
+          "hitRate": 38.741721854304636,
+          "undecidedPct": 1.3071895424836601,
+          "avgPct": 0.16088915851776942,
+          "avgR": 0.07329428599138911,
+          "avgHeldDays": 1.0863743645606387
+        },
+        {
+          "name": "2023-2024",
+          "ideas": 961,
+          "avgStopPct": 2.0477627471383975,
+          "avgTargetPct": 4.007075962539024,
+          "hitRate": 35.99160545645331,
+          "undecidedPct": 0.8324661810613945,
+          "avgPct": -0.05864588963349999,
+          "avgR": -0.03235099674486446,
+          "avgHeldDays": 1.0342958723551867
+        },
+        {
+          "name": "2025 onward",
+          "ideas": 763,
+          "avgStopPct": 1.9179554390563558,
+          "avgTargetPct": 3.781258191349932,
+          "hitRate": 35.333333333333336,
+          "undecidedPct": 1.7038007863695939,
+          "avgPct": -0.07042398805954266,
+          "avgR": -0.049589305576087504,
+          "avgHeldDays": 1.0590869375273047
+        }
+      ],
+      "verdict": "No consistent result: positive after costs in 1 of 3 periods (-0.00R per idea overall). That is not an edge."
+    },
+    {
+      "timeframe": "4h",
+      "label": "4 hour",
+      "windowDays": 21,
+      "overall": {
+        "ideas": 2901,
+        "avgStopPct": 4.91999310582558,
+        "avgTargetPct": 9.81533953809034,
+        "hitRate": 35.41369472182596,
+        "undecidedPct": 3.3436745949672524,
+        "avgPct": 0.0770260745334367,
+        "avgR": 0.022027866993974157,
+        "avgHeldDays": 4.025364816729852
+      },
+      "periods": [
+        {
+          "name": "2021-2022",
+          "ideas": 918,
+          "avgStopPct": 6.47244008714597,
+          "avgTargetPct": 12.880718954248364,
+          "hitRate": 36.61814109742441,
+          "undecidedPct": 2.7233115468409586,
+          "avgPct": 0.3349595535110482,
+          "avgR": 0.07011302084653517,
+          "avgHeldDays": 3.8503540305010864
+        },
+        {
+          "name": "2023-2024",
+          "ideas": 961,
+          "avgStopPct": 4.263683662851196,
+          "avgTargetPct": 8.51363163371487,
+          "hitRate": 34.29796355841372,
+          "undecidedPct": 2.91363163371488,
+          "avgPct": -0.2714991610455723,
+          "avgR": -0.025508757909413995,
+          "avgHeldDays": 3.9283732223378425
+        },
+        {
+          "name": "2025 onward",
+          "ideas": 763,
+          "avgStopPct": 3.9386631716906932,
+          "avgTargetPct": 7.935124508519001,
+          "hitRate": 34.89010989010989,
+          "undecidedPct": 4.587155963302752,
+          "avgPct": -0.051143530691118266,
+          "avgR": 0.010577823581976196,
+          "avgHeldDays": 4.364624290083005
+        }
+      ],
+      "verdict": "No consistent result: positive after costs in 2 of 3 periods (+0.02R per idea overall). That is not an edge."
+    },
+    {
+      "timeframe": "1d",
+      "label": "Daily",
+      "windowDays": 60,
+      "overall": {
+        "ideas": 2893,
+        "avgStopPct": 10.100760456273765,
+        "avgTargetPct": 20.939958520566893,
+        "hitRate": 33.65977511788176,
+        "undecidedPct": 4.701002419633599,
+        "avgPct": 0.10463242099803095,
+        "avgR": 0.022897760244493873,
+        "avgHeldDays": 16.82253139762644
+      },
+      "periods": [
+        {
+          "name": "2021-2022",
+          "ideas": 918,
+          "avgStopPct": 11.273856209150328,
+          "avgTargetPct": 23.776906318082794,
+          "hitRate": 31.75303197353914,
+          "undecidedPct": 1.1982570806100217,
+          "avgPct": -0.41777340907219324,
+          "avgR": -0.04815939222523865,
+          "avgHeldDays": 12.759758533042842
+        },
+        {
+          "name": "2023-2024",
+          "ideas": 961,
+          "avgStopPct": 9.576274713839746,
+          "avgTargetPct": 20.564620187304897,
+          "hitRate": 29.194630872483224,
+          "undecidedPct": 6.971904266389179,
+          "avgPct": -1.074021039423301,
+          "avgR": -0.06601088523842168,
+          "avgHeldDays": 17.77904960110992
+        },
+        {
+          "name": "2025 onward",
+          "ideas": 763,
+          "avgStopPct": 9.256749672346004,
+          "avgTargetPct": 17.964351245085197,
+          "hitRate": 35.41666666666667,
+          "undecidedPct": 5.6356487549148095,
+          "avgPct": 0.5248264224869786,
+          "avgR": 0.04519534679140004,
+          "avgHeldDays": 19.839394932284854
+        }
+      ],
+      "verdict": "No consistent result: positive after costs in 1 of 3 periods (+0.02R per idea overall). That is not an edge."
+    }
+  ]
+}
