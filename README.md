@@ -12,6 +12,8 @@ A professional Next.js trading application that receives TradingView webhook ale
 - **Trade ticket** — Place market orders from the dashboard with stop-loss and take-profit held on the exchange
 - **Stop-loss / take-profit on webhook trades** — Per signal (`stop_loss_pct`, `take_profit_pct`) or as defaults in Settings
 - **Autopilot** — Scans your chosen markets and opens and closes positions by tested rules, sized by risk, every position with an exchange-side stop. Paper mode builds a track record before any real money is used
+- **Trade ideas** — For each market the Autopilot watches, a long / short / no-trade read built from the rules that held up in testing, with every vote shown
+- **Smart ticket defaults** — The trade ticket pre-fills a stop-loss and take-profit for the chosen side from recent volatility, the last 24 hours' range and the stops the tested rules use; you can override both
 - **Kill switch** — One button pauses all automation and closes every position
 - **Markets scanner** — Live funding, premium, open interest and volume for every Hyperliquid perp, sortable
 - **Strategy Lab** — Run the trend strategy on 10 coins with your own settings against buy & hold, with real costs; plus research notes on funding capture and multi-coin trend
@@ -143,6 +145,8 @@ The autopilot looks at each market you list, on completed hourly candles, and tr
 **MACD trend, 4-hour (paper only, on probation).** Buys when MACD crosses up above the 200-period average on 4-hour bars, shorts the opposite cross below it, exits when MACD crosses back. Its backtest passes the live gate, but it was chosen after its recent results were known, so that backtest is not an independent test. It stays on paper until it has a track record.
 
 **Cross-coin momentum (paper only).** Once a week it ranks 19 large coins by 90-day return and holds the strongest quarter long and the weakest quarter short in equal size. It was the one ranking rule that held up on unseen data, which may be luck, so it cannot trade real money. Select it on the Autopilot page to start a paper record.
+
+**Long and short.** "Allow shorts" is on by default. On paper every selected strategy may short. With real money a strategy shorts only if its long-and-short version passed the gate; otherwise it trades long-only.
 
 **Risk rules** (all adjustable on the Autopilot page):
 - Position size is set so a stopped-out trade loses a fixed share of equity (default 0.5%), capped at a leverage limit per position.
