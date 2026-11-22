@@ -7,6 +7,7 @@ import { loadCandles, loadFunding } from './data';
 import { runBacktest, computeStats, type BacktestOptions, type BacktestResult } from './engine';
 import { targetExposure, sma, DEFAULT_TREND_CONFIG, type TrendConfig } from '../lib/strategy/trend';
 import { REBALANCE_BAND } from '../lib/strategy/rebalance';
+import { researchMarkdown } from './report-research';
 
 const candles = loadCandles();
 const closes = candles.map(c => c.close);
@@ -154,7 +155,7 @@ ${table(robustness, FULL)}
 ## What the strategy would hold today
 
 As of the ${lastDate} close: trend score ${live.trendScore.toFixed(2)}, 30-day volatility ${pct(live.vol)}, target exposure **${live.exposure.toFixed(2)}x**.
-`;
+${researchMarkdown()}`;
 
 writeFileSync(join(dirname(fileURLToPath(import.meta.url)), 'RESULTS.md'), md);
-console.log(md);
+console.log(`wrote RESULTS.md (${md.length} chars)`);

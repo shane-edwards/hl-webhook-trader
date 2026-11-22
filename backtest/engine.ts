@@ -23,6 +23,12 @@ export interface CostModel {
   fundingForDate: (date: string) => number;
   /** Position is liquidated when equity < maintenanceMargin * notional. HL BTC (40x max) = 1.25%. */
   maintenanceMargin: number;
+  /**
+   * Model a long that holds spot for the first 1x of exposure and uses the
+   * perp only for the part above 1x: funding is charged only on notional in
+   * excess of equity. Long-only.
+   */
+  spotFirst?: boolean;
 }
 
 export interface BacktestOptions {
@@ -84,7 +90,8 @@ export function runBacktest(
       }
 
       // Funding on the notional held through the day.
-      const funding = qty * c.open * costs.fundingForDate(c.date);
+      const fundedNotional = costs.spotFirst ? Math.max(0, qty * c.open - equity) : qty * c.open;
+      const funding = fundedNotional * costs.fundingForDate(c.date);
       equity -= funding;
       out.fundingPaid += funding;
 

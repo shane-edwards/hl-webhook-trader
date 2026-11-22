@@ -129,3 +129,66 @@ Each row changes one thing about the default.
 ## What the strategy would hold today
 
 As of the 2026-11-21 close: trend score 0.00, 30-day volatility 46%, target exposure **0.00x**.
+
+---
+
+# Further research
+
+Three follow-up studies. Same cost assumptions as above unless stated; spot trades are charged Hyperliquid's 0.07% spot taker fee.
+
+## Study 1: hold spot for the first 1x, use the perp only above that
+
+The perp strategy pays funding on its whole position, and funding was its biggest cost. Holding spot BTC for exposure up to 1x and using the perp only for the part above 1x pays funding only on the leveraged slice. Same signal, same sizes.
+
+| Strategy | CAGR | Sharpe | Vol | Max drawdown | Worst year | Avg exposure |
+|---|---|---|---|---|---|---|
+| Perp only, 40% vol, from 2014 | 44% | 1.22 | 35% | 40% | -26% | 0.46x |
+| **Spot first**, 40% vol, from 2014 | 51% | 1.36 | 35% | 36% | -25% | 0.46x |
+| Perp only, 60% vol, from 2014 | 57% | 1.15 | 50% | 54% | -41% | 0.67x |
+| **Spot first**, 60% vol, from 2014 | 71% | 1.32 | 50% | 50% | -37% | 0.67x |
+| Perp only, 40% vol, from 2020 | 27% | 0.90 | 33% | 40% | -13% | 0.49x |
+| **Spot first**, 40% vol, from 2020 | 35% | 1.08 | 33% | 36% | -13% | 0.49x |
+| Perp only, 60% vol, from 2020 | 37% | 0.89 | 48% | 49% | -23% | 0.74x |
+| **Spot first**, 60% vol, from 2020 | 52% | 1.11 | 48% | 47% | -22% | 0.73x |
+
+**Finding:** same risk, roughly 7–15 points more return a year, purely from not paying funding. This is a cost saving, not a prediction, so it is the most dependable result in this document. It is not implemented in the live runner (which trades the perp only).
+
+## Study 2: the same trend rule across 10 coins
+
+One equal-capital sleeve per coin (BTC, ETH, SOL, BNB, XRP, DOGE, ADA, AVAX, LINK, LTC), each running the default rule, from 2021-01-01. Binance spot prices; real Hyperliquid funding per coin from 2023, assumed 0.03%/day before.
+
+| Strategy | CAGR | Sharpe | Vol | Max drawdown | Worst year | Avg exposure |
+|---|---|---|---|---|---|---|
+| BTC buy & hold | 13% | 0.50 | 57% | 77% | -64% | 1.00x |
+| BTC trend only | 12% | 0.52 | 31% | 36% | -13% | 0.48x |
+| **10-coin trend basket** | 18% | 0.86 | 22% | 32% | -16% | 0.27x |
+| 10-coin basket, spot first | 23% | 1.05 | 22% | 30% | -16% | 0.27x |
+
+| Year | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|---|
+| Basket | 96% | -16% | 24% | 37% | -4% | -1% |
+
+Per coin: BTC 12%, ETH 18%, SOL 25%, BNB 35%, XRP 10%, DOGE 32%, ADA 18%, AVAX 10%, LINK 0%, LTC -5%.
+
+**Finding:** the basket had a better return for its risk than BTC alone over this period, with a smaller drawdown. **Caveat that matters:** these ten coins were chosen because they are large *today*. Coins that collapsed are missing, which flatters the result by an unknown amount. Treat it as "diversifying probably helps", not as a return forecast. It lost money in 2022, 2025 and 2026.
+
+## Study 3: funding capture (long spot + short perp)
+
+Hold spot and short the same amount of the perp. Price moves cancel; the short collects funding when it is positive and pays when it is negative. Real Hyperliquid funding from 2023-05-12. Half the capital buys spot, half is margin for the short. Costs: both legs' fees and slippage to enter, plus small daily trades to keep the legs equal.
+
+| Coin | Avg funding / yr | Days funding > 0 | Return on capital / yr | 2023 | 2024 | 2025 | 2026 | Max drawdown | Short liquidations (1x / 3x short) |
+|---|---|---|---|---|---|---|---|---|---|
+| BTC | 13.7% | 88% | 6.9% | 4.2% | 12.6% | 5.3% | 2.4% | 0.6% | 0 / 0 |
+| ETH | 13.8% | 87% | 6.8% | 6.5% | 11.4% | 4.1% | 2.4% | 0.5% | 0 / 0 |
+| SOL | 11.8% | 74% | 5.7% | 3.5% | 14.7% | 2.3% | 0.1% | 1.9% | 0 / 0 |
+| BNB | 3.6% | 72% | 1.6% | -2.0% | 3.9% | 1.2% | 2.7% | 3.1% | 0 / 0 |
+| XRP | 9.1% | 76% | 3.9% | -0.7% | 9.6% | 4.1% | 0.8% | 4.2% | 1 / 3 |
+| DOGE | 16.3% | 79% | 8.1% | 2.9% | 20.0% | 4.1% | 2.5% | 4.4% | 0 / 1 |
+| ADA | 8.2% | 71% | 3.8% | 3.0% | 8.7% | 1.3% | -1.1% | 1.5% | 0 / 2 |
+| AVAX | 7.6% | 69% | 3.5% | -0.8% | 9.3% | 2.5% | 1.6% | 5.9% | 0 / 0 |
+| LINK | 15.1% | 87% | 7.5% | 2.5% | 14.3% | 5.7% | 4.0% | 3.4% | 0 / 1 |
+| LTC | 12.4% | 85% | 6.1% | 0.7% | 12.4% | 5.8% | 2.8% | 2.2% | 0 / 1 |
+
+**Finding:** real, low-volatility income, but small and shrinking: about 7% a year on BTC over the whole sample, 12–13% in 2024 and 2–3% in 2026. Only half the capital earns funding, which is why the return is about half the funding rate. Compare that with what cash earns risk-free: at 2026 funding levels this trade is unlikely to be worth its risks, and it only becomes attractive when funding spikes (the Markets page ranks live funding for this reason).
+
+Not modelled: the spot/perp price gap when entering and exiting, the exchange failing or being hacked, and funding turning negative for long stretches. Running the short at 3x instead of 1x raises the return by about half and produces the liquidations in the last column.
