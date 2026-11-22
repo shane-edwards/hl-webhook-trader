@@ -51,9 +51,21 @@ export async function GET() {
     supabase.from('autopilot_positions').select('*').eq('user_id', user.id).eq('mode', mode).order('entry_time', { ascending: false }).limit(60),
     supabase.from('autopilot_events').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(40),
   ]);
+  // Current prices for the open positions, so the page can show where each one stands right now.
+  const openSymbols = new Set((positions.data ?? []).filter(p => p.status === 'open').map(p => p.symbol as string));
+  const prices: Record<string, number> = {};
+  if (openSymbols.size) {
+    try {
+      const mids = await marketDataClient().getAllMids();
+      for (const sym of openSymbols) { const px = parseFloat(mids[sym] ?? ''); if (px > 0) prices[sym] = px; }
+    } catch {
+      // Prices are a convenience; the page says so when they are missing.
+    }
+  }
   return NextResponse.json({
     ...base,
     available: true,
+    prices, pricesAt: Date.now(),
     hasWallet: !!settings.hl_private_key_encrypted || !!process.env.HL_PRIVATE_KEY,
     isTestnet: settings.is_testnet === true,
     state: state.data ?? null,
