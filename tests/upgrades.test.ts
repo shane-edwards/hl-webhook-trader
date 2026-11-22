@@ -8,13 +8,15 @@ import { checkPortfolio, DEFAULT_PORTFOLIO_LIMITS } from '../lib/risk/portfolio'
 import { limitOrderWire, orderAction, triggerOrderWire } from '../lib/hyperliquid/orders';
 import { buildExitLegs, manageExits, nextExitStep, type PlanRow } from '../lib/exits';
 import { openPosition, closePositionFully } from '../lib/execution';
-import { managePending, placeLimitEntry } from '../lib/pending';
+import { cancelLimitEntry, managePending, placeLimitEntry } from '../lib/pending';
+import { estimateFill, liquidityVerdict } from '../lib/liquidity';
+import { runFastPass } from '../lib/upkeep';
 import { attributeCosts, exitFromFills, NO_FILL_NOTE, syncAccount } from '../lib/reconcile';
 import { buildScorecard, resolveOutcome } from '../lib/scorecard';
 import { evaluateHealth } from '../lib/health';
 import { buildDailySummary } from '../lib/upkeep';
 import { journalTags, resultsByTag } from '../lib/journal';
-import { calculateAnalytics, equityStats } from '../lib/analytics';
+import { calculateAnalytics, equityStats, executionStats } from '../lib/analytics';
 import { computeIndicators, getStrategy, WARMUP_BARS, type Bar } from '../lib/autopilot/strategies';
 import { computeDrift } from '../lib/autopilot/drift';
 import { DEFAULT_RISK } from '../lib/autopilot/risk';
@@ -196,7 +198,7 @@ test('closing a position by hand ends its exit plan and clears its orders', asyn
 });
 
 // ---------------------------------------------------------------- item 4
-const limitParams = { userId: USER, symbol: 'SOL', side: 'long' as const, limitPx: 95, sizeUsd: 950, leverage: 2, stopLossPct: 2, takeProfitPct: 4, expiryHours: 1, limits };
+const limitParams = { userId: USER, symbol: 'SOL', side: 'long' as const, limitPx: 95 as number | null, sizeUsd: 950, leverage: 2, stopLossPct: 2, takeProfitPct: 4, expiryHours: 1, limits };
 
 test('limit entry: an order that never fills expires and leaves no stop behind', async () => {
   const ex = new SimExchange({ SOL: 100 });
@@ -488,4 +490,177 @@ test('drift: the replay sizes trades the way the paper book does and lines up wi
   assert.equal(d.paperPnl, -40);
   assert.equal(d.points[0].paper, 0);
   assert.equal(d.points[d.points.length - 1].replay, d.replayPnl);
+});
+
+// ================================================================ execution round
+
+// ---------------------------------------------------------------- E4
+test('order book: an order is priced by walking the book, and a thin or shallow book is refused before sending', () => {
+  const book = { bids: [{ px: 99.9, sz: 10 }, { px: 99, sz: 100 }], asks: [{ px: 100.1, sz: 10 }, { px: 101, sz: 10 }, { px: 105, sz: 5 }] };
+  const small = estimateFill(book, 'buy', 500)!; // 5 coins, all at the best ask
+  assert.equal(small.mid, 100);
+  assert.ok(Math.abs(small.spreadBps - 20) < 1e-9);
+  assert.ok(Math.abs(small.avgPx! - 100.1) < 1e-9);
+  assert.ok(Math.abs(small.slippageBps! - 10) < 1e-9, 'half the spread');
+  assert.equal(liquidityVerdict(small, 2).level, 'ok');
+
+  const big = estimateFill(book, 'buy', 2_000)!; // 10 @ 100.1 + 10 @ 101
+  assert.ok(Math.abs(big.avgPx! - 100.55) < 1e-9);
+  assert.equal(liquidityVerdict(big, 2).level, 'warn');
+  assert.equal(liquidityVerdict(big, 0.5).level, 'block', '0.55% expected against a 0.5% limit');
+  assert.match(liquidityVerdict(big, 0.5).message!, /cut off part-filled/);
+
+  const huge = estimateFill(book, 'buy', 5_000)!; // more than the 25 coins on offer
+  assert.ok(huge.filledFraction < 1);
+  assert.match(liquidityVerdict(huge, 50).message!, /less than the order/);
+  // Selling walks the bids, and slippage stays positive (worse than the mid).
+  assert.ok(estimateFill(book, 'sell', 2_000)!.slippageBps! > 0);
+  assert.equal(liquidityVerdict(estimateFill({ bids: [], asks: book.asks }, 'buy', 100), 2).level, 'block');
+});
+
+// ---------------------------------------------------------------- E3
+test('entry cost: every market fill records the price when it was sent and the slippage against it', async () => {
+  const ex = new SimExchange({ BTC: 100 });
+  ex.spread = 0.1; // a market order crosses half of it: 5 basis points
+  const { db, tables } = memoryDb();
+  const long = await openPosition(ex.client, db, { userId: USER, symbol: 'BTC', side: 'long', sizeUsd: 1_000, leverage: 2, slippagePercent: 1, stopLossPct: null, takeProfitPct: null, source: 'manual' });
+  assert.ok(Math.abs(long.slippageBps - 5) < 1e-6);
+  assert.equal(tables.trades[0].decision_price, 100);
+  assert.equal(tables.trades[0].order_type, 'market');
+  await closePositionFully(ex.client, db, USER, 'BTC', 1);
+  const short = await openPosition(ex.client, db, { userId: USER, symbol: 'BTC', side: 'short', sizeUsd: 1_000, leverage: 2, slippagePercent: 1, stopLossPct: null, takeProfitPct: null, source: 'manual' });
+  assert.ok(Math.abs(short.slippageBps - 5) < 1e-6, 'selling below the mid is also a cost, not a gain');
+});
+
+test('sliced entry: fills add up to one position and one record, measured from the first slice', async () => {
+  const ex = new SimExchange({ BTC: 100 });
+  const { db, tables } = memoryDb();
+  const sends: number[] = [];
+  const real = ex.placeMarketOrder.bind(ex);
+  ex.placeMarketOrder = async p => { sends.push(p.sizeUsd); if (sends.length === 2) ex.prices.set('BTC', 101); return real(p); };
+  const opened = await openPosition(ex.client, db, { userId: USER, symbol: 'BTC', side: 'long', sizeUsd: 900, leverage: 2, slippagePercent: 1, stopLossPct: 2, takeProfitPct: null, source: 'manual', slices: 3, slicePauseMs: 1 });
+  assert.deepEqual(sends, [300, 300, 300]);
+  assert.equal(tables.trades.length, 1);
+  assert.equal(tables.trades[0].order_type, 'sliced');
+  assert.ok(Math.abs(opened.size - (3 + 2.97 + 2.97)) < 1e-9);
+  assert.ok(opened.fillPrice > 100 && opened.fillPrice < 101);
+  assert.ok(opened.slippageBps > 0, 'the later slices filled higher than the price at the first send');
+  assert.equal(ex.resting('BTC', 'sl')[0].size, ex.positions.get('BTC')!.size, 'the stop covers every slice');
+});
+
+test('chase: rests at the best bid and fills as a maker, recorded with its (negative) cost', async () => {
+  const ex = new SimExchange({ SOL: 100 });
+  ex.spread = 0.1;
+  const { db, tables } = memoryDb();
+  const order = await placeLimitEntry(ex.client, db, { ...limitParams, limitPx: null, chaseSeconds: 60 });
+  assert.equal(order.limit_px, 99.95);
+  assert.equal(order.mode, 'chase');
+  ex.move('SOL', 99.9); // the market comes to us
+  const events = await managePending(ex.client, db, USER);
+  assert.ok(events.some(e => /Chase long filled: .* SOL at 99\.95/.test(e.message)));
+  assert.equal(tables.trades[0].order_type, 'chase');
+  assert.ok(Number(tables.trades[0].slippage_bps) < 0, 'bought below the mid at the time of the decision');
+  assert.equal(ex.resting('SOL', 'sl').length, 1);
+});
+
+test('chase: follows the market when it moves away, then takes the rest at market when time is up, always with a stop', async () => {
+  const ex = new SimExchange({ SOL: 100 });
+  ex.spread = 0.1;
+  const { db, tables } = memoryDb();
+  await placeLimitEntry(ex.client, db, { ...limitParams, limitPx: null, chaseSeconds: 60 });
+  ex.prices.set('SOL', 101); // runs away from the resting bid
+  assert.deepEqual(await managePending(ex.client, db, USER), []);
+  const resting = ex.resting('SOL', 'limit');
+  assert.equal(resting.length, 1, 'the old order was cancelled, one new one rests');
+  assert.equal(resting[0].px, 100.95);
+  assert.equal(tables.pending_orders[0].limit_px, 100.95);
+
+  ex.prices.set('SOL', 102);
+  const events = await managePending(ex.client, db, USER, Date.now() + 61_000);
+  assert.ok(events.some(e => /Chase long filled: .*taken at market/.test(e.message)));
+  assert.equal(ex.resting('SOL', 'limit').length, 0);
+  const pos = ex.positions.get('SOL')!;
+  assert.ok(Math.abs(pos.entryPrice - 102.05) < 1e-9);
+  const stops = ex.resting('SOL', 'sl');
+  assert.equal(stops.length, 1);
+  assert.equal(stops[0].size, pos.size);
+  assert.ok(Math.abs(stops[0].px - 102.05 * 0.98) < 1e-9, 'the stop is measured from the real entry, not the first resting price');
+  assert.equal(tables.pending_orders[0].status, 'filled');
+  assert.ok(Number(tables.trades[0].slippage_bps) > 150, 'chasing a runaway market cost about 2%: recorded honestly');
+});
+
+test('chase: cancelling it by hand never falls back to a market order', async () => {
+  const ex = new SimExchange({ SOL: 100 });
+  const { db, tables } = memoryDb();
+  const order = await placeLimitEntry(ex.client, db, { ...limitParams, limitPx: null, chaseSeconds: 30 });
+  await cancelLimitEntry(ex.client, db, USER, order.id);
+  assert.equal(ex.positions.size, 0);
+  assert.equal(ex.orders.filter(o => o.status === 'open').length, 0);
+  assert.equal(tables.pending_orders[0].status, 'cancelled');
+  await managePending(ex.client, db, USER, Date.now() + 120_000);
+  assert.equal(ex.positions.size, 0);
+});
+
+// ---------------------------------------------------------------- E5
+test('no stop, no position: when the stop is rejected a manual or webhook entry is closed again at once', async () => {
+  const ex = new SimExchange({ BTC: 100 });
+  ex.rejectStops = true;
+  const { db, tables } = memoryDb();
+  const base = { userId: USER, symbol: 'BTC', side: 'long' as const, sizeUsd: 1_000, leverage: 2, slippagePercent: 1, stopLossPct: 2, takeProfitPct: 4, source: 'webhook' as const };
+  const opened = await openPosition(ex.client, db, { ...base, closeIfUnprotected: true });
+  assert.equal(opened.closedUnprotected, true);
+  assert.match(opened.protectionError!, /rejected/);
+  assert.equal(ex.positions.size, 0, 'flat again');
+  assert.equal(tables.trades[0].status, 'closed');
+  assert.match(String(tables.trades[0].notes), /stop-loss could not be placed/);
+  // Without the flag (the Autopilot handles it itself) the position stays and the error is reported.
+  const kept = await openPosition(ex.client, db, base);
+  assert.equal(kept.closedUnprotected, false);
+  assert.ok(kept.protectionError);
+  assert.equal(ex.positions.size, 1);
+});
+
+test('a stop that was accepted but is not resting counts as missing', async () => {
+  const ex = new SimExchange({ BTC: 100 });
+  const { db } = memoryDb();
+  ex.placeProtectiveOrders = async () => ({ stopLossOid: '1', takeProfitOid: null }); // says yes, places nothing
+  const opened = await openPosition(ex.client, db, { userId: USER, symbol: 'BTC', side: 'long', sizeUsd: 1_000, leverage: 2, slippagePercent: 1, stopLossPct: 2, takeProfitPct: null, source: 'manual', closeIfUnprotected: true });
+  assert.match(opened.protectionError!, /not resting/);
+  assert.equal(opened.closedUnprotected, true);
+  assert.equal(ex.positions.size, 0);
+});
+
+// ---------------------------------------------------------------- E2
+test('fast pass: moves a trailing stop and reports a position that has just been stopped out', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }));
+  const ex = new SimExchange({ ETH: 100 });
+  const { db, tables } = memoryDb();
+  await openPosition(ex.client, db, { userId: USER, symbol: 'ETH', side: 'long', sizeUsd: 1_000, leverage: 2, slippagePercent: 1, stopLossPct: 3, takeProfitPct: null, source: 'manual', exit: { trailPct: 2 } });
+  const settings = { user_id: USER, slippage_percent: 1 };
+  ex.move('ETH', 110);
+  const up = await runFastPass(ex.client, db, settings);
+  assert.deepEqual(up.errors, []);
+  assert.ok(Math.abs(ex.resting('ETH', 'sl')[0].px - 107.8) < 1e-9, 'the stop followed within one pass');
+  ex.move('ETH', 107); // through the trailed stop
+  assert.equal(ex.positions.size, 0);
+  const out = await runFastPass(ex.client, db, settings);
+  assert.ok(out.notes.some(n => /ETH long is closed on the exchange/.test(n)));
+  assert.equal(tables.position_plans[0].status, 'done');
+  assert.equal(ex.orders.filter(o => o.status === 'open').length, 0);
+});
+
+test('execution statistics: slippage is size-weighted and split by how the order was sent', () => {
+  const rows = executionStats([
+    trade({ id: 'm1', size_usd: 1_000, slippage_bps: 6, order_type: 'market', fees: 0.9, fills_synced_at: 'x' }),
+    trade({ id: 'm2', size_usd: 3_000, slippage_bps: 2, order_type: 'market' }),
+    trade({ id: 'c1', size_usd: 1_000, slippage_bps: -4, order_type: 'chase', fees: 0.6, fills_synced_at: 'x' }),
+    trade({ id: 'old', size_usd: 5_000 }), // before measurement began: left out
+  ]);
+  const by = (t: string) => rows.find(r => r.type === t)!;
+  assert.equal(by('All measured entries').trades, 3);
+  assert.ok(Math.abs(by('Market').avgSlippageBps! - 3) < 1e-9); // (6*1000 + 2*3000) / 4000
+  assert.ok(Math.abs(by('Market').slippageUsd - 1.2) < 1e-9);
+  assert.ok(Math.abs(by('Market').feeBps! - 9) < 1e-9, 'fees only over the trades that have them');
+  assert.equal(by('Chase').avgSlippageBps, -4);
+  assert.ok(Math.abs(by('Chase').feeBps! - 6) < 1e-9);
 });

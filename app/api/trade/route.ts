@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
-import { closePositionFully, openPosition, protectionPercent, MAX_LEVERAGE } from '@/lib/execution';
+import { closePositionFully, openPosition, protectionPercent, MAX_LEVERAGE, MAX_SLICES } from '@/lib/execution';
+import { estimateFill, liquidityVerdict } from '@/lib/liquidity';
 import { normalizeSymbol } from '@/lib/webhook';
 import { notify } from '@/lib/notify';
 import { portfolioLimitsFromSettings } from '@/lib/risk/portfolio';
-import { MAX_EXPIRY_HOURS, placeLimitEntry } from '@/lib/pending';
+import { CHASE_SECONDS, MAX_EXPIRY_HOURS, placeLimitEntry } from '@/lib/pending';
 import { journalTags } from '@/lib/journal';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,13 @@ export async function POST(request: Request) {
   if (limitPx != null && !(limitPx > 0)) return bad('Limit price must be a positive number');
   const expiryHours = body.expiryHours == null ? 24 : Number(body.expiryHours);
   if (limitPx != null && !(expiryHours >= 1 && expiryHours <= MAX_EXPIRY_HOURS)) return bad(`Expiry must be between 1 hour and ${MAX_EXPIRY_HOURS / 24} days`);
+  // A chase rests at the best price, follows the market, then takes the rest at market after this many seconds.
+  const chaseSeconds = body.chaseSeconds == null || body.chaseSeconds === '' ? null : Number(body.chaseSeconds);
+  if (chaseSeconds != null && !CHASE_SECONDS.includes(chaseSeconds)) return bad(`Chase time must be one of ${CHASE_SECONDS.join(', ')} seconds`);
+  if (chaseSeconds != null && limitPx != null) return bad('Choose either a limit price or a chase, not both');
+  const slices = body.slices == null || body.slices === '' ? 1 : Number(body.slices);
+  if (!Number.isInteger(slices) || slices < 1 || slices > MAX_SLICES) return bad(`Slices must be a whole number from 1 to ${MAX_SLICES}`);
+  if (slices > 1 && sizeUsd / slices < 10) return bad('Each slice must be at least $10');
 
   if (settings.strategy_enabled && settings.strategy_dry_run === false && settings.strategy_symbol === symbol) {
     return bad(`${symbol} is being traded by the built-in strategy, which would undo a manual position. Turn it off first.`);
@@ -80,24 +88,35 @@ export async function POST(request: Request) {
     const existing = position ? position.size * position.markPrice : 0;
     if (existing + sizeUsd > maxUsd) return bad(`That would take ${symbol} past your max position size of $${maxUsd}. Raise it in Settings if intended.`);
 
-    if (limitPx != null) {
+    if (limitPx != null || chaseSeconds != null) {
       const order = await placeLimitEntry(hl, supabase, {
-        userId: user.id, symbol, side, limitPx, sizeUsd, leverage, stopLossPct, takeProfitPct, expiryHours, journal, limits,
+        userId: user.id, symbol, side, limitPx, sizeUsd, leverage, stopLossPct, takeProfitPct, expiryHours, chaseSeconds, journal, limits,
       });
-      await notify(`Manual: limit ${side} resting on ${symbol} at ${order.limit_px} (${order.size} ${symbol}, expires in ${expiryHours}h)`);
-      return NextResponse.json({ success: true, resting: true, symbol, side, order });
+      await notify(chaseSeconds != null
+        ? `Manual: chasing a ${side} on ${symbol} from ${order.limit_px} (${order.size} ${symbol}; market after ${chaseSeconds}s)`
+        : `Manual: limit ${side} resting on ${symbol} at ${order.limit_px} (${order.size} ${symbol}, expires in ${expiryHours}h)`);
+      return NextResponse.json({ success: true, resting: true, chase: chaseSeconds != null, symbol, side, order });
     }
+
+    // Look at the book before taking from it: refuse an order it cannot absorb within the slippage limit.
+    const slippagePercent = Number(settings.slippage_percent);
+    const verdict = liquidityVerdict(estimateFill(await hl.getBook(symbol), side === 'long' ? 'buy' : 'sell', sizeUsd / slices), slippagePercent);
+    if (verdict.level === 'block') return bad(verdict.message!);
 
     const opened = await openPosition(hl, supabase, {
       userId: user.id, symbol, side, sizeUsd, leverage,
       slippagePercent: Number(settings.slippage_percent), stopLossPct, takeProfitPct, source: 'manual',
-      exit, limits, payload: { journal },
+      exit, limits, payload: { journal }, slices, closeIfUnprotected: true,
     });
-    await notify(`Manual: opened ${side} ${opened.size} ${symbol} at ${opened.fillPrice} (${leverage}x)` + (opened.protectionError ? `. WARNING: stop/target NOT placed (${opened.protectionError})` : ''));
+    if (opened.closedUnprotected) {
+      await notify(`Manual: ${symbol} ${side} was opened and CLOSED AT ONCE because its stop-loss could not be placed (${opened.protectionError})`);
+      return NextResponse.json({ error: `The position was opened and closed again at once, because its stop-loss could not be placed: ${opened.protectionError}. You are flat in ${symbol}.` }, { status: 502 });
+    }
+    await notify(`Manual: opened ${side} ${opened.size} ${symbol} at ${opened.fillPrice} (${leverage}x, ${opened.slippageBps.toFixed(1)} bps from mid)` + (opened.protectionError ? `. WARNING: stop/target NOT placed (${opened.protectionError})` : ''));
     return NextResponse.json({ success: true, symbol, side, ...opened });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: /^Blocked by a portfolio limit|must be (below|above)/.test(message) ? 400 : 500 });
+    return NextResponse.json({ error: message }, { status: /^Blocked by a portfolio limit|must be (below|above)|order book/.test(message) ? 400 : 500 });
   }
 }
 

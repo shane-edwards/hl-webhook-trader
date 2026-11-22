@@ -109,9 +109,15 @@ Execution round (started 2026-11-22). Ticked as each is finished:
 - [x] E2. Stops move within seconds, not every five minutes. `/api/cron/fast`, called every 10 seconds by Supabase's
       scheduler only while something is open; the daily strategy moved off Vercel cron too (`vercel.json` is empty).
       Needs migrations 006 and 007
-- [ ] E3. Measure entry cost per fill; maker-first "chase" entries; sliced orders
-- [ ] E4. Order-book check before sending: expected slippage, warn or block on a thin book
-- [ ] E5. A position that cannot get its stop is closed at once, on every entry path
+- [x] E3. Entry cost measured on every fill (price when sent, slippage, order type; table on Analytics). Chase entries
+      rest at the best bid or ask, follow the market, then take the rest at market; the ticket defaults to them once
+      migration 007 is in. Market orders can be sent as 2 to 5 slices. Needs migration 007
+- [x] E4. Order-book check: the ticket shows the expected slippage for the size, and the server refuses a market order
+      the visible book cannot absorb within the slippage limit (`lib/liquidity.ts`, `/api/book`)
+- [x] E5. A manual or webhook position whose stop is rejected, or is not found resting afterwards, is closed at once
+      (the Autopilot already did this). The exchange's own dead-man's switch was NOT used: `scheduleCancel` cancels
+      every open order, stops included, so it would remove protection exactly when the app is down. A resting entry is
+      already safe without the app, because its stop is attached on the exchange and activates on the fill
 - [ ] E6. Alerts: phone push channel and an in-app alert log
 - [ ] Deployed
 

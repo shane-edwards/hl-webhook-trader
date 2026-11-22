@@ -7,7 +7,7 @@ import { Header } from '@/components/layout/Header';
 import { PnLChart } from '@/components/analytics/PnLChart';
 import { Stat, ChartTooltip } from '@/components/ui/stat';
 import { Segmented } from '@/components/ui/segmented';
-import { calculateAnalytics, buildMonthlyPnL, equityStats, MIN_DAYS_FOR_SHARPE } from '@/lib/analytics';
+import { calculateAnalytics, buildMonthlyPnL, equityStats, executionStats, MIN_DAYS_FOR_SHARPE } from '@/lib/analytics';
 import { resultsByTag, type TagResult } from '@/lib/journal';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Trade } from '@/types';
@@ -68,6 +68,7 @@ export default function AnalyticsPage() {
   const m = useMemo(() => calculateAnalytics(trades), [trades]);
   const monthly = useMemo(() => buildMonthlyPnL(trades), [trades]);
   const tags = useMemo(() => resultsByTag(trades), [trades]);
+  const execution = useMemo(() => executionStats(trades), [trades]);
   const eq = useMemo(() => equityStats(account?.periods[period]), [account, period]);
   // Sharpe always uses the 30-day series: it is the only one with roughly daily points.
   const month = useMemo(() => equityStats(account?.periods.month), [account]);
@@ -162,6 +163,36 @@ export default function AnalyticsPage() {
             <Stat label="Funding" value={formatCurrency(-m.totalFunding)} hint={`Average hold ${m.avgTradeDurationHours.toFixed(1)} hours`} tone={tone(-m.totalFunding)} loading={loading} />
           </div>
           <PnLChart data={monthly} />
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold">Execution: what getting in costs</h2>
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
+              Each entry is compared with the mid price at the moment the order was sent. Slippage is the gap; a negative figure means a better price than the mid,
+              which only a resting order can get. Fees cover entry and exit and appear once the exchange figures are in. A market order pays 0.045% a side, a resting one 0.015%.
+            </p>
+          </div>
+          {execution[0].trades === 0 ? (
+            <p className="surface px-5 py-5 text-sm text-muted-foreground">No measured entries yet. Entries are measured from now on; earlier trades did not record the price at the moment of sending.</p>
+          ) : (
+            <div className="surface overflow-x-auto">
+              <table className="data-table">
+                <thead><tr><th>How it was sent</th><th>Entries</th><th>Avg slippage</th><th>Slippage cost</th><th>Fees, round trip</th></tr></thead>
+                <tbody>
+                  {execution.map(r => (
+                    <tr key={r.type}>
+                      <td className="font-medium">{r.type}</td>
+                      <td className="num">{r.trades}</td>
+                      <td className={cn('num', r.avgSlippageBps != null && (r.avgSlippageBps > 0 ? 'text-loss' : r.avgSlippageBps < 0 ? 'text-profit' : ''))}>{r.avgSlippageBps == null ? '—' : `${(r.avgSlippageBps / 100).toFixed(3)}%`}</td>
+                      <td className={cn('num', r.slippageUsd > 0 ? 'text-loss' : r.slippageUsd < 0 ? 'text-profit' : '')}>{formatCurrency(-r.slippageUsd)}</td>
+                      <td className="num">{r.feeBps == null ? '—' : `${(r.feeBps / 100).toFixed(3)}%`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="space-y-3">

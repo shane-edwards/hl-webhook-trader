@@ -21,12 +21,14 @@ export async function GET() {
   const ctx = await context();
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { service, user } = ctx;
-  const [orders, plans] = await Promise.all([
+  const [orders, plans, chase] = await Promise.all([
     service.from('pending_orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(30),
     service.from('position_plans').select('*').eq('user_id', user.id).eq('status', 'active'),
+    // Chase entries need the columns from migration 007.
+    service.from('pending_orders').select('mode').limit(1),
   ]);
   // Before migration 006 the tables do not exist: report that rather than an error.
-  return NextResponse.json({ available: !orders.error, orders: orders.data ?? [], plans: plans.data ?? [] });
+  return NextResponse.json({ available: !orders.error, chase: !chase.error, orders: orders.data ?? [], plans: plans.data ?? [] });
 }
 
 // ?id=<pending order id>  cancel a resting limit entry

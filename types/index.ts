@@ -22,6 +22,10 @@ export interface Trade {
   exchange_pnl?: number | null;
   net_pnl?: number | null;
   fills_synced_at?: string | null;
+  /** Mid price when the order was sent, the fill's distance from it in basis points, and how it was sent (migration 007). */
+  decision_price?: number | null;
+  slippage_bps?: number | null;
+  order_type?: string | null;
   entry_time: string;
   exit_time?: string | null;
   duration_seconds?: number | null;
