@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
 
   // Machine endpoints authenticate themselves (webhook secret / CRON_SECRET).
   // Exact matches only, so /api/webhook-logs still goes through session auth.
-  if (pathname === '/api/webhook' || pathname === '/api/cron/strategy') {
+  if (pathname === '/api/webhook' || pathname === '/api/cron/strategy' || pathname === '/api/cron/autopilot') {
     return NextResponse.next();
   }
 

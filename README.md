@@ -11,6 +11,7 @@ A professional Next.js trading application that receives TradingView webhook ale
 - **Wallet connect** — Link your Hyperliquid wallet (SafePal, MetaMask, any WalletConnect wallet) with one signature. The app gets a trade-only key; it can never withdraw
 - **Trade ticket** — Place market orders from the dashboard with stop-loss and take-profit held on the exchange
 - **Stop-loss / take-profit on webhook trades** — Per signal (`stop_loss_pct`, `take_profit_pct`) or as defaults in Settings
+- **Autopilot** — Scans your chosen markets and opens and closes positions by tested rules, sized by risk, every position with an exchange-side stop. Paper mode builds a track record before any real money is used
 - **Kill switch** — One button pauses all automation and closes every position
 - **Markets scanner** — Live funding, premium, open interest and volume for every Hyperliquid perp, sortable
 - **Strategy Lab** — Run the trend strategy on 10 coins with your own settings against buy & hold, with real costs; plus research notes on funding capture and multi-coin trend
@@ -126,6 +127,30 @@ npx vercel
 ```
 
 Add all environment variables from `.env.local` to your Vercel project settings.
+
+---
+
+## Autopilot
+
+The autopilot looks at each market you list, on completed hourly candles, and trades when a strategy's rule fires and the risk limits allow it.
+
+**Strategies and the live gate.** The rules live in `lib/autopilot/strategies.ts`; the same code is backtested by `npm run backtest:autopilot`, which writes [`backtest/AUTOPILOT.md`](backtest/AUTOPILOT.md) and `lib/autopilot/evidence.json`. A strategy may trade real money only if that evidence shows it profitable in both 2020–2022 and 2023+, with an average trade that clears costs by more than 15 basis points. Today one of six variants passes (trend breakout, long only). The two short-horizon, scalp-style rules lost money after fees and are locked to paper mode. The gate is code, not a setting.
+
+**Risk rules** (all adjustable on the Autopilot page):
+- Position size is set so a stopped-out trade loses a fixed share of equity (default 0.5%), capped at a leverage limit per position.
+- Every live position gets a stop-loss on the exchange. If the stop cannot be placed, the position is closed immediately.
+- A cap on simultaneous positions, a daily loss limit that blocks new entries until the next UTC day, and a drawdown limit that pauses the autopilot until you reset it.
+- It never touches a position it did not open, and it skips the market the built-in daily strategy is trading.
+
+**Paper mode** (the default) runs the identical logic on live prices and records what it would have done, with fees charged, starting from $10,000. It needs no wallet.
+
+**To run it:**
+1. Run `supabase/migrations/004_autopilot.sql`.
+2. Set `CRON_SECRET` in Vercel.
+3. Schedule the scan. Vercel's free plan only allows daily cron jobs, so use Supabase: the last section of `004_autopilot.sql` has a ready-made `pg_cron` statement that calls `/api/cron/autopilot` every five minutes. (On Vercel Pro you can add it to `vercel.json` instead.)
+4. Open **Autopilot**, choose markets and strategies, and switch it on. Leave it on Paper until its record matches the backtest.
+
+"Scan now" on the page runs one pass immediately, in whichever mode is selected.
 
 ---
 
