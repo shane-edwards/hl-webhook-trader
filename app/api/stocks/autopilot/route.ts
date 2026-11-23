@@ -3,12 +3,17 @@ import { z } from 'zod';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { etoroFromConnection } from '@/lib/stocks/connection';
 import { isStockTradeRule, isStockTradeSymbol, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
+import { stockLeverageSchema, stopMarginSchema, stockOrderOption, StockSizingError } from '@/lib/stocks/leverage';
 
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
-const settingFields = 'symbol, strategy, amount, active_environment, last_run_at, last_message';
+const settingFields = 'symbol, strategy, amount, leverage, stop_margin_pct, active_environment, last_run_at, last_message';
 const command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('pause') }),
-  z.object({ action: z.literal('start'), symbol: z.string(), strategy: z.string(), amount: z.number().min(1).max(10_000), environment: z.enum(['demo', 'real']), confirmed: z.literal(true) }),
+  z.object({
+    action: z.literal('start'), symbol: z.string(), strategy: z.string(), amount: z.number().min(1).max(10_000),
+    leverage: stockLeverageSchema.default(1), stopMarginPct: stopMarginSchema.optional(),
+    environment: z.enum(['demo', 'real']), confirmed: z.literal(true),
+  }),
 ]);
 
 async function context() {
@@ -44,13 +49,14 @@ export async function PUT(request: Request) {
     const broker = etoroFromConnection(connection.data);
     const market = await broker.instrument(value.symbol);
     if (!market) return fail('This ticker is unavailable on eToro.', 422);
-    const eligible = await broker.stockEligibility(market.instrumentId);
-    if (!eligible.allowed || amount < eligible.minimum) return fail(`This account needs an eligible cash-stock buy of at least $${eligible.minimum.toFixed(2)}.`, 422);
-  } catch {
+    stockOrderOption(await broker.stockOrderOptions(market.instrumentId), { amount, leverage: value.leverage, stopMarginPct: value.stopMarginPct });
+  } catch (error) {
+    if (error instanceof StockSizingError) return fail(error.message, 422);
     return fail('Could not check eToro eligibility.', 503);
   }
   const { data, error } = await db.from('stock_autopilot').upsert({
     user_id: user.id, symbol: value.symbol, strategy: value.strategy, amount, active_environment: value.environment,
+    leverage: value.leverage, stop_margin_pct: value.leverage === 1 ? null : value.stopMarginPct,
     updated_at: now, last_run_at: null, last_message: null,
   }).select(settingFields).single();
   return error ? fail('Could not start stock Autopilot.', 503) : NextResponse.json({ settings: data });

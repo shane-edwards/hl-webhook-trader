@@ -5,22 +5,28 @@ import { EtoroError, type EtoroClient, type StockOrder } from './etoro';
 import { freshStockAsk, previousStockSession, stockMarketClock } from './session';
 import { currentStockEntry, dailyTradeSignal, stockEntryWindow, stockTradeDailyBars } from './trade-signals';
 import { type StockTradeRule, type StockTradeSymbol } from './trade-rules';
+import { prepareStockOrder, stockOrderFees, StockSizingError, type StockLeverage } from './leverage';
 
 export type StockEnvironment = 'demo' | 'real';
 export type StockAutoConfig = {
   user_id: string; symbol: StockTradeSymbol; strategy: StockTradeRule; amount: number; active_environment: StockEnvironment | null; updated_at: string;
+  leverage: StockLeverage; stop_margin_pct: number | null;
 };
-type AutoOrder = { id: string; environment: StockEnvironment; connection_version: string; state: string; position_ids: number[]; request: StockOrder; strategy: StockTradeRule; signal_day: string | null; strategy_exit_at: string | null; updated_at: string; close_requests: Record<string, string> };
+type AutoOrder = { id: string; environment: StockEnvironment; connection_version: string; state: string; position_ids: number[]; request: StockOrder; strategy: StockTradeRule; signal_day: string | null; strategy_exit_at: string | null; updated_at: string; close_requests: Record<string, string>; protection_state: string | null };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any, any, any>;
 
-export async function reconcileStockOrder(broker: EtoroClient, id: string) {
+export async function reconcileStockOrder(broker: EtoroClient, id: string, request?: StockOrder) {
   const order = await broker.stockOrderStatus(id);
   const ids = (order.positionExecutions ?? []).map(p => p.positionId).filter(id => Number.isSafeInteger(id) && id > 0);
   const code = order.status?.id;
-  const state = (code === 3 || code === 10) && ids.length ? 'filled'
+  const state = [3, 5, 10].includes(code) && ids.length ? 'filled'
     : [4, 6, 7, 8, 9, 10].includes(code) && !ids.length ? 'rejected' : 'submitted';
-  return { state, broker_order_id: order.orderId, position_ids: ids, message: order.status?.errorMessage ?? null };
+  const protection = request?.settlementType === 'cfd' && state === 'filled'
+    ? order.positionExecutions.some(p => p.state?.toLowerCase() !== 'closed'
+      && (typeof p.stopLossRate !== 'number' || p.stopLossRate < request.stopLossRate - 0.005)) ? 'exit_required' : 'protected'
+    : undefined;
+  return { state, broker_order_id: order.orderId, position_ids: ids, ...(protection ? { protection_state: protection } : {}), message: order.status?.errorMessage ?? null };
 }
 
 export async function submitStockOrder(db: Db, broker: EtoroClient, userId: string, id: ReturnType<typeof randomUUID>, request: StockOrder) {
@@ -43,7 +49,7 @@ export async function scanStockAutopilot(db: Db, userId: string, config?: StockA
   const previous = previousStockSession(now);
   if (!session.open || !previous) return 'Waiting for the US market';
   const { data, error } = await db.from('etoro_stock_orders').select('*').eq('user_id', userId)
-    .or('signal_day.not.is.null,strategy_exit_at.not.is.null').is('closed_at', null).not('state', 'in', '(draft,rejected)');
+    .or('signal_day.not.is.null,strategy_exit_at.not.is.null,protection_state.in.(unverified,exit_required)').is('closed_at', null).not('state', 'in', '(draft,rejected)');
   if (error) throw new Error('Could not read managed positions');
   const active = (data ?? []) as AutoOrder[];
   const modes = new Set(active.map(row => row.environment));
@@ -68,22 +74,28 @@ export async function scanStockAutopilot(db: Db, userId: string, config?: StockA
       messages.push(`No current strategy entry for ${config.symbol}`);
       continue;
     }
-    const [eligible, quotes, portfolio] = await Promise.all([broker.stockEligibility(instrumentId), broker.quotes([instrumentId]), broker.portfolio()]);
+    const [options, quotes, portfolio] = await Promise.all([broker.stockOrderOptions(instrumentId), broker.quotes([instrumentId]), broker.portfolio()]);
     const quote = quotes.find(q => q.instrumentId === instrumentId);
     const ask = freshStockAsk(quote, Date.now());
     const amount = Number(config.amount);
     if (!ask || !quote?.bid || (ask - quote.bid) / ask > signal.maxSpread) { messages.push('No fresh quote within the spread limit'); continue; }
-    if (!eligible.allowed || amount < eligible.minimum || portfolio.credit <= amount) { messages.push('Check eToro eligibility, buying power, and minimum order size'); continue; }
-    const request: StockOrder = { action: 'open', transaction: 'buy', instrumentId, settlementType: 'real', orderType: 'mkt', amount, leverage: 1, orderCurrency: 'usd' };
+    let request: StockOrder;
+    try {
+      request = prepareStockOrder(instrumentId, { ask, bid: quote.bid }, options, { amount, leverage: config.leverage, stopMarginPct: config.stop_margin_pct });
+    } catch (error) {
+      if (!(error instanceof StockSizingError)) throw error;
+      messages.push(error.message);
+      continue;
+    }
     const estimate = await broker.stockOrderCosts(request);
-    const fees = estimate.filter(cost => cost.currency.toUpperCase() === 'USD' && cost.costType === 'transactionFee').reduce((sum, cost) => sum + Math.max(0, cost.value), 0);
-    if (portfolio.credit < amount + fees) { messages.push('Buying power is below the order and estimated fees'); continue; }
+    if (portfolio.availableCash < amount + stockOrderFees(estimate)) { messages.push('Buying power is below the order and estimated fees'); continue; }
     const checked = Date.now();
     if (!freshStockAsk(quote, checked) || checked >= signal.validUntil || !stockEntryWindow(config.strategy, checked, true)) { messages.push('Entry window or quote expired'); continue; }
     const reserved = await db.rpc('reserve_stock_autopilot_order', {
       account: userId, mode: environment, config_version: config.updated_at, key_version: connection.updated_at, session_day: session.day,
       instrument: instrumentId, price: ask, signal_expiry: new Date(signal.validUntil).toISOString(),
       timed_exit: signal.exitAt == null ? null : new Date(signal.exitAt).toISOString(),
+      stop_rate: request.settlementType === 'cfd' ? request.stopLossRate : null,
     });
     if (reserved.error) throw new Error('Could not reserve the strategy order');
     if (reserved.data) {
@@ -98,9 +110,10 @@ async function manageStockOrder(db: Db, broker: EtoroClient, userId: string, row
   const update = (patch: object) => db.from('etoro_stock_orders').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', userId).eq('id', row.id);
   if (row.state !== 'filled') {
     try {
-      const { message, ...summary } = await reconcileStockOrder(broker, row.id);
+      const { message, ...summary } = await reconcileStockOrder(broker, row.id, row.request);
       const saved = await update(summary).eq('state', row.state);
       if (saved.error) throw new Error('Could not reconcile stock order');
+      if (summary.protection_state === 'exit_required') return 'eToro did not confirm the stop. A protective exit is required.';
       return message ?? `eToro order ${summary.state}`;
     } catch (error) {
       if (error instanceof EtoroError && error.status === 404) return 'Waiting for eToro to confirm the submitted order';
@@ -118,15 +131,18 @@ async function manageStockOrder(db: Db, broker: EtoroClient, userId: string, row
     if (saved.error) throw new Error('Could not finalize stock exits');
     return 'Managed position closed';
   }
-  if (row.strategy_exit_at) {
-    if (now < Date.parse(row.strategy_exit_at)) return 'Holding until the scheduled exit';
-  } else if (row.signal_day && row.strategy !== 'earnings-rebound') {
-    const bars = await stockTradeDailyBars(broker, row.request.instrumentId, row.strategy, now);
-    if (bars.at(-1)?.day !== previous) return 'Waiting for the previous session’s complete daily bar';
-    const held = bars.filter(bar => bar.day >= row.signal_day!).length;
-    if (held === 0 || !dailyTradeSignal(bars, row.strategy, held)) return 'Holding the open strategy position';
-  } else {
-    return 'Managed exit data is missing. Check the position in eToro.';
+  // An unconfirmed stop triggers the existing exit workflow before applying the strategy's exit rules.
+  if (row.protection_state !== 'exit_required') {
+    if (row.strategy_exit_at) {
+      if (now < Date.parse(row.strategy_exit_at)) return 'Holding until the scheduled exit';
+    } else if (row.signal_day && row.strategy !== 'earnings-rebound') {
+      const bars = await stockTradeDailyBars(broker, row.request.instrumentId, row.strategy, now);
+      if (bars.at(-1)?.day !== previous) return 'Waiting for the previous session’s complete daily bar';
+      const held = bars.filter(bar => bar.day >= row.signal_day!).length;
+      if (held === 0 || !dailyTradeSignal(bars, row.strategy, held)) return 'Holding the open strategy position';
+    } else {
+      return 'Managed exit data is missing. Check the position in eToro.';
+    }
   }
   const [quote] = await broker.quotes([row.request.instrumentId]);
   if (!freshStockAsk(quote, Date.now())) return 'Waiting for a real-time quote to send the exit';

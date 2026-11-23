@@ -7,6 +7,58 @@ import { freshStockAsk, previousStockSession, stockMarketClock } from '../lib/st
 import { dailyTradeSignal, earningsRebound, stockEntryWindow } from '../lib/stocks/trade-signals';
 import { type IntradayBar } from '../lib/stocks/etoro';
 import { INSIDE_DAY_SYMBOLS, supportsStockTradeRule } from '../lib/stocks/trade-rules';
+import { approvedStockStop, prepareStockOrder } from '../lib/stocks/leverage';
+import { reconcileStockOrder } from '../lib/stocks/autopilot';
+
+test('leveraged stock orders translate a margin stop into a price and require a fresh review if risk rises', () => {
+  const quote = { ask: 100, bid: 99.95 };
+  const options = [{ leverage: 5 as const, minimum: 25, stopMargin: { min: 0, max: 50 } }];
+  const size = { amount: 100, leverage: 5 as const, stopMarginPct: 10 };
+  const order = prepareStockOrder(1001, quote, options, size);
+  assert.equal(order.settlementType, 'cfd');
+  assert.equal(order.leverage, 5);
+  assert.equal(order.settlementType === 'cfd' && order.stopLossRate, 98);
+  assert.equal(approvedStockStop(order, quote, 10), true);
+  assert.equal(approvedStockStop(order, { ask: 100.5, bid: 100.45 }, 10), false);
+  assert.equal(approvedStockStop(order, { ask: 98.05, bid: 97.99 }, 10), false);
+  assert.throws(() => prepareStockOrder(1001, quote, options, { ...size, leverage: 2 }), /does not allow/);
+  assert.throws(() => prepareStockOrder(1001, quote, options, { ...size, amount: 20 }), /minimum/);
+  assert.throws(() => prepareStockOrder(1001, quote, options, { ...size, stopMarginPct: 0.1 }), /too close/);
+  assert.throws(() => prepareStockOrder(1001, quote, options, { ...size, stopMarginPct: undefined }), /stop loss/);
+});
+
+test('eToro leverage options require broker approval and an attached stop is verified on the Demo fill', async t => {
+  let stop: number | null = null;
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
+    if (url.endsWith('/info/demo/eligibility')) return Response.json({ eligibilities: [{
+      instrumentId: 1001, allowOpenPosition: true, allowClosePosition: true, minPositionExposure: 50, allowedOrderQuantityType: 'all',
+      leverageConfigs: [
+        { settlementType: 'real', direction: 'long', leverageValues: [1], minPositionAmount: 10, isPotential: false },
+        { settlementType: 'cfd', direction: 'long', leverageValues: [2], minPositionAmount: 10, isPotential: false, allowStopLossTakeProfit: true, minStopLossPercentage: 1, maxStopLossPercentage: 50 },
+        { settlementType: 'cfd', direction: 'long', leverageValues: [5], minPositionAmount: 10, isPotential: true },
+      ],
+    }] });
+    if (url.endsWith('/execution/demo/orders')) {
+      const payload = JSON.parse(String(init.body));
+      assert.equal(init.method, 'POST');
+      assert.deepEqual([payload.settlementType, payload.leverage, payload.amount, payload.stopLossRate], ['cfd', 2, 100, 95]);
+      return Response.json({ orderId: 77 });
+    }
+    if (url.includes('/info/demo/orders:lookup')) {
+      return Response.json({ orderId: 77, status: { id: 3 }, positionExecutions: [{ positionId: 88, state: 'open', stopLossRate: stop }] });
+    }
+    throw new Error('Unexpected endpoint');
+  });
+  const broker = new EtoroClient({ apiKey: 'test-key', userKey: 'test-user', environment: 'demo' });
+  const options = await broker.stockOrderOptions(1001);
+  assert.deepEqual(options.map(option => [option.leverage, option.minimum]), [[1, 50], [2, 25]]);
+  const order = prepareStockOrder(1001, { ask: 100, bid: 99.95 }, options, { leverage: 2, amount: 100, stopMarginPct: 10 });
+  const reference = '00000000-0000-4000-8000-000000000001';
+  await broker.openStock(order, reference);
+  assert.equal((await reconcileStockOrder(broker, reference, order)).protection_state, 'exit_required');
+  stop = 95;
+  assert.equal((await reconcileStockOrder(broker, reference, order)).protection_state, 'protected');
+});
 
 test('inside-day breakout checks only the completed pattern, enforces the opening window, and exits after five sessions', () => {
   const bars: StockBar[] = Array.from({ length: 52 }, (_, i) => ({ day: String(i), bidOpen: 100, askOpen: 100.05, bidClose: 100, high: 102, low: 98 }));

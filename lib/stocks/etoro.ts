@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { STOCKS, type StockBar, type StockSymbol } from './research';
+import { type StockOrderOption } from './leverage';
 
 export type EtoroCredentials = { apiKey: string; userKey: string; environment: 'demo' | 'real' };
 type Instrument = { instrumentId: number; symbol: string; displayName: string; type: string };
@@ -10,9 +11,16 @@ type BrokerPosition = {
   positionID: number; instrumentID: number; isBuy: boolean; units: number; amount: number;
   leverage: number; openRate: number; openDateTime: string; unrealizedPnL?: { pnL?: number } | null;
 };
-export type StockOrder = { action: 'open'; transaction: 'buy'; instrumentId: number; settlementType: 'real'; orderType: 'mkt'; leverage: 1; amount: number; orderCurrency: 'usd' };
-type Eligibility = { instrumentId: number; allowOpenPosition: boolean; allowClosePosition: boolean; minPositionExposure: number | null; allowedOrderQuantityType: string | null; leverageConfigs: { settlementType: string; direction: string; leverageValues: number[]; minPositionAmount: number | null; isPotential: boolean }[] };
+export type StockOrder = { action: 'open'; transaction: 'buy'; instrumentId: number; orderType: 'mkt'; amount: number; orderCurrency: 'usd' } & (
+  { settlementType: 'real'; leverage: 1 } | { settlementType: 'cfd'; leverage: 2 | 5; stopLossRate: number; stopLossType: 'fixed' }
+);
+type Eligibility = {
+  instrumentId: number; allowOpenPosition: boolean; allowClosePosition: boolean; minPositionExposure: number | null; allowedOrderQuantityType: string | null;
+  leverageConfigs: { settlementType: string; direction: string; leverageValues: number[]; minPositionAmount: number | null; isPotential: boolean;
+    allowStopLossTakeProfit: boolean; minStopLossPercentage: number | null; maxStopLossPercentage: number | null }[];
+};
 type OrderCost = { costType: string; value: number; currency: string };
+type PendingStockOrder = { orderId?: number; amount?: number; frozenAmount?: number };
 
 export class EtoroError extends Error {
   constructor(readonly status: number) { super(`eToro HTTP ${status}`); }
@@ -38,16 +46,25 @@ export class EtoroClient {
 
   private get demoPath() { return this.credentials.environment === 'demo' ? 'demo/' : ''; }
 
-  async stockEligibility(instrumentId: number) {
+  async stockOrderOptions(instrumentId: number): Promise<StockOrderOption[]> {
     const result = await this.request<{ eligibilities: Eligibility[] }>(`/v2/trading/info/${this.demoPath}eligibility`, { instrumentIds: [instrumentId], currency: 'USD' });
     const instrument = result.eligibilities.find(row => row.instrumentId === instrumentId);
-    const cashLong = instrument?.leverageConfigs.find(config => config.settlementType.toLowerCase() === 'real'
-      && config.direction.toLowerCase() === 'long' && config.leverageValues.includes(1) && !config.isPotential);
     const quantityType = instrument?.allowedOrderQuantityType?.toLowerCase();
-    return {
-      allowed: instrument?.allowOpenPosition === true && !!cashLong && quantityType !== 'onlyunits' && quantityType !== 'units',
-      minimum: Math.max(cashLong?.minPositionAmount ?? 0, instrument?.minPositionExposure ?? 0),
-    };
+    if (!instrument?.allowOpenPosition || ['unitsonly', 'onlyunits', 'units'].includes(quantityType ?? '')) return [];
+    const options: StockOrderOption[] = [];
+    for (const leverage of [1, 2, 5] as const) {
+      const configuration = instrument.leverageConfigs.find(config => config.settlementType.toLowerCase() === (leverage === 1 ? 'real' : 'cfd')
+        && config.direction.toLowerCase() === 'long' && config.leverageValues.includes(leverage) && !config.isPotential);
+      if (!configuration) continue;
+      const minimum = Math.max(configuration.minPositionAmount ?? 0, (instrument.minPositionExposure ?? 0) / leverage);
+      if (!Number.isFinite(minimum)) continue;
+      if (leverage === 1) { options.push({ leverage, minimum, stopMargin: null }); continue; }
+      if (!instrument.allowClosePosition || !configuration.allowStopLossTakeProfit || configuration.minStopLossPercentage == null || configuration.maxStopLossPercentage == null) continue;
+      const min = configuration.minStopLossPercentage;
+      const max = Math.min(50, configuration.maxStopLossPercentage);
+      if (Number.isFinite(min) && Number.isFinite(max) && max > 0 && max >= min && min >= 0) options.push({ leverage, minimum, stopMargin: { min, max } });
+    }
+    return options;
   }
 
   async stockOrderCosts(order: StockOrder) {
@@ -61,16 +78,25 @@ export class EtoroClient {
   }
 
   stockOrderStatus(referenceId: string) {
-    return this.get<{ orderId: number; status: { id: number; errorMessage?: string }; positionExecutions: { positionId: number }[] }>(`/v2/trading/info/${this.demoPath}orders:lookup?${new URLSearchParams({ referenceId })}`);
+    return this.get<{ orderId: number; status: { id: number; errorMessage?: string }; positionExecutions: { positionId: number; state?: string; stopLossRate?: number | null }[] }>(`/v2/trading/info/${this.demoPath}orders:lookup?${new URLSearchParams({ referenceId })}`);
   }
 
   closeStock(positionId: number, instrumentId: number, requestId: ReturnType<typeof randomUUID>) {
     return this.request<unknown>(`/v1/trading/execution/${this.demoPath}market-close-orders/positions/${positionId}`, { InstrumentId: instrumentId }, requestId);
   }
   async portfolio() {
-    const { clientPortfolio: portfolio } = await this.get<{ clientPortfolio: { credit: number; positions: BrokerPosition[]; mirrors?: unknown[]; orders?: unknown[]; ordersForOpen?: unknown[] } }>(`/v1/trading/info/${this.credentials.environment}/pnl`);
+    const { clientPortfolio: portfolio } = await this.get<{ clientPortfolio: { credit: number; positions: BrokerPosition[]; mirrors?: unknown[]; orders?: PendingStockOrder[]; ordersForOpen?: PendingStockOrder[] } }>(`/v1/trading/info/${this.credentials.environment}/pnl`);
     if (!portfolio || !Number.isFinite(portfolio.credit) || !Array.isArray(portfolio.positions)) throw new Error('Unexpected eToro portfolio response');
+    const reserved = new Map<number | PendingStockOrder, number>();
+    for (const order of [...(portfolio.orders ?? []), ...(portfolio.ordersForOpen ?? [])]) {
+      const key = order.orderId ?? order;
+      const margin = Math.max(reserved.get(key) ?? 0, order.amount ?? 0, order.frozenAmount ?? 0);
+      if (!Number.isFinite(margin)) throw new Error('Unexpected eToro pending margin');
+      reserved.set(key, margin);
+    }
+    const availableCash = Math.max(0, portfolio.credit - [...reserved.values()].reduce((sum, value) => sum + value, 0));
     return {
+      availableCash,
       credit: portfolio.credit, pending: (portfolio.orders?.length ?? 0) + (portfolio.ordersForOpen?.length ?? 0), mirrors: portfolio.mirrors?.length ?? 0,
       positions: portfolio.positions.map(p => ({ id: p.positionID, instrumentId: p.instrumentID, side: p.isBuy ? 'Long' : 'Short', units: p.units, amount: p.amount, leverage: p.leverage, entry: p.openRate, opened: p.openDateTime, pnl: p.unrealizedPnL?.pnL ?? null })),
     };
