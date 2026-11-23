@@ -30,23 +30,27 @@ async function autopilot(body?: object) {
   return data.settings as AutoConfig | null;
 }
 
-export function StockOrderTicket({ connections, initialSymbol, initialRule, onConnect }: {
-  connections: StockEnvironment[]; initialSymbol: StockSymbol; initialRule: string; onConnect: (mode: StockEnvironment) => void;
+export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo', initialSymbol, initialRule, onConnect }: {
+  flow: 'manual' | 'auto'; connections: StockEnvironment[]; initialEnvironment?: StockEnvironment;
+  initialSymbol?: StockSymbol; initialRule?: string; onConnect: (mode: StockEnvironment, symbol: StockSymbol, strategy: string) => void;
 }) {
-  const [environment, setEnvironment] = useState<StockEnvironment>('demo');
-  const [symbol, setSymbol] = useState(initialSymbol);
-  const [strategy, setStrategy] = useState(initialRule);
-  const [amount, setAmount] = useState('');
+  const [environment, setEnvironment] = useState(initialEnvironment);
+  const [selectedSymbol, setSymbol] = useState<StockSymbol | null>(null);
+  const [selectedStrategy, setStrategy] = useState<string | null>(null);
+  const [selectedAmount, setAmount] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [marketOpen, setMarketOpen] = useState<boolean | null>(null);
   const [review, setReview] = useState<Review | null>(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [flow, setFlow] = useState<'manual' | 'auto'>('manual');
   const [auto, setAuto] = useState<AutoConfig | null>(null);
   const [confirmAuto, setConfirmAuto] = useState(false);
   const connected = connections.includes(environment);
+  const saved = flow === 'auto' ? auto : null;
+  const symbol = selectedSymbol ?? initialSymbol ?? saved?.symbol ?? 'AAPL';
+  const strategy = selectedStrategy ?? initialRule ?? saved?.strategy ?? (flow === 'auto' ? 'breakout' : '');
+  const amount = selectedAmount ?? (saved ? String(saved.amount) : '');
   const refresh = useCallback(async (signal?: AbortSignal) => {
     if (!connected) return;
     const result = await request<{ marketOpen: boolean; orders: Order[] }>(`?environment=${environment}`);
@@ -82,28 +86,24 @@ export function StockOrderTicket({ connections, initialSymbol, initialRule, onCo
   }
 
   return (
-    <section className="surface p-4 lg:p-6 space-y-4">
+    <section className="surface p-4 lg:p-6 space-y-4" aria-label={flow === 'auto' ? 'Autopilot setup' : 'Stock order ticket'}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Trade US stocks</h2>
+        <div>
+          <h2 className="text-base font-semibold">{flow === 'auto' ? 'Choose a strategy' : 'Review a buy'}</h2>
+          <p className="text-xs text-muted-foreground mt-1">{environment === 'demo' ? 'Paper uses virtual funds in eToro Demo.' : 'Live uses real money in eToro.'}</p>
+        </div>
         <Segmented aria-label="Stock trading mode" value={environment} options={[{ value: 'demo', label: 'Paper' }, { value: 'real', label: 'Live' }]} disabled={!!busy || !!review} onChange={mode => {
           if (mode === environment) return;
           setEnvironment(mode); setOrders([]); setMarketOpen(null); setError(''); setMessage('');
         }} />
       </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <Segmented aria-label="Stock order workflow" value={flow} disabled={!!busy} options={[{ value: 'manual', label: 'Manual trade' }, { value: 'auto', label: 'Autopilot' }]} onChange={next => {
-          setFlow(next); setMessage(''); setError('');
-          if (next === 'auto') {
-            setStrategy(auto?.strategy ?? (strategy || 'breakout'));
-            if (auto) { setAmount(String(auto.amount)); setSymbol(auto.symbol); }
-          }
-        }} />
-        {auto?.active_environment && <span className="text-xs text-profit">{auto.active_environment === 'demo' ? 'Paper' : 'Live'} Autopilot running</span>}
-      </div>
       {error && <p role="alert" className="text-sm text-loss">{error}</p>}
       {message && <p role="status" className="text-sm">{message}</p>}
       {flow === 'auto' && auto?.active_environment && <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
-        <p className="text-sm">{auto.symbol} · {STOCK_RULES.find(rule => rule.id === auto.strategy)?.name} · {formatCurrency(auto.amount)}</p>
+        <div>
+          <p className="text-xs text-profit">{auto.active_environment === 'demo' ? 'Paper' : 'Live'} Autopilot running</p>
+          <p className="text-sm">{auto.symbol} · {STOCK_RULES.find(rule => rule.id === auto.strategy)?.name} · {formatCurrency(auto.amount)}</p>
+        </div>
         <Button variant="outline" size="sm" disabled={!!busy} onClick={() => perform('pause', async () => {
           setAuto(await autopilot({ action: 'pause' }));
           setMessage('New entries paused. Existing strategy positions keep their exit rules.');
@@ -131,7 +131,7 @@ export function StockOrderTicket({ connections, initialSymbol, initialRule, onCo
             })}>Refresh status</Button>}
           </div>)}
         </div>}
-      </> : <Button variant="outline" onClick={() => onConnect(environment)}>Connect eToro {environment === 'demo' ? 'Demo' : 'Real'}</Button>}
+      </> : <Button onClick={() => onConnect(environment, symbol, strategy)}>Connect eToro {environment === 'demo' ? 'Demo' : 'Real'}</Button>}
 
       <Dialog open={!!review} onOpenChange={open => { if (!open && !busy) setReview(null); }}>
         <DialogContent>

@@ -1,6 +1,4 @@
-import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
-import { Button } from '@/components/ui/button';
 import { FACTOR_SOURCES } from '@/lib/stocks/factor-research';
 import evidence from '@/lib/stocks/factor-evidence.json';
 import replication from '@/lib/stocks/factor-replication.json';
@@ -20,7 +18,7 @@ export default function StockFactorsPage() {
   ] as const;
   return (
     <div className="flex flex-col min-h-full">
-      <Header actions={<Button asChild size="sm" variant="outline"><Link href="/stocks/intraday">Intraday research</Link></Button>} />
+      <Header />
       <div className="p-4 lg:p-8 w-full max-w-[1400px] mx-auto space-y-5">
         <section className="surface p-4 lg:p-6 space-y-4">
           <div>

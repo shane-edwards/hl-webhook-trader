@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -47,7 +46,7 @@ export default function ScalpingPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <Header actions={<Button asChild variant="outline" size="sm"><Link href="/lab">Strategy Lab</Link></Button>} />
+      <Header />
       <div className="p-4 lg:p-8 space-y-5 w-full max-w-[1400px] mx-auto">
         <section className="surface p-4 lg:p-6 space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-4">

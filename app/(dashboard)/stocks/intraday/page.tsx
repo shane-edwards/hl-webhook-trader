@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -37,16 +36,8 @@ export default function StockIntradayPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <Header actions={<Button asChild variant="outline" size="sm"><Link href="/stocks">US Stocks</Link></Button>} />
+      <Header />
       <div className="p-4 lg:p-8 space-y-5 w-full max-w-[1400px] mx-auto">
-        <section className="surface p-4 flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="font-semibold">Earnings and reversal research</h2><p className="text-sm text-muted-foreground">Test public SEC filing events and compare the same rule on a separate stock universe.</p></div>
-          <Button asChild size="sm" variant="outline"><Link href="/stocks/factors">View earnings study</Link></Button>
-        </section>
-        <section className="surface p-4 flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="font-semibold">Broader opening-volume study</h2><p className="text-sm text-muted-foreground">Compare daily stock selection and broker costs across 17 US stocks.</p></div>
-          <Button asChild size="sm" variant="outline"><Link href="/stocks/opening">View opening study</Link></Button>
-        </section>
         <section className="surface p-4 lg:p-6 space-y-4">
           <div><h2 className="text-lg font-semibold">Intraday strategy results</h2>
             <p className="text-sm text-muted-foreground">{qualified} of {report.results.length} setups qualified for forward paper testing. eToro data from {report.from} to {report.coverage[0].last}.</p></div>

@@ -263,6 +263,7 @@ export default function AutopilotPage() {
                 </div>
               </div>
               {mode === 'live' && !data.hasWallet && <p className="mt-3 text-sm text-muted-foreground"><Link className="text-primary underline" href="/settings">Connect a Hyperliquid wallet</Link> to trade on the exchange.</p>}
+              {mode === 'paper' && !enabled && !changes && <p className="mt-3 text-sm text-muted-foreground">Review your strategy below, then choose Start paper to practice with simulated funds.</p>}
               {mode === 'live' && enabled && !settings.autopilot_live_rules_confirmed && <p className="mt-3 text-sm text-warning">Pause and restart Live to apply the full strategy list.</p>}
               {changes && <p className="mt-3 text-sm text-warning">Save or discard your changes below before starting or switching modes.</p>}
 

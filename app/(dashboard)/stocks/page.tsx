@@ -2,11 +2,13 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Segmented } from '@/components/ui/segmented';
+import { stockHref, stockSection } from '@/components/layout/workspaces';
 import { STOCKS, STOCK_RULES, type StockSymbol, type StockRule, type researchStock } from '@/lib/stocks/research';
 import type { gradeStock } from '@/lib/stocks/grade';
 import type { EtoroClient } from '@/lib/stocks/etoro';
@@ -33,22 +35,29 @@ async function stocksRequest<T>(query = '', init?: RequestInit): Promise<T> {
 }
 
 export default function StocksPage() {
+  const router = useRouter();
+  const query = useSearchParams();
+  const tab = stockSection(query.get('tab'));
+  const requestedSymbol = STOCKS.find(value => value === query.get('symbol'));
+  const requestedRule = STOCK_RULES.find(value => value.id === query.get('rule'))?.id;
+  const mode = query.get('mode');
+  const requestedMode = mode === 'real' || mode === 'demo' ? mode : undefined;
+  const returnView = query.get('returnTo') === 'autopilot' ? 'autopilot' : 'trade';
   const [environment, setEnvironment] = useState<Environment | null>(null);
   const [connections, setConnections] = useState<Environment[]>([]);
-  const [targetEnv, setTargetEnv] = useState<Environment>('demo');
+  const targetEnv = requestedMode ?? environment ?? 'demo';
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
-  const [tab, setTab] = useState('discover');
   const [scan, setScan] = useState<Scan | null>(null);
   const [strongOnly, setStrongOnly] = useState(false);
-  const [book, setBook] = useState<PositionBook | null>(null);
-  const [symbol, setSymbol] = useState<StockSymbol>('AAPL');
+  const [portfolio, setPortfolio] = useState<{ mode: Environment; book: PositionBook } | null>(null);
+  const [selectedSymbol, setSymbol] = useState<StockSymbol | null>(null);
+  const symbol = selectedSymbol ?? requestedSymbol ?? 'AAPL';
   const [rule, setRule] = useState<StockRule>('breakout');
   const [slipBps, setSlipBps] = useState('3');
   const [commission, setCommission] = useState('1');
   const [simulation, setSimulation] = useState<Simulation | null>(null);
-  const [ticket, setTicket] = useState<{ symbol: StockSymbol; rule: string; revision: number }>({ symbol: 'AAPL', rule: '', revision: 0 });
 
   useEffect(() => {
     let active = true;
@@ -57,8 +66,6 @@ export default function StocksPage() {
       setEnvironment(data.environment);
       setScan(data.discovery);
       setConnections(data.connections ?? []);
-      if (data.environment) setTargetEnv(data.environment);
-      if (!data.environment) setTab('portfolio');
     }).catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
@@ -76,7 +83,7 @@ export default function StocksPage() {
     setEnvironment(data.environment);
     setConnections(data.connections);
     setScan(data.discovery);
-    setBook(null);
+    setPortfolio(null);
   }
 
   async function connect(event: FormEvent<HTMLFormElement>) {
@@ -90,12 +97,29 @@ export default function StocksPage() {
       });
       form.reset();
       await refreshConnections();
-      setTab('trade');
+      router.push(stockHref(returnView, {
+        mode: targetEnv,
+        ...(requestedSymbol ? { symbol: requestedSymbol } : {}),
+        ...(requestedRule ? { rule: requestedRule } : {}),
+      }));
     });
   }
 
   const shown = scan?.rows.filter(row => !strongOnly || row.label === 'Strong buy') ?? [];
   const pending = !!busy || loading;
+  const connected = connections.includes(targetEnv);
+  const book = portfolio?.mode === targetEnv ? portfolio.book : null;
+  const connectionForm = (
+    <form onSubmit={connect} autoComplete="off" className="grid sm:grid-cols-2 gap-3">
+      <p className="text-xs text-muted-foreground sm:col-span-2">In eToro, open Settings → Trading → API Key Management. Create a key for {targetEnv === 'demo' ? 'Demo' : 'Real'} with Write permission to place orders.</p>
+      <label className="text-sm">Public API key<Input type="password" autoComplete="new-password" name="apiKey" required maxLength={3000} disabled={pending} /></label>
+      <label className="text-sm">User key<Input type="password" autoComplete="new-password" name="userKey" required maxLength={3000} disabled={pending} /></label>
+      <div className="sm:col-span-2 flex flex-wrap gap-2">
+        <Button type="submit" disabled={pending}>{busy === 'connect' ? 'Verifying…' : connected ? 'Replace connection' : `Connect eToro ${targetEnv === 'demo' ? 'Demo' : 'Real'}`}</Button>
+        {connected && <Button type="button" variant="ghost" disabled={pending} onClick={() => perform('disconnect', async () => { await stocksRequest(`?environment=${targetEnv}`, { method: 'DELETE' }); await refreshConnections(); })}>Disconnect</Button>}
+      </div>
+    </form>
+  );
 
   return (
     <div className="flex flex-col min-h-full">
@@ -103,20 +127,14 @@ export default function StocksPage() {
       <div className="p-4 lg:p-8 space-y-4 max-w-[1400px] w-full mx-auto">
         {loading && <p role="status" className="text-sm text-muted-foreground">Checking eToro connection…</p>}
         {error && <p role="alert" className="surface px-4 py-3 text-sm text-destructive">{error}</p>}
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList aria-label="Stocks tools" className="w-full sm:w-auto grid grid-cols-4">
-            <TabsTrigger value="discover">Discover</TabsTrigger>
-            <TabsTrigger value="trade">Trade</TabsTrigger>
-            <TabsTrigger value="simulation">Simulate</TabsTrigger>
-            <TabsTrigger value="portfolio">eToro</TabsTrigger>
-          </TabsList>
-          <TabsContent value="discover" className="space-y-3">
+          {tab === 'discover' && (
             <section className="surface p-4 lg:p-6 space-y-4">
               <div className="flex flex-wrap justify-between items-start gap-3">
-                <div><h2 className="text-lg font-semibold">Discover US stocks</h2><p className="text-sm text-muted-foreground">Rank 12 US stocks by trend, relative strength, risk, valuation and SEC filing data.</p></div>
-                <Button disabled={!environment || pending} onClick={() => perform('scan', async () => setScan(await stocksRequest<Scan>('?view=discover')))}>{busy === 'scan' ? 'Scanning…' : 'Scan stocks'}</Button>
+                <div><h2 className="text-lg font-semibold">Find stocks to review</h2><p className="text-sm text-muted-foreground">Filter for Strong buy or open a stock to review a trade.</p></div>
+                {!loading && !environment ? <Button asChild><Link href={stockHref('account')}>Connect eToro</Link></Button>
+                  : <Button disabled={pending} onClick={() => perform('scan', async () => setScan(await stocksRequest<Scan>('?view=discover')))}>{busy === 'scan' ? 'Scanning…' : 'Scan stocks'}</Button>}
               </div>
-              {!environment && !loading && <p className="text-sm">Connect an eToro account to load market data. <button className="text-primary underline" onClick={() => setTab('portfolio')}>Set up eToro</button></p>}
+              {!scan && !loading && environment && <p className="text-sm text-muted-foreground">Scan the watchlist to see rankings and strategy setups.</p>}
               {scan && <>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <label className="flex gap-2 items-center"><input type="checkbox" checked={strongOnly} onChange={e => setStrongOnly(e.target.checked)} />Strong buy only</label>
@@ -137,8 +155,8 @@ export default function StocksPage() {
                       <p className="text-xs text-muted-foreground mt-2">Annual SEC period {row.fiscalEnd ?? 'unavailable'}. Quote timestamp {row.quote?.date ? new Date(row.quote.date).toLocaleString() : 'unavailable'}.</p>
                     </details>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" onClick={() => { setTicket({ symbol: row.symbol, rule: row.setups[0] ?? '', revision: Date.now() }); setTab('trade'); }}>Trade {row.symbol}</Button>
-                      <Button size="sm" variant="outline" onClick={() => { setSymbol(row.symbol); setSimulation(null); setTab('simulation'); }}>Simulate</Button>
+                      <Button size="sm" asChild><Link href={stockHref('trade', { symbol: row.symbol, ...(row.setups[0] ? { rule: row.setups[0] } : {}) })}>Review {row.symbol}</Link></Button>
+                      <Button size="sm" variant="outline" asChild><Link href={stockHref('research', { symbol: row.symbol })} onClick={() => { setSymbol(null); setSimulation(null); }}>Simulate</Link></Button>
                     </div>
                   </article>
                 ))}</div>
@@ -148,17 +166,24 @@ export default function StocksPage() {
                 <p className="mt-2">Requires 80 points, 90% data coverage, a fresh spread of 0.30% or less, and at least two percentage points of three-month outperformance versus SPY. Revenue growth, net margin and free cash flow margin must each be positive. The grade is still under evaluation.</p>
               </details>
             </section>
-          </TabsContent>
-          <TabsContent value="trade">
-            <StockOrderTicket key={ticket.revision} connections={connections} initialSymbol={ticket.symbol} initialRule={ticket.rule} onConnect={mode => { setTargetEnv(mode); setTab('portfolio'); }} />
-          </TabsContent>
-          <TabsContent value="simulation" className="space-y-3">
-            <section className="surface p-4 flex flex-wrap items-center justify-between gap-3">
-              <div><h2 className="font-semibold">Trade within the session</h2><p className="text-sm text-muted-foreground">Compare five-minute strategies using eToro’s opening and closing quotes.</p></div>
-              <Button asChild variant="outline"><Link href="/stocks/intraday">Intraday research</Link></Button>
-            </section>
+          )}
+          {(tab === 'trade' || tab === 'autopilot') && !loading && (
+            <StockOrderTicket
+              key={`${tab}:${requestedMode}:${requestedSymbol}:${requestedRule}`}
+              flow={tab === 'autopilot' ? 'auto' : 'manual'}
+              connections={connections}
+              initialEnvironment={requestedMode}
+              initialSymbol={requestedSymbol}
+              initialRule={requestedRule}
+              onConnect={(nextMode, ticker, strategy) => router.push(stockHref('account', {
+                mode: nextMode, symbol: ticker, returnTo: tab, ...(strategy ? { rule: strategy } : {}),
+              }))}
+            />
+          )}
+          {tab === 'research' && <div className="space-y-3">
             <section className="surface p-4 lg:p-6 space-y-4">
-              <h2 className="text-lg font-semibold">Native US stock simulation</h2>
+              <h2 className="text-lg font-semibold">Daily strategy simulator</h2>
+              {!loading && !environment && <p className="text-sm text-muted-foreground"><Link className="text-primary underline" href={stockHref('account')}>Connect eToro</Link> to load historical quotes.</p>}
               <form className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3" onSubmit={e => {
                 e.preventDefault();
                 setSimulation(null);
@@ -190,22 +215,38 @@ export default function StocksPage() {
               </LineChart></ResponsiveContainer></div>
               <p className="text-xs text-muted-foreground">{simulation.result.holdoutTrades} closed trades in the later sample.</p>
             </section>}
-          </TabsContent>
-          <TabsContent value="portfolio" className="space-y-3">
+          </div>}
+          {tab === 'account' && <div className="space-y-3">
             <section className="surface p-4 lg:p-6 space-y-4">
-              <h2 className="text-lg font-semibold">eToro connections</h2>
-              <p className="text-sm text-muted-foreground">{connections.map(mode => mode === 'demo' ? 'Paper (Demo) connected' : 'Live (Real) connected').join(' · ') || 'Connect Demo for paper trading or Real for live trading.'}</p>
-              <p className="text-xs text-muted-foreground">Create a key under eToro Settings → Trading → API Key Management. Enable Write to place orders.</p>
-              <form onSubmit={connect} autoComplete="off" className="grid sm:grid-cols-3 gap-3">
-                <label className="text-sm">Environment<select value={targetEnv} className={selectClass} onChange={e => { setTargetEnv(e.target.value as Environment); setBook(null); }} disabled={pending}><option value="demo">Paper (Demo)</option><option value="real">Live (Real)</option></select></label>
-                <label className="text-sm">Public API key<Input type="password" autoComplete="new-password" name="apiKey" required maxLength={3000} disabled={pending} /></label>
-                <label className="text-sm">User key<Input type="password" autoComplete="new-password" name="userKey" required maxLength={3000} disabled={pending} /></label>
-                <div className="sm:col-span-3 flex flex-wrap gap-2">
-                  <Button type="submit" disabled={pending}>{busy === 'connect' ? 'Verifying…' : connections.includes(targetEnv) ? 'Replace connection' : 'Connect'}</Button>
-                  {connections.includes(targetEnv) && <><Button type="button" variant="outline" disabled={pending} onClick={() => perform('portfolio', async () => setBook(await stocksRequest<PositionBook>(`?view=portfolio&environment=${targetEnv}`)))}>{busy === 'portfolio' ? 'Loading…' : 'Refresh portfolio'}</Button>
-                    <Button type="button" variant="ghost" disabled={pending} onClick={() => perform('disconnect', async () => { await stocksRequest(`?environment=${targetEnv}`, { method: 'DELETE' }); await refreshConnections(); })}>Disconnect</Button></>}
-                </div>
-              </form>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-base font-semibold">{targetEnv === 'demo' ? 'eToro Demo' : 'eToro Real'}</h2>
+                <Segmented aria-label="eToro account type" value={targetEnv} options={[{ value: 'demo', label: 'Paper (Demo)' }, { value: 'real', label: 'Live (Real)' }]} disabled={pending} onChange={mode => {
+                  if (mode === targetEnv) return;
+                  setPortfolio(null);
+                  const params = new URLSearchParams(query.toString());
+                  params.set('mode', mode);
+                  router.replace(`/stocks?${params}`, { scroll: false });
+                }} />
+              </div>
+              {!loading && <>
+                <p className="text-sm text-muted-foreground">{connected ? 'Connected' : 'Connect this account'} · {targetEnv === 'demo' ? 'Virtual funds for paper trading' : 'Real money for live trading'}</p>
+                {connected ? <>
+                  <div className="flex flex-wrap gap-2">
+                    <Button disabled={pending} onClick={() => perform('portfolio', async () => setPortfolio({
+                      mode: targetEnv, book: await stocksRequest<PositionBook>(`?view=portfolio&environment=${targetEnv}`),
+                    }))}>{busy === 'portfolio' ? 'Loading…' : book ? 'Refresh portfolio' : 'View portfolio'}</Button>
+                    <Button asChild variant="outline"><Link href={stockHref(returnView, {
+                      mode: targetEnv,
+                      ...(requestedSymbol ? { symbol: requestedSymbol } : {}),
+                      ...(requestedRule ? { rule: requestedRule } : {}),
+                    })}>{returnView === 'autopilot' ? 'Open Autopilot' : 'Open trade ticket'}</Link></Button>
+                  </div>
+                  <details key={targetEnv}>
+                    <summary className="cursor-pointer text-sm font-medium">Manage connection</summary>
+                    <div className="mt-3">{connectionForm}</div>
+                  </details>
+                </> : connectionForm}
+              </>}
             </section>
             {book && <section className="surface p-4 lg:p-6 space-y-3">
               <h3 className="font-semibold">Direct eToro positions</h3>
@@ -215,8 +256,7 @@ export default function StocksPage() {
                 <tbody>{book.positions.map(p => <tr key={p.id} className="border-t border-border">{[p.instrumentId, p.side, p.units, money(p.amount), `${p.leverage}×`, money(p.entry), money(p.pnl)].map((cell, i) => <td key={i} className="p-2">{cell}</td>)}</tr>)}</tbody>
               </table></div>}
             </section>}
-          </TabsContent>
-        </Tabs>
+          </div>}
       </div>
     </div>
   );

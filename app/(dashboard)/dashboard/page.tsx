@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Bot, LineChart } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Stat } from '@/components/ui/stat';
@@ -86,11 +86,16 @@ export default function DashboardPage() {
 
       <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-[1400px] mx-auto">
         <HealthBanner />
-        <div className="surface p-4 flex flex-wrap gap-2" aria-label="Trading shortcuts">
-          <TradeTicket settings={settings} onTraded={() => fetchData(true)} preset={preset} />
-          <Button asChild variant="outline"><Link href="/autopilot"><Bot className="w-4 h-4" />Strategy &amp; Autopilot</Link></Button>
-          <Button asChild variant="outline"><Link href="/stocks"><LineChart className="w-4 h-4" />US stocks</Link></Button>
-        </div>
+        <section className="grid sm:grid-cols-2 gap-3" aria-label="Crypto trading actions">
+          <div className="surface p-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">Choose a market and review your order.</p>
+            <TradeTicket settings={settings} onTraded={() => fetchData(true)} preset={preset} />
+          </div>
+          <div className="surface p-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">Try a strategy with simulated funds.</p>
+            <Button asChild variant="outline"><Link href="/autopilot"><Bot className="w-4 h-4" />Open Autopilot</Link></Button>
+          </div>
+        </section>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
           <div className="xl:col-span-2">
             <AccountPanel
