@@ -261,14 +261,14 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}><Plus className="w-4 h-4" />New trade</Button>
+      <Button onClick={() => setOpen(true)}><Plus className="w-4 h-4" />Trade manually</Button>
 
       <Dialog open={open} onOpenChange={o => !submitting && setOpen(o)}>
         <DialogContent className="max-w-lg max-h-[92dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New trade</DialogTitle>
             <DialogDescription>
-              Hyperliquid {settings?.is_testnet ? 'testnet' : 'mainnet'}. Stops and targets rest on the exchange, so they work even if this app is down.
+              {settings ? `Hyperliquid · ${settings.is_testnet ? 'Testnet' : 'Real money'}` : 'Checking exchange settings…'}
             </DialogDescription>
           </DialogHeader>
 
@@ -298,7 +298,8 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <details className="space-y-2">
+              <summary className="text-sm font-medium cursor-pointer">Chart and timeframe</summary>
               <div className="flex items-center justify-between gap-2">
                 <Label>Timeframe</Label>
                 <Segmented aria-label="Chart and stop timeframe" value={timeframe} onChange={v => { setTimeframe(v); setEdited({ sl: false, tp: false }); }}
@@ -315,7 +316,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
                         {z}
                       </button>
                     ))}
-                    <span className="ml-1">candles · bars along the bottom are volume</span>
+                    <span className="ml-1">candles</span>
                   </div>
                   {frameExtra && (
                     <p aria-label="Trend on each timeframe">
@@ -347,7 +348,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
                   <span className="font-medium text-foreground">Tested on history:</span> {replay.overall.ideas} past ideas with stops sized this way, each given {replay.windowDays} days. {replay.verdict}
                 </p>
               )}
-            </div>
+            </details>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">

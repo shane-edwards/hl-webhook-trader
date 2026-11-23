@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings, marketDataClient } from '@/lib/hyperliquid/from-settings';
-import { configFromSettings, runAutopilot } from '@/lib/autopilot/run';
+import { configFromSettings, runAutopilot, type Mode } from '@/lib/autopilot/run';
 import { runUpkeep } from '@/lib/upkeep';
 import { alertOnStalePeers, heartbeat } from '@/lib/health';
 import { cronAuthorized } from '@/lib/cron-auth';
@@ -31,22 +31,37 @@ export async function GET(request: Request) {
 
   const summary: Array<{ autopilot?: string; events?: number; upkeep?: { notes: number; errors: number }; error?: string }> = [];
   const failures: string[] = [];
+  const { data: books, error: bookError } = await supabase.from('autopilot_positions').select('user_id, mode').eq('status', 'open');
+  if (bookError) return NextResponse.json({ error: 'Cannot determine which Autopilot positions need management' }, { status: 500 });
   for (const settings of rows ?? []) {
     const entry: (typeof summary)[number] = {};
     const wallet = (() => { try { return hlClientFromSettings(settings); } catch { return null; } })();
 
-    if (settings.autopilot_enabled === true) {
-      const cfg = configFromSettings(settings);
+    const cfg = configFromSettings(settings);
+    const modes = new Set<Mode>();
+    if (settings.autopilot_enabled) modes.add(cfg.mode);
+    for (const book of books ?? []) {
+      if (book.user_id === settings.user_id) modes.add(book.mode === 'live' ? 'live' : 'paper');
+    }
+    for (const mode of modes) {
       try {
         // Paper mode only reads public prices, so it needs no wallet.
-        const hl = cfg.mode === 'paper' ? marketDataClient() : wallet;
+        const hl = mode === 'paper' ? marketDataClient() : wallet;
         if (!hl) throw new Error('No wallet connected');
-        const result = await runAutopilot(hl, supabase, settings.user_id, cfg);
-        entry.autopilot = result.mode; entry.events = result.events.length;
+        const result = await runAutopilot(hl, supabase, settings.user_id, { ...cfg, mode }, Date.now(), async () => {
+          const { data: current, error } = await supabase.from('settings').select('*').eq('user_id', settings.user_id).single();
+          if (error || !current || current.updated_at !== settings.updated_at) throw new Error('Trading settings changed during scan. The next scan will use the new settings.');
+          const manageOnly = current.autopilot_enabled !== true || mode !== cfg.mode;
+          return { ...cfg, mode, manageOnly, symbols: manageOnly ? [] : cfg.symbols, checkEntries: async () => {
+            const latest = await supabase.from('settings').select('updated_at, autopilot_enabled').eq('user_id', settings.user_id).single();
+            return !latest.error && latest.data.autopilot_enabled === true && latest.data.updated_at === current.updated_at;
+          } };
+        });
+        entry.autopilot = result.mode; entry.events = (entry.events ?? 0) + result.events.length;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         console.error('[autopilot]', message);
-        await supabase.from('autopilot_events').insert({ user_id: settings.user_id, mode: cfg.mode, level: 'error', message: `Scan failed: ${message}` });
+        await supabase.from('autopilot_events').insert({ user_id: settings.user_id, mode, level: 'error', message: `Scan failed: ${message}` });
         await notify(`Autopilot scan FAILED: ${message}`, undefined, settings.user_id);
         entry.error = message; failures.push(message);
       }

@@ -8,6 +8,7 @@ import { generateWebhookSecret } from '@/lib/utils';
 
 import { STRATEGIES } from '@/lib/autopilot/strategies';
 import { MOMENTUM_ID } from '@/lib/autopilot/momentum';
+import { configFromSettings } from '@/lib/autopilot/run';
 
 export const dynamic = 'force-dynamic';
 
@@ -180,14 +181,48 @@ export async function PUT(request: Request) {
       });
     } catch (err) { return bad(err instanceof Error ? err.message : 'Could not resume trading'); }
   }
-  const { data, error } = await serviceClient
+  const autoChange = Object.keys(update).some(field => field.startsWith('autopilot_'));
+  const walletChange = ['is_testnet', 'hl_wallet_address', 'hl_private_key_encrypted'].some(field => field in update);
+  let expectedVersion: string | null = null;
+  if (autoChange || walletChange) {
+    const { data: current, error } = await serviceClient.from('settings').select('*').eq('user_id', user.id).single();
+    if (error || !current) return bad('Could not verify the current Autopilot settings');
+    const cfg = configFromSettings({ ...current, ...update });
+    const expectedMode = configFromSettings(current).mode;
+    expectedVersion = current.updated_at;
+    if (autoChange && body.expectedAutopilotMode !== expectedMode) return bad('Autopilot mode changed. Refresh and review again.');
+    const exchangeChanged = walletChange && ['is_testnet', 'hl_wallet_address', 'hl_private_key_encrypted'].some(key => key in update && update[key] !== current[key]);
+    if (exchangeChanged) {
+      const open = await serviceClient.from('autopilot_positions').select('id').eq('user_id', user.id).eq('mode', 'live').eq('status', 'open').limit(1);
+      if (open.error) return bad('Could not verify live Autopilot positions');
+      if (open.data.length) return bad('Close managed Autopilot positions before changing the exchange connection');
+      if (expectedMode === 'live' && current.autopilot_enabled) return bad('Pause Live Autopilot before changing the exchange connection');
+    }
+    const ruleChange = Object.keys(update).some(field => field.startsWith('autopilot_') && !['autopilot_enabled', 'autopilot_mode'].includes(field));
+    if (cfg.mode !== expectedMode || (expectedMode === 'live' && ruleChange)) {
+      update.autopilot_enabled = false;
+      update.autopilot_live_rules_confirmed = false;
+    }
+    if (update.autopilot_enabled === true) {
+      if (cfg.strategies.length === 0) return bad('Select a strategy first');
+      if (cfg.mode === 'live') {
+        if (body.confirmLiveAutopilot !== true) return bad('Confirm Live Autopilot before starting');
+        if (!hlClientFromSettings({ ...current, ...update })) return bad('Connect a Hyperliquid wallet first');
+        if (body.isTestnet !== (process.env.HL_TESTNET === 'true' || current.is_testnet === true)) return bad('Exchange network changed. Refresh and review again.');
+        update.autopilot_live_rules_confirmed = true;
+      }
+    }
+  }
+
+  let query = serviceClient
     .from('settings')
     .update(update)
-    .eq('user_id', user.id)
-    .select()
-    .single();
+    .eq('user_id', user.id);
+  if (expectedVersion) query = query.eq('updated_at', expectedVersion);
+  const { data, error } = await query.select().single();
 
   if (error) {
+    if (expectedVersion && error.code === 'PGRST116') return bad('Trading settings changed. Refresh and try again.');
     // 23505 = unique violation on webhook_secret (migration 002).
     if (error.code === '23505') return bad('That webhook secret is already in use; generate a new one');
     return NextResponse.json({ error: error.message }, { status: 500 });

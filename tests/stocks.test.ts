@@ -3,6 +3,17 @@ import { test } from 'node:test';
 import { gradeStock } from '../lib/stocks/grade';
 import { EtoroClient } from '../lib/stocks/etoro';
 import { researchStock, type StockBar } from '../lib/stocks/research';
+import { freshStockAsk, previousStockSession, stockMarketClock } from '../lib/stocks/session';
+
+test('stock execution rejects delayed quotes and quotes after an early NYSE close', () => {
+  const open = Date.parse('2026-11-27T17:59:35Z');
+  const quote = { bid: 100, ask: 100.05, date: new Date(open - 1000).toISOString(), quoteType: 'realtime' };
+  assert.equal(freshStockAsk(quote, open), 100.05);
+  assert.equal(freshStockAsk({ ...quote, quoteType: 'delayed' }, open), null);
+  assert.equal(freshStockAsk(quote, open + 25_000), null);
+  assert.equal(stockMarketClock(Date.parse('2026-11-26T15:30:00Z')).open, false);
+  assert.equal(previousStockSession(open), '2026-11-25');
+});
 
 function trend(growth: number): StockBar[] {
   return Array.from({ length: 280 }, (_, i) => {

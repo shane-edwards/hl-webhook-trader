@@ -1,10 +1,12 @@
-import { memoryRpc } from './helpers';
+import { memoryDb, memoryRpc, SimExchange } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional } from '../lib/autopilot/risk';
 import { computeIndicators, getStrategy, WARMUP_BARS, type Bar } from '../lib/autopilot/strategies';
 import { isLiveEligible, runAutopilot, type AutopilotConfig } from '../lib/autopilot/run';
+import { strategyDirection } from '../lib/autopilot/signals';
 import type { HyperliquidClient } from '../lib/hyperliquid/client';
+import { runMomentumLive } from '../lib/autopilot/momentum-live';
 
 const HOUR = 3_600_000;
 
@@ -35,11 +37,14 @@ test('risk: daily loss limit blocks entries for the day; drawdown breaker stays 
   assert.equal(e.canOpen, false);
 });
 
-test('only strategies that passed the backtest gate may trade live', () => {
+test('existing live configurations retain their evidence rules until confirmed', () => {
   assert.equal(isLiveEligible('trend_breakout', false), true);
   assert.equal(isLiveEligible('momentum_burst', false), false);
   assert.equal(isLiveEligible('momentum_burst', true), false);
   assert.equal(isLiveEligible('nonexistent', false), false);
+  assert.equal(strategyDirection('momentum_burst', true, false), null);
+  assert.equal(strategyDirection('momentum_burst', true, true), true);
+  assert.equal(strategyDirection('momentum_burst', false, true), false);
 });
 
 // ---- a tiny in-memory stand-in for the database ----
@@ -152,7 +157,7 @@ test('autopilot (paper): opens once per signal, sizes by risk, then stops out an
   assert.ok(Number(state.paper_equity) < 10_000 && Number(state.paper_equity) > 9_900, `paper equity ${state.paper_equity}`);
 });
 
-test('autopilot: a paused account opens nothing; a paper-only strategy is refused in live mode', async () => {
+test('autopilot: a paused account opens nothing and an existing live bot retains its original entry rules', async () => {
   const now = Date.UTC(2026, 5, 1);
   const bars = uptrend(now, WARMUP_BARS + 20, true);
 
@@ -168,10 +173,25 @@ test('autopilot: a paused account opens nothing; a paper-only strategy is refuse
   assert.equal(live.tables.autopilot_positions.length, 0);
 });
 
-// ---- cross-coin momentum basket (paper only) ----
+test('manual strategy entry rechecks the reviewed bar and mode, and uses the same exit book as Autopilot', async () => {
+  const now = Date.UTC(2026, 5, 1);
+  const bars = uptrend(now, WARMUP_BARS + 20, true);
+  const { db, tables } = fakeDb();
+  const hl = { ...client(bars), getAllMids: async () => ({ BTC: '420' }) } as unknown as HyperliquidClient;
+  const signal = { id: 'trend_breakout', symbol: 'BTC', side: 'long' as const, barT: bars.at(-1)!.t };
+  assert.equal((await runAutopilot(hl, db, 'u1', { ...cfg, manageOnly: true }, now)).manualOpened, false);
+  assert.equal((await runAutopilot(hl, db, 'u1', { ...cfg, manualEntry: { ...signal, barT: signal.barT - HOUR } }, now)).manualOpened, false);
+  assert.equal((await runAutopilot(hl, db, 'u1', { ...cfg, manualEntry: signal }, now)).manualOpened, true);
+  assert.equal(tables.autopilot_positions[0].entry_price, 420);
+  assert.match(String(tables.autopilot_positions[0].entry_reason), /^Manual entry/);
+  assert.equal((await runAutopilot(hl, db, 'u1', { ...cfg, manualEntry: signal }, now)).manualOpened, false);
+  assert.equal(tables.autopilot_positions.length, 1);
+});
+
+// ---- cross-coin momentum basket ----
 import { MOMENTUM_ID, MOMENTUM_UNIVERSE, pickBasket, runMomentumPaper } from '../lib/autopilot/momentum';
 
-test('momentum: ranks coins, takes the strongest and weakest quarter, and is never live-eligible', () => {
+test('momentum: ranks coins by return and retains its experimental evidence label', () => {
   const ranked = Array.from({ length: 12 }, (_, i) => ({ symbol: `C${i}`, ret: i / 10, price: 100 }));
   const { longs, shorts } = pickBasket(ranked);
   assert.deepEqual(longs.map(x => x.symbol), ['C11', 'C10', 'C9']);
@@ -179,6 +199,24 @@ test('momentum: ranks coins, takes the strongest and weakest quarter, and is nev
   assert.equal(pickBasket(ranked.slice(0, 5)).longs.length, 0); // too few coins to rank
   assert.equal(isLiveEligible(MOMENTUM_ID, false), false);
   assert.equal(isLiveEligible(MOMENTUM_ID, true), false);
+});
+
+test('live basket opens balanced protected positions with the same cash risk budget', async () => {
+  const now = Date.UTC(2026, 5, 1, 1);
+  const { db, tables } = memoryDb();
+  const exchange = new SimExchange(Object.fromEntries(MOMENTUM_UNIVERSE.map(symbol => [symbol, 100])));
+  const hl = Object.assign(exchange.client, {
+    getDailyCandles: async (symbol: string) => Array.from({ length: 92 }, (_, i) => ({
+      time: now - (92 - i) * 86_400_000,
+      close: 100 * (1 + MOMENTUM_UNIVERSE.indexOf(symbol) * i / 10_000),
+    })),
+  });
+  const config = { ...cfg, mode: 'live' as const, risk: { ...cfg.risk, maxPositions: 4 } };
+  assert.equal(await runMomentumLive(hl, db, 'u1', config, exchange.equity, true, now, []), true);
+  assert.equal((await hl.getPositions()).filter(p => p.side === 'long').length, 2);
+  assert.equal((await hl.getPositions()).filter(p => p.side === 'short').length, 2);
+  assert.equal((await hl.getOpenOrders()).filter(o => o.reduceOnly && o.isTrigger).length, 4);
+  assert.ok(tables.autopilot_positions.reduce((sum, p) => sum + Number(p.notional_usd) * 0.15, 0) <= 50);
 });
 
 test('momentum (paper): opens a balanced basket, holds it for a week, then settles and re-opens', async () => {
@@ -216,7 +254,7 @@ test('momentum (paper): opens a balanced basket, holds it for a week, then settl
   assert.equal(tables.autopilot_positions.filter(l => l.status === 'open').length, longs.length * 2);
 });
 
-test('MACD trend: acts only when a 4-hour bar completes, and stays on paper despite passing the gate', () => {
+test('MACD trend: acts only when a 4-hour bar completes and has experimental status', () => {
   const now = Date.UTC(2026, 5, 1); // midnight UTC: the last hourly bar completes a 4h bar
   const bars = uptrend(now, WARMUP_BARS + 20, true);
   const ind = computeIndicators(bars);

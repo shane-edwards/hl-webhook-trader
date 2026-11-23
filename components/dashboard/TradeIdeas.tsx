@@ -138,7 +138,7 @@ export function TradeIdeas({ onTrade }: Props) {
                           stop {lv.stopLossPct}%<br />target {lv.takeProfitPct}%
                         </p>
                         <Button size="sm" variant={r.bias === 'long' ? 'profit' : 'loss'} onClick={() => onTrade(r.symbol, r.bias as 'long' | 'short')}>
-                          {r.bias === 'long' ? 'Long' : 'Short'}
+                          {r.bias === 'long' ? 'Review long' : 'Review short'}
                         </Button>
                       </div>
                     )}

@@ -11,7 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, Bot, Loader2, Play, RotateCcw, Save, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Bot, Loader2, Pause, Play, RotateCcw, Save, ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { cn, formatCurrency, formatPrice, formatRelativeTime } from '@/lib/utils';
 import type { Settings } from '@/types';
@@ -32,6 +33,7 @@ interface Position {
 interface EventRow { id: string; mode: string; level: 'info' | 'trade' | 'warn' | 'error'; symbol: string | null; message: string; created_at: string }
 interface Data {
   available: boolean; hasWallet?: boolean; isTestnet?: boolean; evidenceThrough: string; evidenceCoins: string[];
+  mode?: 'paper' | 'live';
   strategies: StrategyInfo[];
   scalpSearch?: { tested: number; confirmed: number; through: string };
   state?: { day_start_equity: number | null; peak_equity: number | null; halted_reason: string | null; paper_equity: number; last_run_at: string | null } | null;
@@ -41,9 +43,11 @@ interface Data {
 }
 type AutoSettings = Settings & {
   autopilot_enabled?: boolean; autopilot_mode?: 'paper' | 'live'; autopilot_symbols?: string[]; autopilot_strategies?: string[];
+  autopilot_live_rules_confirmed?: boolean;
   autopilot_allow_short?: boolean; autopilot_risk_per_trade_pct?: number; autopilot_max_positions?: number;
   autopilot_max_leverage?: number; autopilot_daily_loss_limit_pct?: number; autopilot_max_drawdown_pct?: number;
 };
+type ManualSignal = { id: string; name: string; side: 'long' | 'short' | 'long/short'; barT: number; stopPct: number; reason: string; plan?: string };
 
 const pct = (v: number, d = 0) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%`;
 const LEVEL_STYLE: Record<EventRow['level'], string> = { trade: 'bg-primary', info: 'bg-muted-foreground/50', warn: 'bg-warning', error: 'bg-loss' };
@@ -64,13 +68,16 @@ export default function AutopilotPage() {
   const [settings, setSettings] = useState<AutoSettings | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [confirmLive, setConfirmLive] = useState(false);
+  const [confirmLive, setConfirmLive] = useState<'start' | null>(null);
+  const [manualSymbol, setManualSymbol] = useState('');
+  const [signals, setSignals] = useState<ManualSignal[] | null>(null);
+  const [review, setReview] = useState<ManualSignal | null>(null);
   // The clock is state so the stale-scan warning is computed from a value React knows about.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
   // Refresh positions and prices every minute. Settings are left alone, so a half-edited form is not reset.
   useEffect(() => {
-    const id = setInterval(() => { fetch('/api/autopilot').then(r => (r.ok ? r.json() : null)).then(a => { if (a) setData(a); }).catch(() => {}); }, 60_000);
+    const id = setInterval(() => { fetch('/api/autopilot').then(r => (r.ok ? r.json() : null)).then(a => { if (a) setData(current => current?.mode === a.mode ? a : current); }).catch(() => {}); }, 60_000);
     return () => clearInterval(id);
   }, []);
   // form
@@ -90,6 +97,7 @@ export default function AutopilotPage() {
         setSymbols((st.autopilot_symbols ?? []).join(', '));
         setSelected(st.autopilot_strategies ?? []);
         setAllowShort(st.autopilot_allow_short ?? false);
+        setManualSymbol(current => st.autopilot_symbols?.includes(current) || (current === 'BASKET' && st.autopilot_strategies?.includes(BASKET_ID)) ? current : st.autopilot_symbols?.[0] ?? '');
         setRisk({
           perTrade: String(st.autopilot_risk_per_trade_pct ?? 0.5), maxPositions: String(st.autopilot_max_positions ?? 3),
           maxLeverage: String(st.autopilot_max_leverage ?? 2), dailyLoss: String(st.autopilot_daily_loss_limit_pct ?? 3),
@@ -106,18 +114,28 @@ export default function AutopilotPage() {
   useEffect(() => { load(); }, [load]);
 
   async function put(body: Record<string, unknown>, okMessage: string) {
-    const res = await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const d = await res.json();
-    if (!res.ok) { toast.error(d.error ?? 'Could not save'); return false; }
-    setSettings(d.settings);
-    toast.success(okMessage);
-    return true;
+    setBusy('save');
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, expectedAutopilotMode: mode }),
+      });
+      const d = await res.json();
+      if (!res.ok) { toast.error(d.error ?? 'Could not save'); return; }
+      setSignals(null);
+      await load();
+      toast.success(okMessage);
+    } catch {
+      toast.error('Could not save Autopilot settings');
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function action(name: 'scan' | 'reset' | 'reset_paper', okMessage: string) {
     setBusy(name);
     try {
-      const res = await fetch('/api/autopilot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: name }) });
+      const res = await fetch('/api/autopilot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: name, mode, isTestnet: data?.isTestnet }) });
       const d = await res.json();
       if (!res.ok) { toast.error(d.error ?? 'Request failed', { duration: 10000 }); return; }
       toast.success(name === 'scan' ? `Scan done: ${d.result.events.length} event${d.result.events.length === 1 ? '' : 's'}${d.result.haltReason ? ` · ${d.result.haltReason}` : ''}` : okMessage);
@@ -130,7 +148,6 @@ export default function AutopilotPage() {
   }
 
   async function saveConfig() {
-    setBusy('save');
     await put({
       autopilot_symbols: symbols.split(/[\s,]+/).filter(Boolean),
       autopilot_strategies: selected,
@@ -140,8 +157,43 @@ export default function AutopilotPage() {
       autopilot_max_leverage: parseFloat(risk.maxLeverage),
       autopilot_daily_loss_limit_pct: parseFloat(risk.dailyLoss),
       autopilot_max_drawdown_pct: parseFloat(risk.maxDrawdown),
-    }, 'Autopilot settings saved');
-    setBusy(null);
+    }, mode === 'live' && enabled ? 'Saved. Confirm Start live to resume new entries.' : 'Autopilot settings saved');
+  }
+
+  async function findSignals() {
+    setBusy('signals');
+    setSignals(null);
+    try {
+      const response = await fetch(`/api/autopilot?${new URLSearchParams({ mode, symbol: manualSymbol })}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error);
+      setSignals(payload.signals);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not look up signals');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function openSignal(signal: ManualSignal) {
+    setBusy('trade');
+    try {
+      const response = await fetch('/api/autopilot', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'manual_entry', mode, isTestnet: data?.isTestnet, signal: { ...signal, symbol: manualSymbol } }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error);
+      toast.success(mode === 'paper' ? 'Paper position opened' : 'Exchange position opened');
+      setSignals(null);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Check positions before retrying');
+      setSignals(null);
+    } finally {
+      setReview(null);
+      setBusy(null);
+    }
   }
 
   const loading = !data || !settings;
@@ -158,8 +210,13 @@ export default function AutopilotPage() {
   const wins = closed.filter(p => Number(p.pnl) > 0).length;
   const lastRun = state?.last_run_at ? new Date(state.last_run_at).getTime() : null;
   const stale = enabled && (lastRun === null || now - lastRun > STALE_MS);
-  const eligible = (s: StrategyInfo) => s.evidence.find(e => e.allowShort === allowShort)?.liveEligible === true;
-  const liveBlocked = selected.filter(id => { const s = data?.strategies.find(x => x.id === id); return s && !eligible(s); });
+  const supportedByEvidence = (s: StrategyInfo) => s.evidence.some(e => e.liveEligible && (!e.allowShort || allowShort));
+  const savedIds = settings?.autopilot_strategies ?? [];
+  const ready = (data?.strategies ?? []).filter(s => savedIds.includes(s.id));
+  const label = mode === 'paper' ? 'Paper' : data?.isTestnet ? 'Live · Testnet' : 'Live';
+  const changes = symbols !== (settings?.autopilot_symbols ?? []).join(', ')
+    || JSON.stringify(selected) !== JSON.stringify(savedIds) || allowShort !== (settings?.autopilot_allow_short ?? false)
+    || Object.entries({ perTrade: settings?.autopilot_risk_per_trade_pct ?? 0.5, maxPositions: settings?.autopilot_max_positions ?? 3, maxLeverage: settings?.autopilot_max_leverage ?? 2, dailyLoss: settings?.autopilot_daily_loss_limit_pct ?? 3, maxDrawdown: settings?.autopilot_max_drawdown_pct ?? 15 }).some(([key, value]) => risk[key as keyof typeof risk] !== String(value));
 
   return (
     <div className="flex flex-col min-h-full">
@@ -183,12 +240,11 @@ export default function AutopilotPage() {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-base font-semibold">Autopilot</h2>
-                      <Badge variant={!enabled ? 'secondary' : mode === 'live' ? 'profit' : 'warning'}>{!enabled ? 'OFF' : mode === 'live' ? `LIVE${data.isTestnet ? ' · TESTNET' : ''}` : 'PAPER'}</Badge>
+                      <h2 className="text-base font-semibold">{label} Autopilot</h2>
+                      <Badge variant={!enabled || state?.halted_reason ? 'secondary' : mode === 'live' ? 'profit' : 'warning'}>{!enabled || state?.halted_reason ? 'Paused' : 'Running'}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Scans {settings.autopilot_symbols?.length ?? 0} markets on hourly candles and trades by rule.{' '}
-                      {lastRun ? `Last scan ${formatRelativeTime(state!.last_run_at!)}.` : 'Not scanned yet.'}
+                      {ready.map(s => s.name).join(', ') || 'Choose a strategy below'} · {settings.autopilot_symbols?.length ?? 0} markets
                     </p>
                   </div>
                 </div>
@@ -196,15 +252,19 @@ export default function AutopilotPage() {
                   <Segmented
                     aria-label="Mode"
                     value={mode}
-                    onChange={m => (m === 'live' ? setConfirmLive(true) : put({ autopilot_mode: 'paper' }, 'Switched to paper trading'))}
+                    onChange={m => { if (!busy && !changes && m !== mode) void put({ autopilot_mode: m }, 'Mode switched. New entries are paused.'); }}
+                    disabled={busy !== null || changes}
                     options={[{ value: 'paper', label: 'Paper' }, { value: 'live', label: 'Live' }]}
                   />
-                  <Button variant="outline" size="sm" onClick={() => action('scan', '')} disabled={busy !== null}>
-                    {busy === 'scan' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}Scan now
+                  <Button onClick={() => enabled ? put({ autopilot_enabled: false }, 'New entries paused') : mode === 'live' ? setConfirmLive('start') : put({ autopilot_enabled: true }, 'Paper Autopilot started')} disabled={busy !== null || (!enabled && (changes || !ready.length || !!state?.halted_reason || (mode === 'live' && !data.hasWallet)))}>
+                    {enabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    {enabled ? 'Pause entries' : mode === 'paper' ? 'Start paper' : 'Start live'}
                   </Button>
-                  <Switch checked={enabled} onCheckedChange={v => put({ autopilot_enabled: v }, v ? 'Autopilot on' : 'Autopilot off')} aria-label="Enable autopilot" />
                 </div>
               </div>
+              {mode === 'live' && !data.hasWallet && <p className="mt-3 text-sm text-muted-foreground"><Link className="text-primary underline" href="/settings">Connect a Hyperliquid wallet</Link> to trade on the exchange.</p>}
+              {mode === 'live' && enabled && !settings.autopilot_live_rules_confirmed && <p className="mt-3 text-sm text-warning">Pause and restart Live to apply the full strategy list.</p>}
+              {changes && <p className="mt-3 text-sm text-warning">Save or discard your changes below before starting or switching modes.</p>}
 
               {state?.halted_reason && (
                 <div className="mt-4 rounded-lg border border-loss/30 bg-loss/10 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -215,21 +275,38 @@ export default function AutopilotPage() {
               {stale && (
                 <p className="mt-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning flex gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>Nothing has triggered a scan in the last 20 minutes. The autopilot only runs when a scheduler calls it: follow the scheduling steps at the bottom of <code className="bg-background/50 px-1 rounded">004_autopilot.sql</code>.</span>
+                  <span>{lastRun ? 'Last scan was more than 20 minutes ago. Check Activity for errors.' : 'Waiting for the first scheduled scan.'}</span>
                 </p>
               )}
-              {mode === 'live' && liveBlocked.length > 0 && (
-                <p className="mt-4 text-xs text-muted-foreground">
-                  {liveBlocked.length} selected strateg{liveBlocked.length === 1 ? 'y is' : 'ies are'} paper-only and will not trade in live mode.
-                </p>
-              )}
+            </section>
+
+            <section className="surface p-5 space-y-3" aria-label="Trade a strategy manually">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <h2 className="text-sm font-semibold self-center">Trade a strategy manually</h2>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="text-xs text-muted-foreground">Market
+                    <select value={manualSymbol} disabled={busy !== null} onChange={e => { setManualSymbol(e.target.value); setSignals(null); }} className="block h-9 mt-1 rounded-md border bg-background px-2 text-sm text-foreground">
+                      {(settings.autopilot_symbols ?? []).map(symbol => <option key={symbol}>{symbol}</option>)}
+                      {savedIds.includes(BASKET_ID) && <option value="BASKET">Momentum basket</option>}
+                    </select>
+                  </label>
+                  <Button variant="outline" disabled={busy !== null || changes || !manualSymbol || !ready.length} onClick={findSignals}>{busy === 'signals' ? 'Checking…' : 'Find signals'}</Button>
+                </div>
+              </div>
+              {signals?.length === 0 && <p role="status" className="text-sm text-muted-foreground">{manualSymbol === 'BASKET' ? 'No basket available. Check the open positions and position limit.' : `No current setup for ${manualSymbol}.`}</p>}
+              {signals?.map(signal => (
+                <div key={signal.id} className="flex flex-wrap justify-between items-center gap-2 border-t pt-3">
+                  <div><p className="text-sm font-medium">{signal.name} · {signal.side}</p><p className="text-xs text-muted-foreground">{(signal.stopPct * 100).toFixed(2)}% stop · {signal.reason}</p></div>
+                  <Button size="sm" disabled={busy !== null || changes || (mode === 'live' && !data.hasWallet)} onClick={() => setReview(signal)}>Review {label} trade</Button>
+                </div>
+              ))}
             </section>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               <Stat label={mode === 'paper' ? 'Paper balance' : 'Day-start equity'} value={mode === 'paper' ? formatCurrency(Number(state?.paper_equity ?? 10000)) : state?.day_start_equity ? formatCurrency(Number(state.day_start_equity)) : '—'} hint={mode === 'paper' ? 'Started at $10,000' : 'Live account'} />
               <Stat label="Closed trades" value={String(closed.length)} hint={closed.length ? `${wins} won · ${closed.length - wins} lost` : 'None yet'} />
               <Stat label="Realised P&L" value={formatCurrency(closedPnl)} hint="After fees, this mode" tone={closedPnl > 0 ? 'up' : closedPnl < 0 ? 'down' : 'neutral'} />
-              <Stat label="Open positions" value={`${open.length} / ${settings.autopilot_max_positions ?? 3}`} hint="Each has a stop-loss" />
+              <Stat label="Open positions" value={`${open.length} / ${settings.autopilot_max_positions ?? 3}`} />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6 items-start">
@@ -237,12 +314,12 @@ export default function AutopilotPage() {
               <section className="xl:col-span-2 space-y-3" aria-label="Strategies">
                 <div className="flex items-baseline justify-between">
                   <h2 className="text-sm font-semibold">Strategies</h2>
-                  <p className="text-xs text-muted-foreground">Backtested on {data.evidenceCoins.join(', ')} through {data.evidenceThrough}</p>
+                  <p className="text-xs text-muted-foreground">Shared across Paper and Live</p>
                 </div>
-                {data.strategies.map(s => {
+                {[...data.strategies].sort((a, b) => Number(supportedByEvidence(b)) - Number(supportedByEvidence(a))).map(s => {
                   const e = s.evidence.find(x => x.allowShort === allowShort);
                   const on = selected.includes(s.id);
-                  const ok = eligible(s);
+                  const ok = e?.liveEligible === true;
                   return (
                     <div key={s.id} className={cn('surface p-4 transition-colors', on && 'border-primary/40')}>
                       <div className="flex items-start gap-3">
@@ -250,12 +327,13 @@ export default function AutopilotPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="text-sm font-semibold">{s.name}</h3>
-                            <Badge variant={ok ? 'profit' : 'secondary'} className="text-[10px] py-0">{ok ? 'LIVE-ELIGIBLE' : 'PAPER ONLY'}</Badge>
+                            <Badge variant={ok ? 'profit' : 'secondary'} className="text-[10px] py-0">{ok ? 'Passed backtest' : 'Experimental'}</Badge>
                             <span className="text-[11px] text-muted-foreground">{s.horizon}</span>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{s.description}</p>
-                          {e && (
-                            <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 mt-3">
+                          <details className="mt-2 text-xs text-muted-foreground">
+                            <summary className="cursor-pointer hover:text-foreground">Rule and test results</summary>
+                            <p className="mt-2">{s.description}</p>
+                            {e && <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 mt-3">
                               {[
                                 ['Return / yr since 2023', pct(e.late.annualReturn), e.late.annualReturn],
                                 ['Of which 2025 on', e.recent ? pct(e.recent.annualReturn) : '—', e.recent?.annualReturn ?? 0],
@@ -267,34 +345,25 @@ export default function AutopilotPage() {
                                   <dd className={cn('num text-sm font-medium mt-0.5', (sign as number) > 0 && 'text-profit', (sign as number) < 0 && 'text-loss')}>{v}</dd>
                                 </div>
                               ))}
-                            </dl>
-                          )}
-                          {!ok && <p className="text-[11px] text-muted-foreground mt-2">{e && e.late.annualReturn > 0 && (e.recent?.annualReturn ?? 0) > 0 ? 'Promising in testing, but it was chosen after its recent results were known, so it must prove itself on paper first.' : 'Did not hold up after costs in testing, so it can only paper trade.'} That is a safeguard, not a setting.</p>}
+                            </dl>}
+                            <p className="mt-2">Backtest through {data.evidenceThrough} on {data.evidenceCoins.join(', ')}.</p>
+                          </details>
                         </div>
                       </div>
                     </div>
                   );
                 })}
-                {data.scalpSearch && (
-                  <div className="surface p-4 text-xs text-muted-foreground leading-relaxed">
-                    <span className="text-foreground font-medium">Scalping search:</span> {data.scalpSearch.tested} short-term
-                    configurations (wick fades with resting orders, 15-minute breakouts, stop-run reversals, BTC lead-lag, pairs) were
-                    tested on 15-minute data through {data.scalpSearch.through}.{' '}
-                    <span className={data.scalpSearch.confirmed > 0 ? 'text-profit font-medium' : 'text-foreground font-medium'}>
-                      {data.scalpSearch.confirmed} held up on unseen data
-                    </span>
-                    {data.scalpSearch.confirmed === 0 && ', so none has been added here'}. Details in <code className="bg-secondary px-1 rounded">backtest/SCALPING.md</code>.
-                  </div>
-                )}
               </section>
 
               {/* Risk */}
               <section className="surface p-5 space-y-4" aria-label="Risk settings">
-                <h2 className="text-sm font-semibold">Risk limits</h2>
+                <h2 className="text-sm font-semibold">Setup</h2>
                 <div className="space-y-1.5">
-                  <Label>Markets to scan</Label>
-                  <Input value={symbols} onChange={e => setSymbols(e.target.value.toUpperCase())} placeholder="BTC, ETH, SOL" className="font-mono text-xs" />
+                  <Label htmlFor="auto-markets">Markets to scan</Label>
+                  <Input id="auto-markets" value={symbols} onChange={e => setSymbols(e.target.value.toUpperCase())} placeholder="BTC, ETH, SOL" className="font-mono text-xs" />
                 </div>
+                <details>
+                <summary className="cursor-pointer text-sm font-medium">Risk limits and short selling</summary>
                 <div className="grid grid-cols-2 gap-3">
                   {([
                     ['perTrade', 'Risk per trade %', 'Lost if a stop is hit'],
@@ -304,8 +373,8 @@ export default function AutopilotPage() {
                     ['maxDrawdown', 'Max drawdown %', 'Pauses the autopilot'],
                   ] as const).map(([key, label, hint]) => (
                     <div key={key} className="space-y-1">
-                      <Label>{label}</Label>
-                      <Input type="number" inputMode="decimal" step="0.1" value={risk[key]} onChange={e => setRisk(r => ({ ...r, [key]: e.target.value }))} />
+                      <Label htmlFor={`auto-${key}`}>{label}</Label>
+                      <Input id={`auto-${key}`} type="number" inputMode="decimal" step="any" value={risk[key]} onChange={e => setRisk(r => ({ ...r, [key]: e.target.value }))} />
                       <p className="text-[11px] text-muted-foreground">{hint}</p>
                     </div>
                   ))}
@@ -313,24 +382,25 @@ export default function AutopilotPage() {
                 <label className="flex items-start justify-between gap-3 cursor-pointer">
                   <span>
                     <span className="text-sm font-medium block">Allow shorts</span>
-                    <span className="text-xs text-muted-foreground">Short versions tested worse; none is live-eligible</span>
                   </span>
                   <Switch checked={allowShort} onCheckedChange={setAllowShort} />
                 </label>
-                <Button className="w-full" onClick={saveConfig} disabled={busy !== null}>
+                </details>
+                <Button className="w-full" onClick={saveConfig} disabled={busy !== null || !changes}>
                   {busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save strategies and limits
                 </Button>
-                {mode === 'paper' && (
-                  <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => action('reset_paper', 'Paper account reset to $10,000')} disabled={busy !== null}>
+                {changes && <Button variant="ghost" className="w-full" disabled={busy !== null} onClick={() => load(true)}>Discard changes</Button>}
+                <details className="text-sm">
+                  <summary className="cursor-pointer font-medium">Maintenance</summary>
+                  <Button variant="ghost" size="sm" onClick={() => action('scan', '')} disabled={busy !== null || changes}>Scan now</Button>
+                  {mode === 'paper' && <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { if (window.confirm('Clear your paper positions and balance history?')) void action('reset_paper', 'Paper account reset to $10,000'); }} disabled={busy !== null || enabled}>
                     <RotateCcw className="w-3.5 h-3.5" />Reset paper account
-                  </Button>
-                )}
+                  </Button>}
+                </details>
               </section>
             </div>
 
             {/* Positions */}
-            {mode === 'paper' && <DriftPanel refreshKey={data.positions?.length ?? 0} />}
-
             <section className="surface overflow-hidden" aria-label="Autopilot positions">
               <div className="px-5 pt-5 pb-3 flex items-baseline justify-between">
                 <h2 className="text-sm font-semibold">Positions · {mode}</h2>
@@ -347,7 +417,7 @@ export default function AutopilotPage() {
                 </p>
               )}
               {(data.positions ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-10 px-6">No positions yet. The autopilot waits for a setup; in a falling market a long-only strategy can sit idle for weeks.</p>
+                <p className="text-sm text-muted-foreground text-center py-10 px-6">No positions yet.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="data-table">
@@ -366,7 +436,7 @@ export default function AutopilotPage() {
                             <td className="num hidden sm:table-cell">{formatCurrency(Number(p.notional_usd), 0)}</td>
                             <td className="num">${formatPrice(Number(p.entry_price))}</td>
                             <td className="num">{isOpen ? (price ? `$${formatPrice(price)}` : '—') : <span className="text-muted-foreground">${formatPrice(Number(p.exit_price ?? 0))}</span>}</td>
-                            <td className="num text-muted-foreground hidden lg:table-cell">{!isOpen ? '—' : p.strategy_id === BASKET_ID ? 'none, held a week' : `$${formatPrice(Number(p.stop_price))}`}</td>
+                            <td className="num text-muted-foreground hidden lg:table-cell">{!isOpen || !Number(p.stop_price) ? '—' : `$${formatPrice(Number(p.stop_price))}`}</td>
                             <td className="hidden xl:table-cell text-xs text-muted-foreground max-w-[240px] truncate">{isOpen ? p.entry_reason : p.exit_reason}</td>
                             <td className={cn('num whitespace-nowrap', pnl == null ? 'text-muted-foreground' : pnl >= 0 ? 'text-profit' : 'text-loss')}>
                               {pnl == null ? '—' : formatCurrency(pnl)}
@@ -382,8 +452,9 @@ export default function AutopilotPage() {
             </section>
 
             {/* Activity */}
-            <section className="surface p-5" aria-label="Activity">
-              <h2 className="text-sm font-semibold mb-3">Activity</h2>
+            <details className="surface p-5" aria-label="Activity">
+              <summary className="cursor-pointer text-sm font-semibold">Activity {lastRun ? `· Last scan ${formatRelativeTime(state!.last_run_at!)}` : ''}</summary>
+              <div className="mt-3">
               {(data.events ?? []).length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nothing yet. Press “Scan now” to run one pass.</p>
               ) : (
@@ -397,26 +468,36 @@ export default function AutopilotPage() {
                   ))}
                 </ul>
               )}
-            </section>
+              </div>
+              {mode === 'paper' && <DriftPanel refreshKey={data.positions?.length ?? 0} />}
+            </details>
           </>
         )}
       </div>
 
-      <Dialog open={confirmLive} onOpenChange={setConfirmLive}>
+      <Dialog open={!!confirmLive} onOpenChange={open => { if (!open) setConfirmLive(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Let the autopilot trade real money?</DialogTitle>
+            <DialogTitle>Start {label} Autopilot?</DialogTitle>
             <DialogDescription>
-              In live mode it opens and closes positions on Hyperliquid {data?.isTestnet ? 'testnet' : 'mainnet'} by itself, within your risk limits,
-              using only strategies that passed the backtest gate. Passing a backtest is not a guarantee: the eligible strategy still lost in
-              some months and had a 26% drawdown. Run it in paper mode first and compare.
+              {ready.map(s => s.name).join(', ')} can place orders automatically on Hyperliquid {data?.isTestnet ? 'testnet' : 'with real money'}. {ready.some(s => !s.evidence.some(e => e.allowShort === allowShort && e.liveEligible)) && 'Your selection includes experimental rules.'} The configured risk per trade is {settings?.autopilot_risk_per_trade_pct}%.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmLive(false)}>Stay on paper</Button>
-            <Button variant="destructive" disabled={!data?.hasWallet} onClick={async () => { setConfirmLive(false); await put({ autopilot_mode: 'live' }, 'Autopilot is now LIVE'); }}>
-              {data?.hasWallet ? 'Switch to live' : 'Connect a wallet first'}
-            </Button>
+            <Button variant="outline" onClick={() => setConfirmLive(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={!data?.hasWallet || busy !== null} onClick={() => { setConfirmLive(null); void put({ autopilot_enabled: true, confirmLiveAutopilot: true, isTestnet: data?.isTestnet }, 'Live Autopilot started'); }}>Confirm start</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!review} onOpenChange={open => { if (!open && busy !== 'trade') setReview(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{manualSymbol === 'BASKET' ? 'Momentum basket' : `${manualSymbol} ${review?.side}`} · {label}</DialogTitle>
+            <DialogDescription>{review?.name} sets the stop and manages the exit. Size uses your Autopilot limits, with up to {settings?.autopilot_risk_per_trade_pct}% account risk and a {((review?.stopPct ?? 0) * 100).toFixed(2)}% stop. {mode === 'live' && !data?.isTestnet ? 'This sends real orders.' : ''}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReview(null)} disabled={busy === 'trade'}>Cancel</Button>
+            <Button disabled={busy !== null || !review} onClick={() => { if (review) void openSignal(review); }}>{busy === 'trade' ? 'Opening…' : mode === 'paper' ? 'Open paper trade' : 'Submit order'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

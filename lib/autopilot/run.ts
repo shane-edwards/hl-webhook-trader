@@ -10,9 +10,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { HyperliquidClient } from '@/lib/hyperliquid/client';
 import { closePositionFully, openPosition } from '@/lib/execution';
 import { notify } from '@/lib/notify';
-import evidenceFile from './evidence.json';
-import { computeIndicators, getStrategy, WARMUP_BARS, type Bar, type StrategyDef } from './strategies';
-import { MOMENTUM_ID, runMomentumPaper } from './momentum';
+import { computeIndicators, getStrategy, WARMUP_BARS, type Bar } from './strategies';
+import { BARS_NEEDED, entrySignal, HOUR_MS, strategyDirection } from './signals';
+export { isLiveEligible } from './signals';
+import { MOMENTUM_ID, MOMENTUM_STOP_PCT, runMomentumPaper } from './momentum';
+import { runMomentumLive } from './momentum-live';
 import { portfolioLimitsFromSettings, type PortfolioLimits } from '@/lib/risk/portfolio';
 import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional, type RiskConfig, type RiskState } from './risk';
 
@@ -20,10 +22,8 @@ import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional, type RiskConfig
 type Db = SupabaseClient<any, any, any>;
 export type Mode = 'paper' | 'live';
 
-const HOUR_MS = 3_600_000;
 /** Cost charged to paper fills so the paper record is not flattering: taker fee + slippage. */
 const PAPER_COST = 0.00065;
-const BARS_NEEDED = WARMUP_BARS + 30;
 
 export interface AutopilotConfig {
   mode: Mode;
@@ -36,14 +36,13 @@ export interface AutopilotConfig {
   reservedSymbol: string | null;
   /** Account-wide limits shared with manual and webhook trades (live mode only). */
   portfolio?: PortfolioLimits;
+  manageOnly?: boolean;
+  liveRulesConfirmed?: boolean;
+  checkEntries?: () => Promise<boolean>;
+  manualEntry?: { id: string; symbol: string; side: 'long' | 'short'; barT: number; plan?: string };
 }
 
 export interface AutopilotEvent { level: 'info' | 'trade' | 'warn' | 'error'; symbol?: string; strategyId?: string; message: string }
-
-/** May this strategy trade real money? Decided by the backtest evidence, not by the user. */
-export function isLiveEligible(strategyId: string, allowShort: boolean): boolean {
-  return evidenceFile.accountingVersion === 2 && evidenceFile.strategies.some(e => e.id === strategyId && e.allowShort === allowShort && e.liveEligible);
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function configFromSettings(s: Record<string, any>): AutopilotConfig {
@@ -53,6 +52,7 @@ export function configFromSettings(s: Record<string, any>): AutopilotConfig {
     symbols: (Array.isArray(s.autopilot_symbols) ? s.autopilot_symbols : ['BTC', 'ETH', 'SOL']).map((x: unknown) => String(x).toUpperCase()).slice(0, 20),
     strategies: Array.isArray(s.autopilot_strategies) ? s.autopilot_strategies.map(String) : ['trend_breakout'],
     allowShort: s.autopilot_allow_short === true,
+    liveRulesConfirmed: s.autopilot_live_rules_confirmed === true,
     risk: {
       riskPerTradePct: n(s.autopilot_risk_per_trade_pct, DEFAULT_RISK.riskPerTradePct),
       maxPositions: n(s.autopilot_max_positions, DEFAULT_RISK.maxPositions),
@@ -71,15 +71,16 @@ interface PositionRow {
   entry_price: number; size: number; notional_usd: number; stop_price: number; entry_bar_t: number; entry_time: string; funding_paid?: number; last_funding_time?: number;
 }
 
-export interface ScanResult { mode: Mode; equity: number; canOpen: boolean; haltReason: string | null; events: AutopilotEvent[] }
+export interface ScanResult { mode: Mode; equity: number; canOpen: boolean; haltReason: string | null; events: AutopilotEvent[]; manualOpened?: boolean }
 
-export async function runAutopilot(hl: HyperliquidClient, db: Db, userId: string, cfg: AutopilotConfig, now = Date.now()): Promise<ScanResult> {
-  return withTradingLock(hl, db, userId, () => runAutopilotLocked(hl, db, userId, cfg, now), cfg.mode === 'paper');
+export async function runAutopilot(hl: HyperliquidClient, db: Db, userId: string, cfg: AutopilotConfig, now = Date.now(), reload?: () => Promise<AutopilotConfig>): Promise<ScanResult> {
+  return withTradingLock(hl, db, userId, async () => runAutopilotLocked(hl, db, userId, reload ? await reload() : cfg, now), cfg.mode === 'paper');
 }
 
 async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string, cfg: AutopilotConfig, now = Date.now()): Promise<ScanResult> {
   const { mode } = cfg;
   const events: AutopilotEvent[] = [];
+  let manualOpened = false;
   const log = (e: AutopilotEvent) => { events.push(e); };
 
   // ---- state and equity ----
@@ -93,7 +94,7 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
   const { data: openRows, error: openError } = await db
     .from('autopilot_positions').select('*').eq('user_id', userId).eq('mode', mode).eq('status', 'open');
   if (openError) throw new Error(`Could not load autopilot positions (has migration 004 been run?): ${openError.message}`);
-  // The momentum basket is a separate paper book with its own weekly cycle; it is handled further down.
+  // The momentum basket has its own weekly cycle and is handled below.
   const open = new Map<string, PositionRow>((openRows ?? []).filter(r => r.strategy_id !== MOMENTUM_ID).map(r => [r.symbol, { ...r, entry_price: +r.entry_price, size: +r.size, notional_usd: +r.notional_usd, stop_price: +r.stop_price, entry_bar_t: +r.entry_bar_t }]));
 
   const exchangePositions = mode === 'live' ? new Map((await hl.getPositions()).map(p => [p.symbol, p])) : null;
@@ -205,53 +206,72 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
     log({ level: 'warn', message: `Autopilot paused: ${risk.state.haltedReason}. Open positions keep their stops; no new trades until you reset it.` });
   }
 
-  // ---- 1b. the paper-only momentum basket ----
-  if (mode === 'paper' && cfg.strategies.includes(MOMENTUM_ID)) {
+  // ---- 1b. the weekly long/short basket ----
+  const basketSelected = cfg.strategies.includes(MOMENTUM_ID);
+  const manualBasket = cfg.manualEntry?.id === MOMENTUM_ID ? cfg.manualEntry.plan : undefined;
+  let basketPositions = (openRows ?? []).filter(p => p.strategy_id === MOMENTUM_ID);
+  if ((!cfg.manualEntry || manualBasket) && (basketSelected || basketPositions.length)) {
     try {
-      const m = await runMomentumPaper(hl, db, userId, paperEquity, now, { canOpen: risk.canOpen, maxPositions: cfg.risk.maxPositions - open.size, availableNotional: Math.max(0, equity * (cfg.portfolio?.maxGrossExposureX ?? 3) - [...open.values()].reduce((sum, p) => sum + p.notional_usd, 0)) });
-      paperEquity += m.pnl;
-      for (const e of m.events) log({ ...e, strategyId: MOMENTUM_ID });
+      const canOpen = risk.canOpen && !cfg.manageOnly && basketSelected && (!cfg.checkEntries || await cfg.checkEntries());
+      if (mode === 'paper') {
+        const exposure = equity * (cfg.portfolio?.maxGrossExposureX ?? 3) - [...open.values()].reduce((sum, p) => sum + p.notional_usd, 0);
+        const m = await runMomentumPaper(hl, db, userId, paperEquity, now, {
+          canOpen, maxPositions: cfg.risk.maxPositions - open.size,
+          availableNotional: Math.min(exposure, equity * cfg.risk.riskPerTradePct / MOMENTUM_STOP_PCT),
+          occupied: new Set([...open.keys(), ...(cfg.reservedSymbol ? [cfg.reservedSymbol] : [])]),
+          manualPlan: manualBasket,
+        });
+        if (manualBasket && m.opened) manualOpened = true;
+        paperEquity += m.pnl;
+        for (const e of m.events) log({ ...e, strategyId: MOMENTUM_ID });
+      } else {
+        const basketEvents: AutopilotEvent[] = [];
+        const opened = await runMomentumLive(hl, db, userId, cfg, equity, canOpen && (cfg.liveRulesConfirmed === true || !!manualBasket), now, basketEvents, manualBasket);
+        if (manualBasket && opened) manualOpened = true;
+        for (const e of basketEvents) log({ ...e, strategyId: MOMENTUM_ID });
+      }
     } catch (err) {
       log({ level: 'error', strategyId: MOMENTUM_ID, message: `Momentum basket failed: ${err instanceof Error ? err.message : err}` });
     }
+    const fresh = await db.from('autopilot_positions').select('*').eq('user_id', userId).eq('mode', mode).eq('status', 'open').eq('strategy_id', MOMENTUM_ID);
+    if (fresh.error) throw new Error(fresh.error.message);
+    basketPositions = fresh.data ?? [];
   }
+  const basketSymbols = new Set(basketPositions.map(p => p.symbol));
 
   // ---- 3. look for new entries ----
-  if (risk.canOpen) {
-    for (const symbol of cfg.symbols) {
-      if (open.has(symbol)) continue;
+  if (risk.canOpen && !cfg.manageOnly) {
+    const manual = cfg.manualEntry;
+    const pending = new Set(mode === 'live' && hl.getOpenOrders ? (await hl.getOpenOrders()).filter(o => !o.reduceOnly).map(o => o.coin) : []);
+    for (const symbol of manual ? [manual.symbol] : cfg.symbols) {
+      if (pending.has(symbol)) continue;
+      if (open.has(symbol) || basketSymbols.has(symbol)) continue;
       const m = market.get(symbol);
       if (!m) continue;
       if (symbol === cfg.reservedSymbol) continue; // the daily strategy owns this market
       if (mode === 'live' && exchangePositions!.has(symbol)) continue; // a position the autopilot did not open: leave it alone
 
-      for (const id of cfg.strategies) {
-        const strategy: StrategyDef | undefined = getStrategy(id);
-        if (!strategy) continue;
-        // Direction is decided per strategy. On paper, shorts follow the setting. With real
-        // money a strategy may short only if its long-and-short version is live-eligible;
-        // otherwise it falls back to long-only, if that version is eligible.
-        const shortOk = cfg.allowShort && (mode === 'paper' || isLiveEligible(id, true));
-        if (mode === 'live' && !isLiveEligible(id, shortOk)) continue; // paper-only strategy
-
-        const sig = strategy.evaluate(m.ind, m.bars, m.last, 0, shortOk);
-        if (sig.target === 0) continue;
-        const barT = m.bars[m.last].t;
-        // Only act on a fresh signal: the bar that just closed, within the last two hours.
-        if (now - (barT + HOUR_MS) > 2 * HOUR_MS) continue;
+      for (const id of manual ? [manual.id] : cfg.strategies) {
+        const shortOk = strategyDirection(id, cfg.allowShort, mode === 'paper' || !!manual || cfg.liveRulesConfirmed === true);
+        if (shortOk === null) continue;
+        const sig = entrySignal(id, m, now, shortOk);
+        if (!sig || (manual && (sig.barT !== manual.barT || sig.side !== manual.side))) continue;
+        const { side, barT } = sig;
+        if (cfg.checkEntries && !await cfg.checkEntries()) break;
 
         const notional = sizeNotional(equity, sig.stopPct, cfg.risk);
-        const gate = canOpenPosition(open.size, notional, cfg.risk);
+        const gate = canOpenPosition(open.size + basketPositions.length, notional, cfg.risk);
         if (!gate.ok) { log({ level: 'info', symbol, strategyId: id, message: `Signal skipped: ${gate.reason}` }); break; }
 
-        const side = sig.target === 1 ? 'long' : 'short';
+        const reason = manual ? `Manual entry · ${sig.reason}` : sig.reason;
         try {
           // Reserve the signal bar first; the unique index makes a second scan of the same bar a no-op.
-          const price = m.bars[m.last].c;
+          const price = manual && mode === 'paper' ? Number((await hl.getAllMids())[symbol]) : m.bars[m.last].c;
+          if (!Number.isFinite(price) || price <= 0) throw new Error('Current price unavailable');
           const { data: row, error } = await db.from('autopilot_positions').insert({
             user_id: userId, mode, symbol, strategy_id: id, side, status: 'open',
             entry_price: price, size: notional / price, notional_usd: notional,
-            stop_price: price * (1 - sig.target * sig.stopPct), entry_bar_t: barT, entry_reason: sig.reason,
+            stop_price: price * (1 - sig.target * sig.stopPct), entry_bar_t: barT, entry_reason: reason,
           }).select('*').single();
           if (error) { if (error.code !== '23505') throw new Error(error.message); break; } // 23505: already acted on this bar
 
@@ -262,7 +282,7 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
                 userId, symbol, side, sizeUsd: notional,
                 leverage: Math.max(1, Math.ceil(cfg.risk.maxLeveragePerPosition)),
                 slippagePercent: cfg.slippagePercent, stopLossPct: sig.stopPct * 100, takeProfitPct: null,
-                source: 'autopilot', payload: { strategy: id, reason: sig.reason }, limits: cfg.portfolio,
+                source: 'autopilot', payload: { strategy: id, reason, manual: !!manual }, limits: cfg.portfolio,
               });
               entry = opened.fillPrice; size = opened.size; stop = opened.stopLossPx ?? stop;
               if (opened.protectionError) {
@@ -279,7 +299,8 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
           }
           await db.from('autopilot_positions').update({ entry_price: entry, size, notional_usd: size * entry, stop_price: stop }).eq('id', row.id);
           open.set(symbol, { ...row, entry_price: entry, size, notional_usd: size * entry, stop_price: stop, entry_bar_t: barT });
-          log({ level: 'trade', symbol, strategyId: id, message: `Opened ${side} $${(size * entry).toFixed(0)} at ${entry.toFixed(4)}, stop ${stop.toFixed(4)} (${sig.reason})` });
+          if (manual) manualOpened = true;
+          log({ level: 'trade', symbol, strategyId: id, message: `Opened ${side} $${(size * entry).toFixed(0)} at ${entry.toFixed(4)}, stop ${stop.toFixed(4)} (${reason})` });
         } catch (err) {
           log({ level: 'error', symbol, strategyId: id, message: `Entry failed: ${err instanceof Error ? err.message : err}` });
         }
@@ -300,5 +321,5 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
     if (important.length) await notify(`Autopilot (${mode}):\n` + important.map(e => `${e.symbol ?? ''} ${e.message}`.trim()).join('\n'), undefined, userId);
   }
 
-  return { mode, equity, canOpen: risk.canOpen, haltReason: risk.reason, events };
+  return { mode, equity, canOpen: risk.canOpen, haltReason: risk.reason, events, manualOpened };
 }

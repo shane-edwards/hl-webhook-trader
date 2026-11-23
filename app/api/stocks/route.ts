@@ -35,16 +35,25 @@ export async function POST(request: Request) {
     const { error } = await createServiceClient().from('etoro_connections').upsert({
       user_id: user.id, environment, credentials_encrypted: encrypt(JSON.stringify({ apiKey, userKey })), updated_at: new Date().toISOString(),
       discovery: null, scan_attempted_at: null,
-    }, { onConflict: 'user_id' });
+    }, { onConflict: 'user_id,environment' });
     if (error) return fail('Could not save the eToro connection.', 503);
     return NextResponse.json({ environment });
   } catch (error) { return failure(error); }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   const user = await signedInUser();
   if (!user) return fail('Unauthorized', 401);
-  const { error } = await createServiceClient().from('etoro_connections').delete().eq('user_id', user.id);
+  const environment = new URL(request.url).searchParams.get('environment');
+  if (environment !== 'demo' && environment !== 'real') return fail('Select the connection to remove.', 400);
+  const db = createServiceClient();
+  const [autopilot, orders] = await Promise.all([
+    db.from('stock_autopilot').select('user_id').eq('user_id', user.id).eq('active_environment', environment).maybeSingle(),
+    db.from('etoro_stock_orders').select('id').eq('user_id', user.id).eq('environment', environment).not('signal_day', 'is', null).is('closed_at', null).neq('state', 'rejected').limit(1),
+  ]);
+  if (autopilot.error || orders.error) return fail('Could not check for managed positions.', 503);
+  if (autopilot.data || orders.data?.length) return fail('Pause this Autopilot and finish its managed positions before disconnecting.', 409);
+  const { error } = await db.from('etoro_connections').delete().eq('user_id', user.id).eq('environment', environment);
   return error ? fail('Could not remove the eToro connection.', 503) : NextResponse.json({ environment: null });
 }
 
@@ -52,11 +61,12 @@ export async function GET(request: Request) {
   const user = await signedInUser();
   if (!user) return fail('Unauthorized', 401);
   const db = createServiceClient();
-  const { data, error } = await db.from('etoro_connections').select('environment, credentials_encrypted, discovery, scan_attempted_at, updated_at').eq('user_id', user.id).maybeSingle();
-  if (error) return fail('eToro connection storage is unavailable.', 503);
   const query = new URL(request.url).searchParams;
   const view = query.get('view');
-  if (!view) return NextResponse.json({ environment: data?.environment ?? null, discovery: data?.discovery ?? null });
+  const { data: connections, error } = await db.from('etoro_connections').select('environment, credentials_encrypted, discovery, scan_attempted_at, updated_at').eq('user_id', user.id).order('environment', { ascending: false });
+  if (error) return fail('eToro connection storage is unavailable.', 503);
+  const data = query.get('environment') ? connections.find(row => row.environment === query.get('environment')) : connections[0];
+  if (!view) return NextResponse.json({ environment: data?.environment ?? null, connections: connections.map(row => row.environment), discovery: data?.discovery ?? null });
   if (!data) return fail('Connect eToro first.', 409);
 
   try {
@@ -101,12 +111,12 @@ export async function GET(request: Request) {
     if (data.discovery?.scannedAt && Date.now() - Date.parse(data.discovery.scannedAt) < 120_000) return NextResponse.json(data.discovery);
     if (data.scan_attempted_at && Date.now() - Date.parse(data.scan_attempted_at) < 60_000) return fail('A scan has just started. Try again in a minute.', 429);
     const started = new Date().toISOString();
-    const claim = db.from('etoro_connections').update({ scan_attempted_at: started }).eq('user_id', user.id).eq('updated_at', data.updated_at);
+    const claim = db.from('etoro_connections').update({ scan_attempted_at: started }).eq('user_id', user.id).eq('environment', data.environment).eq('updated_at', data.updated_at);
     const { data: claimed, error: claimError } = await (data.scan_attempted_at ? claim.eq('scan_attempted_at', data.scan_attempted_at) : claim.is('scan_attempted_at', null)).select('user_id').maybeSingle();
     if (claimError) return fail('Could not start the stock scan.', 503);
     if (!claimed) return fail('A scan has just started. Try again in a minute.', 429);
     const result = await discoverStocks(broker);
-    const { error: saveError } = await db.from('etoro_connections').update({ discovery: result }).eq('user_id', user.id).eq('updated_at', data.updated_at).eq('scan_attempted_at', started);
+    const { error: saveError } = await db.from('etoro_connections').update({ discovery: result }).eq('user_id', user.id).eq('environment', data.environment).eq('updated_at', data.updated_at).eq('scan_attempted_at', started);
     if (saveError) return fail('Could not save the stock scan.', 503);
     return NextResponse.json(result);
   } catch (error) { return failure(error); }

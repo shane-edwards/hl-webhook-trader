@@ -10,6 +10,9 @@ type BrokerPosition = {
   positionID: number; instrumentID: number; isBuy: boolean; units: number; amount: number;
   leverage: number; openRate: number; openDateTime: string; unrealizedPnL?: { pnL?: number } | null;
 };
+export type StockOrder = { action: 'open'; transaction: 'buy'; instrumentId: number; settlementType: 'real'; orderType: 'mkt'; leverage: 1; amount: number; orderCurrency: 'usd' };
+type Eligibility = { instrumentId: number; allowOpenPosition: boolean; allowClosePosition: boolean; minPositionExposure: number | null; allowedOrderQuantityType: string | null; leverageConfigs: { settlementType: string; direction: string; leverageValues: number[]; minPositionAmount: number | null; isPotential: boolean }[] };
+type OrderCost = { costType: string; value: number; currency: string };
 
 export class EtoroError extends Error {
   constructor(readonly status: number) { super(`eToro HTTP ${status}`); }
@@ -20,15 +23,50 @@ const nyDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', 
 export class EtoroClient {
   constructor(private readonly credentials: EtoroCredentials) {}
 
-  private async get<T>(path: string): Promise<T> {
+  private async request<T>(path: string, body?: object, requestId = randomUUID()): Promise<T> {
     const result = await fetch(`https://public-api.etoro.com/api${path}`, {
-      headers: { 'x-api-key': this.credentials.apiKey, 'x-user-key': this.credentials.userKey, 'x-request-id': randomUUID() },
+      method: body ? 'POST' : 'GET',
+      headers: { 'x-api-key': this.credentials.apiKey, 'x-user-key': this.credentials.userKey, 'x-request-id': requestId, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
       cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(6000),
     });
     if (!result.ok) throw new EtoroError(result.status);
     return result.json();
   }
 
+  private get<T>(path: string) { return this.request<T>(path); }
+
+  private get demoPath() { return this.credentials.environment === 'demo' ? 'demo/' : ''; }
+
+  async stockEligibility(instrumentId: number) {
+    const result = await this.request<{ eligibilities: Eligibility[] }>(`/v2/trading/info/${this.demoPath}eligibility`, { instrumentIds: [instrumentId], currency: 'USD' });
+    const instrument = result.eligibilities.find(row => row.instrumentId === instrumentId);
+    const cashLong = instrument?.leverageConfigs.find(config => config.settlementType.toLowerCase() === 'real'
+      && config.direction.toLowerCase() === 'long' && config.leverageValues.includes(1) && !config.isPotential);
+    const quantityType = instrument?.allowedOrderQuantityType?.toLowerCase();
+    return {
+      allowed: instrument?.allowOpenPosition === true && !!cashLong && quantityType !== 'onlyunits' && quantityType !== 'units',
+      minimum: Math.max(cashLong?.minPositionAmount ?? 0, instrument?.minPositionExposure ?? 0),
+    };
+  }
+
+  async stockOrderCosts(order: StockOrder) {
+    const result = await this.request<{ instrumentId: number; costs: OrderCost[] }>(`/v2/trading/info/${this.demoPath}costs`, order);
+    if (result.instrumentId !== order.instrumentId || !Array.isArray(result.costs)) throw new Error('Unexpected eToro order estimate');
+    return result.costs.filter(cost => Number.isFinite(cost.value));
+  }
+
+  openStock(order: StockOrder, requestId: ReturnType<typeof randomUUID>) {
+    return this.request<{ orderId: number; referenceId: string }>(`/v2/trading/execution/${this.demoPath}orders`, order, requestId);
+  }
+
+  stockOrderStatus(referenceId: string) {
+    return this.get<{ orderId: number; status: { id: number; errorMessage?: string }; positionExecutions: { positionId: number }[] }>(`/v2/trading/info/${this.demoPath}orders:lookup?${new URLSearchParams({ referenceId })}`);
+  }
+
+  closeStock(positionId: number, instrumentId: number, requestId: ReturnType<typeof randomUUID>) {
+    return this.request<unknown>(`/v1/trading/execution/${this.demoPath}market-close-orders/positions/${positionId}`, { InstrumentId: instrumentId }, requestId);
+  }
   async portfolio() {
     const { clientPortfolio: portfolio } = await this.get<{ clientPortfolio: { credit: number; positions: BrokerPosition[]; mirrors?: unknown[]; orders?: unknown[]; ordersForOpen?: unknown[] } }>(`/v1/trading/info/${this.credentials.environment}/pnl`);
     if (!portfolio || !Number.isFinite(portfolio.credit) || !Array.isArray(portfolio.positions)) throw new Error('Unexpected eToro portfolio response');
@@ -59,7 +97,7 @@ export class EtoroClient {
     }));
   }
 
-  async candles(id: number, days: number, now = Date.now()): Promise<StockBar[]> {
+  async candles(id: number, days: number, now = Date.now(), tradingDates = false): Promise<StockBar[]> {
     const from = new Date(now - days * 86_400_000).toISOString();
     const to = new Date(now).toISOString();
     const url = `/v1/data/instruments/${id}/candles?interval=1d&limit=2000&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
@@ -72,7 +110,9 @@ export class EtoroClient {
       const time = Date.parse(raw.time);
       if (!Number.isFinite(time) || time >= now) continue;
       // API daily buckets can be UTC midnight. Skip the entire latest UTC or New York date.
-      const day = new Date(time).toISOString().slice(0, 10);
+      // Broker buckets that begin after the core session contain the next day's session.
+      const candleDate = new Date(time);
+      const day = new Date(time + (tradingDates && candleDate.getUTCHours() >= 20 ? 86_400_000 : 0)).toISOString().slice(0, 10);
       if (day >= today) continue;
       const b = { day, bidOpen: Number(raw.open), askOpen: askByTime.get(time) ?? NaN, bidClose: Number(raw.close), high: Number(raw.high), low: Number(raw.low) };
       if (![b.bidOpen, b.askOpen, b.bidClose, b.high, b.low].every(n => Number.isFinite(n) && n > 0) || b.askOpen < b.bidOpen || b.high < Math.max(b.bidOpen, b.bidClose) || b.low > Math.min(b.bidOpen, b.bidClose) || dates.has(day)) {

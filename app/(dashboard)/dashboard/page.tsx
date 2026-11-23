@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { Bot, LineChart } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
+import { Button } from '@/components/ui/button';
 import { Stat } from '@/components/ui/stat';
 import { AccountPanel } from '@/components/dashboard/AccountPanel';
 import { AutomationPanel } from '@/components/dashboard/AutomationPanel';
@@ -79,10 +82,15 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <Header onRefresh={() => fetchData(true)} refreshing={refreshing} actions={<TradeTicket settings={settings} onTraded={() => fetchData(true)} preset={preset} />} />
+      <Header onRefresh={() => fetchData(true)} refreshing={refreshing} />
 
       <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-[1400px] mx-auto">
         <HealthBanner />
+        <div className="surface p-4 flex flex-wrap gap-2" aria-label="Trading shortcuts">
+          <TradeTicket settings={settings} onTraded={() => fetchData(true)} preset={preset} />
+          <Button asChild variant="outline"><Link href="/autopilot"><Bot className="w-4 h-4" />Strategy &amp; Autopilot</Link></Button>
+          <Button asChild variant="outline"><Link href="/stocks"><LineChart className="w-4 h-4" />US stocks</Link></Button>
+        </div>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
           <div className="xl:col-span-2">
             <AccountPanel
@@ -102,15 +110,14 @@ export default function DashboardPage() {
         </div>
 
         <OpenOrders refreshKey={positionsKey} onChanged={() => fetchData(true)} />
-        <AlertsPanel refreshKey={positionsKey} />
-
+        <ActivePositions key={positionsKey} />
         <TradeIdeas onTrade={(symbol, side) => setPreset({ symbol, side, nonce: Date.now() })} />
-        <Scorecard />
 
-        <div>
+        <details className="surface p-4 space-y-4">
+          <summary className="cursor-pointer text-sm font-semibold">Trade history and analytics</summary>
+          <Scorecard />
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-0.5 mb-2.5">
             <h2 className="text-sm font-semibold">Trade log</h2>
-            <p className="text-xs text-muted-foreground">Closed trades placed by this app, after fees and funding where the exchange figures are in</p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             <Stat label="Total P&L" value={formatCurrency(metrics.totalPnl)} hint={`${metrics.totalTrades} closed · ${openTrades.length} open`} tone={tone(metrics.totalPnl)} loading={loading} />
@@ -118,16 +125,9 @@ export default function DashboardPage() {
             <Stat label="Profit factor" value={isFinite(metrics.profitFactor) ? metrics.profitFactor.toFixed(2) : '∞'} hint="Gross profit ÷ gross loss" tone={tone(metrics.profitFactor, 1)} loading={loading} />
             <Stat label="Average trade" value={formatCurrency(metrics.expectancy)} hint={`Largest loss ${formatCurrency(metrics.largestLoss)}`} tone={tone(metrics.expectancy)} loading={loading} />
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
-          <div className="xl:col-span-2 order-2 xl:order-1">
-            <RecentTrades trades={trades} loading={loading} />
-          </div>
-          <div className="order-1 xl:order-2">
-            <ActivePositions key={positionsKey} />
-          </div>
-        </div>
+          <RecentTrades trades={trades} loading={loading} />
+          <AlertsPanel refreshKey={positionsKey} />
+        </details>
       </div>
     </div>
   );

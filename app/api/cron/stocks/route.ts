@@ -19,14 +19,14 @@ export async function GET(request: Request) {
 
   const started = new Date().toISOString();
   const claim = await db.from('etoro_connections').update({ scan_attempted_at: started })
-    .eq('user_id', data.user_id).eq('updated_at', data.updated_at).or(`scan_attempted_at.is.null,scan_attempted_at.lt.${cutoff}`)
+    .eq('user_id', data.user_id).eq('environment', data.environment).eq('updated_at', data.updated_at).or(`scan_attempted_at.is.null,scan_attempted_at.lt.${cutoff}`)
     .select('user_id').maybeSingle();
   if (claim.error) return NextResponse.json({ error: 'Could not claim scan.' }, { status: 503 });
   if (!claim.data) return NextResponse.json({ scanned: 0 });
 
   try {
     const result = await discoverStocks(etoroFromConnection(data));
-    const saved = await db.from('etoro_connections').update({ discovery: result }).eq('user_id', data.user_id)
+    const saved = await db.from('etoro_connections').update({ discovery: result }).eq('user_id', data.user_id).eq('environment', data.environment)
       .eq('updated_at', data.updated_at).eq('scan_attempted_at', started).select('user_id').maybeSingle();
     if (saved.error) return NextResponse.json({ error: 'Could not save scan.' }, { status: 503 });
     return NextResponse.json({ scanned: saved.data ? result.rows.length : 0, unavailable: result.unavailable.length });

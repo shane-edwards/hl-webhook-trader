@@ -79,7 +79,7 @@ export function AutomationPanel({ settings, loading, webhookUrl, onToggleWebhook
   return (
     <section className="surface h-full flex flex-col" aria-label="Automation">
       <div className="px-5 pt-5 pb-3">
-        <p className="eyebrow">Automation</p>
+        <h2 className="text-sm font-semibold">Trading controls</h2>
       </div>
 
       {loading || !settings ? (
@@ -89,6 +89,8 @@ export function AutomationPanel({ settings, loading, webhookUrl, onToggleWebhook
         </div>
       ) : (
         <div className="flex-1 flex flex-col">
+          <details>
+          <summary className="mx-5 py-2 text-xs cursor-pointer text-muted-foreground">TradingView and daily strategy</summary>
           <div className="px-5 py-3 border-t border-border/70">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -131,11 +133,12 @@ export function AutomationPanel({ settings, loading, webhookUrl, onToggleWebhook
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground shrink-0" />
           </Link>
+          </details>
 
           <div className="mt-auto px-5 py-4 border-t border-border/70">
             <Button variant="loss" className="w-full" onClick={() => setConfirmOpen(true)}>
               <OctagonX className="w-4 h-4" />
-              Kill switch
+              Emergency stop
             </Button>
             <p className="text-[11px] text-muted-foreground mt-2 text-center">Pauses all automation and closes every position</p>
           </div>
@@ -147,7 +150,7 @@ export function AutomationPanel({ settings, loading, webhookUrl, onToggleWebhook
           <DialogHeader>
             <DialogTitle>Close everything and stop trading?</DialogTitle>
             <DialogDescription>
-              This turns off the webhook and the built-in strategy, then closes every open position on Hyperliquid at
+              This pauses Autopilot, the webhook and the built-in strategy, then closes every open position on Hyperliquid at
               market{settings?.is_testnet ? ' (testnet)' : ''}. Closing cannot be undone; automation can be turned back on afterwards.
             </DialogDescription>
           </DialogHeader>

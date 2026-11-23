@@ -7,11 +7,12 @@ interface SegmentedProps<T extends string> {
   onChange: (value: T) => void;
   options: Array<{ value: T; label: string }>;
   className?: string;
+  disabled?: boolean;
   'aria-label'?: string;
 }
 
 /** Compact pill switch for choosing one of a few options (periods, modes). */
-export function Segmented<T extends string>({ value, onChange, options, className, ...rest }: SegmentedProps<T>) {
+export function Segmented<T extends string>({ value, onChange, options, className, disabled, ...rest }: SegmentedProps<T>) {
   return (
     <div role="radiogroup" aria-label={rest['aria-label']} className={cn('inline-flex rounded-lg bg-secondary p-0.5 border border-border', className)}>
       {options.map(o => (
@@ -20,6 +21,7 @@ export function Segmented<T extends string>({ value, onChange, options, classNam
           type="button"
           role="radio"
           aria-checked={value === o.value}
+          disabled={disabled}
           onClick={() => onChange(o.value)}
           className={cn(
             'px-2.5 h-7 rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',

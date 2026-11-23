@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { STOCKS, STOCK_RULES, type StockSymbol, type StockRule, type researchStock } from '@/lib/stocks/research';
 import type { gradeStock } from '@/lib/stocks/grade';
 import type { EtoroClient } from '@/lib/stocks/etoro';
+import { StockOrderTicket } from '@/components/stocks/StockOrderTicket';
 
 type Environment = 'demo' | 'real';
 type PositionBook = Awaited<ReturnType<EtoroClient['portfolio']>>;
@@ -33,6 +34,7 @@ async function stocksRequest<T>(query = '', init?: RequestInit): Promise<T> {
 
 export default function StocksPage() {
   const [environment, setEnvironment] = useState<Environment | null>(null);
+  const [connections, setConnections] = useState<Environment[]>([]);
   const [targetEnv, setTargetEnv] = useState<Environment>('demo');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
@@ -46,13 +48,16 @@ export default function StocksPage() {
   const [slipBps, setSlipBps] = useState('3');
   const [commission, setCommission] = useState('1');
   const [simulation, setSimulation] = useState<Simulation | null>(null);
+  const [ticket, setTicket] = useState<{ symbol: StockSymbol; rule: string; revision: number }>({ symbol: 'AAPL', rule: '', revision: 0 });
 
   useEffect(() => {
     let active = true;
-    stocksRequest<{ environment: Environment | null; discovery: Scan | null }>().then(data => {
+    stocksRequest<{ environment: Environment | null; discovery: Scan | null; connections: Environment[] }>().then(data => {
       if (!active) return;
       setEnvironment(data.environment);
       setScan(data.discovery);
+      setConnections(data.connections ?? []);
+      if (data.environment) setTargetEnv(data.environment);
       if (!data.environment) setTab('portfolio');
     }).catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -66,11 +71,12 @@ export default function StocksPage() {
     finally { setBusy(''); }
   }
 
-  function setConnection(mode: Environment | null) {
-    setEnvironment(mode);
+  async function refreshConnections() {
+    const data = await stocksRequest<{ environment: Environment | null; discovery: Scan | null; connections: Environment[] }>();
+    setEnvironment(data.environment);
+    setConnections(data.connections);
+    setScan(data.discovery);
     setBook(null);
-    setScan(null);
-    setSimulation(null);
   }
 
   async function connect(event: FormEvent<HTMLFormElement>) {
@@ -78,12 +84,13 @@ export default function StocksPage() {
     const form = event.currentTarget;
     const input = new FormData(form);
     await perform('connect', async () => {
-      const data = await stocksRequest<{ environment: Environment }>('', {
+      await stocksRequest<{ environment: Environment }>('', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey: input.get('apiKey'), userKey: input.get('userKey'), environment: targetEnv }),
       });
       form.reset();
-      setConnection(data.environment);
+      await refreshConnections();
+      setTab('trade');
     });
   }
 
@@ -92,15 +99,16 @@ export default function StocksPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <Header actions={<span className="text-xs text-muted-foreground">{environment ? `eToro ${environment === 'demo' ? 'Demo' : 'Real'} · Read only` : 'eToro'}</span>} />
+      <Header />
       <div className="p-4 lg:p-8 space-y-4 max-w-[1400px] w-full mx-auto">
         {loading && <p role="status" className="text-sm text-muted-foreground">Checking eToro connection…</p>}
         {error && <p role="alert" className="surface px-4 py-3 text-sm text-destructive">{error}</p>}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList aria-label="Stocks tools" className="w-full sm:w-auto grid grid-cols-3">
+          <TabsList aria-label="Stocks tools" className="w-full sm:w-auto grid grid-cols-4">
             <TabsTrigger value="discover">Discover</TabsTrigger>
+            <TabsTrigger value="trade">Trade</TabsTrigger>
             <TabsTrigger value="simulation">Simulate</TabsTrigger>
-            <TabsTrigger value="portfolio">eToro account</TabsTrigger>
+            <TabsTrigger value="portfolio">eToro</TabsTrigger>
           </TabsList>
           <TabsContent value="discover" className="space-y-3">
             <section className="surface p-4 lg:p-6 space-y-4">
@@ -128,12 +136,21 @@ export default function StocksPage() {
                       <dl className="mt-2 space-y-1">{row.factors.map(f => <div key={f.label} className="grid grid-cols-[1fr_auto_auto] gap-2 text-xs"><dt>{f.label}</dt><dd className="tabular-nums">{f.value == null ? '—' : f.unit === 'percent' ? pct(f.value) : f.value.toFixed(1)}{f.unit === 'multiple' && f.value != null ? '×' : ''}</dd><dd className="text-muted-foreground text-right tabular-nums w-10">{f.points}/{f.max}</dd></div>)}</dl>
                       <p className="text-xs text-muted-foreground mt-2">Annual SEC period {row.fiscalEnd ?? 'unavailable'}. Quote timestamp {row.quote?.date ? new Date(row.quote.date).toLocaleString() : 'unavailable'}.</p>
                     </details>
-                    <Button size="sm" variant="outline" onClick={() => { setSymbol(row.symbol); setSimulation(null); setTab('simulation'); }}>Simulate {row.symbol}</Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => { setTicket({ symbol: row.symbol, rule: row.setups[0] ?? '', revision: Date.now() }); setTab('trade'); }}>Trade {row.symbol}</Button>
+                      <Button size="sm" variant="outline" onClick={() => { setSymbol(row.symbol); setSimulation(null); setTab('simulation'); }}>Simulate</Button>
+                    </div>
                   </article>
                 ))}</div>
               </>}
-              <p className="text-xs text-muted-foreground">Strong buy is a research grade. It requires 80 points, 90% data coverage, a fresh spread of 0.30% or less, and at least two percentage points of three-month outperformance versus SPY. Annual revenue growth, net margin and free cash flow margin must all be positive. The grade has no performance track record yet.</p>
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer text-primary">How Strong buy is graded</summary>
+                <p className="mt-2">Requires 80 points, 90% data coverage, a fresh spread of 0.30% or less, and at least two percentage points of three-month outperformance versus SPY. Revenue growth, net margin and free cash flow margin must each be positive. The grade is still under evaluation.</p>
+              </details>
             </section>
+          </TabsContent>
+          <TabsContent value="trade">
+            <StockOrderTicket key={ticket.revision} connections={connections} initialSymbol={ticket.symbol} initialRule={ticket.rule} onConnect={mode => { setTargetEnv(mode); setTab('portfolio'); }} />
           </TabsContent>
           <TabsContent value="simulation" className="space-y-3">
             <section className="surface p-4 flex flex-wrap items-center justify-between gap-3">
@@ -176,16 +193,17 @@ export default function StocksPage() {
           </TabsContent>
           <TabsContent value="portfolio" className="space-y-3">
             <section className="surface p-4 lg:p-6 space-y-4">
-              <h2 className="text-lg font-semibold">{environment ? `Connected to eToro ${environment === 'demo' ? 'Demo' : 'Real'}` : 'Connect eToro'}</h2>
-              <p className="text-sm text-muted-foreground">In eToro, go to Settings → Trading → API Key Management. Create an API key pair with Read permission. Use the same environment below.</p>
+              <h2 className="text-lg font-semibold">eToro connections</h2>
+              <p className="text-sm text-muted-foreground">{connections.map(mode => mode === 'demo' ? 'Paper (Demo) connected' : 'Live (Real) connected').join(' · ') || 'Connect Demo for paper trading or Real for live trading.'}</p>
+              <p className="text-xs text-muted-foreground">Create a key under eToro Settings → Trading → API Key Management. Enable Write to place orders.</p>
               <form onSubmit={connect} autoComplete="off" className="grid sm:grid-cols-3 gap-3">
-                <label className="text-sm">Environment<select value={targetEnv} className={selectClass} onChange={e => setTargetEnv(e.target.value as Environment)} disabled={pending}><option value="demo">Demo</option><option value="real">Real</option></select></label>
+                <label className="text-sm">Environment<select value={targetEnv} className={selectClass} onChange={e => { setTargetEnv(e.target.value as Environment); setBook(null); }} disabled={pending}><option value="demo">Paper (Demo)</option><option value="real">Live (Real)</option></select></label>
                 <label className="text-sm">Public API key<Input type="password" autoComplete="new-password" name="apiKey" required maxLength={3000} disabled={pending} /></label>
                 <label className="text-sm">User key<Input type="password" autoComplete="new-password" name="userKey" required maxLength={3000} disabled={pending} /></label>
                 <div className="sm:col-span-3 flex flex-wrap gap-2">
-                  <Button type="submit" disabled={pending}>{busy === 'connect' ? 'Verifying…' : environment ? 'Replace connection' : 'Connect'}</Button>
-                  {environment && <><Button type="button" variant="outline" disabled={pending} onClick={() => perform('portfolio', async () => setBook(await stocksRequest<PositionBook>('?view=portfolio')))}>{busy === 'portfolio' ? 'Loading…' : 'Refresh portfolio'}</Button>
-                    <Button type="button" variant="ghost" disabled={pending} onClick={() => perform('disconnect', async () => { await stocksRequest('', { method: 'DELETE' }); setConnection(null); })}>Disconnect</Button></>}
+                  <Button type="submit" disabled={pending}>{busy === 'connect' ? 'Verifying…' : connections.includes(targetEnv) ? 'Replace connection' : 'Connect'}</Button>
+                  {connections.includes(targetEnv) && <><Button type="button" variant="outline" disabled={pending} onClick={() => perform('portfolio', async () => setBook(await stocksRequest<PositionBook>(`?view=portfolio&environment=${targetEnv}`)))}>{busy === 'portfolio' ? 'Loading…' : 'Refresh portfolio'}</Button>
+                    <Button type="button" variant="ghost" disabled={pending} onClick={() => perform('disconnect', async () => { await stocksRequest(`?environment=${targetEnv}`, { method: 'DELETE' }); await refreshConnections(); })}>Disconnect</Button></>}
                 </div>
               </form>
             </section>
