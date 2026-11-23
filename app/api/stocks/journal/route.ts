@@ -11,6 +11,7 @@ const mode = z.enum(['demo', 'real']);
 const command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('sync'), environment: mode }),
   z.object({ action: z.literal('financing'), environment: mode, id: z.uuid(), usd: z.number().min(-100_000).max(100_000).nullable() }),
+  z.object({ action: z.literal('statement'), environment: mode, id: z.uuid(), netUsd: z.number().min(-1_000_000).max(1_000_000), closedOn: z.iso.date() }),
 ]);
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
 
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   const env = mode.safeParse(new URL(request.url).searchParams.get('environment'));
   if (!env.success) return fail('Choose Paper or Live.', 400);
   const [orders, scans, connection] = await Promise.all([
-    ctx.db.from('etoro_stock_orders').select('id, created_at, symbol, strategy, state, reference_price, decision_quote, submission_quote, estimated_costs, fill_metrics, broker_message, close_execution, closed_at, signal_day, signal_expires_at, statement_financing_usd, broker_order_id, broker_state, request')
+    ctx.db.from('etoro_stock_orders').select('id, created_at, symbol, strategy, state, reference_price, decision_quote, submission_quote, estimated_costs, fill_metrics, broker_message, close_execution, closed_at, signal_day, signal_expires_at, statement_financing_usd, statement_result, broker_order_id, broker_state, request')
       .eq('user_id', ctx.id).eq('environment', env.data).order('created_at', { ascending: false }).limit(100),
     ctx.db.from('stock_scan_journal').select('observed_at, state, detail').eq('user_id', ctx.id).eq('environment', env.data).order('observed_at', { ascending: false }).limit(50),
     ctx.db.from('etoro_connections').select('environment').eq('user_id', ctx.id).eq('environment', env.data).maybeSingle(),
@@ -48,6 +49,35 @@ export async function POST(request: Request) {
       .eq('user_id', ctx.id).eq('environment', environment).eq('state', 'filled').eq('request->>settlementType', 'cfd').select('id').maybeSingle();
     return saved.error ? fail('Could not save the statement financing.', 503)
       : !saved.data ? fail('Choose a filled CFD order.', 404) : NextResponse.json({ updated: 1 });
+  }
+  if (parsed.data.action === 'statement') {
+    const { id, netUsd, closedOn } = parsed.data;
+    const order = await scope().eq('id', id).eq('state', 'filled').maybeSingle();
+    if (order.error) return fail('Could not read the filled order.', 503);
+    const row = order.data;
+    if (!row || !row.position_ids.length || row.broker_state === 5) return fail('The journal needs a confirmed fill first.', 409);
+    const closeDay = Date.parse(closedOn);
+    if (closeDay > Date.now() || closeDay + 86_400_000 <= Date.parse(row.fill_metrics?.executionAt ?? row.created_at)) {
+      return fail('Use the close date from the broker statement.', 400);
+    }
+    if (!row.closed_at) {
+      const connection = await ctx.db.from('etoro_connections').select('environment, credentials_encrypted, updated_at')
+        .eq('user_id', ctx.id).eq('environment', environment).maybeSingle();
+      if (connection.error || !connection.data || connection.data.updated_at !== row.connection_version) {
+        return fail('Reconnect the original broker account to confirm the position is closed.', 409);
+      }
+      try {
+        const account = await etoroFromConnection(connection.data).portfolio();
+        if (account.pending || account.positions.some(position => row.position_ids.includes(position.id))) {
+          return fail('Wait for eToro to confirm the position is closed.', 409);
+        }
+      } catch { return fail('Could not confirm the closed position with eToro.', 503); }
+    }
+    const now = new Date();
+    const closedAt = new Date(Math.min(closeDay + 86_400_000 - 1, now.getTime())).toISOString();
+    const saved = await ctx.db.from('etoro_stock_orders').update({ statement_result: { netUsd, closedAt, confirmedAt: now.toISOString() } })
+      .eq('user_id', ctx.id).eq('environment', environment).eq('id', id).eq('state', 'filled').select('id').maybeSingle();
+    return saved.error || !saved.data ? fail('Could not save the statement result.', 503) : NextResponse.json({ updated: 1 });
   }
   const [connection, recent] = await Promise.all([
     ctx.db.from('etoro_connections').select('environment, credentials_encrypted, updated_at').eq('user_id', ctx.id).eq('environment', environment).maybeSingle(),

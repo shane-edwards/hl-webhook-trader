@@ -17,6 +17,8 @@ const pageTitles: Record<string, string> = {
   '/stocks/lab': 'US stock intraday lab',
   '/stocks/portfolio': 'Stock portfolio replay',
   '/stocks/journal': 'Stock execution journal',
+  '/stocks/catalysts': 'Catalyst scanner and shadow book',
+  '/stocks/scorecard': 'Stock strategy scorecard',
   '/stocks/opening': 'Opening volume research',
   '/stocks/factors': 'Earnings and reversal research',
   '/lab': 'Strategy Lab',

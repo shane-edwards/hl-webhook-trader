@@ -107,7 +107,7 @@ export async function POST(request: Request) {
       const saved = await orders().insert({
         user_id: user.id, environment: body.environment, connection_version: connection.data.updated_at,
         symbol: body.symbol, strategy: rule, request: order, reference_price: ask,
-        decision_quote: journalQuote(quote.bid, ask, quote.date), estimated_costs: costs,
+        decision_quote: journalQuote(quote.bid, ask, quote.date), estimated_costs: costs, planned_slippage_bps: 3,
         stop_margin_pct: order.settlementType === 'cfd' ? body.stopMarginPct : null,
         protection_state: order.settlementType === 'cfd' ? 'unverified' : null,
         signal_expires_at: signal ? new Date(signal.validUntil).toISOString() : null,

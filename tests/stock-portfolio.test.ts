@@ -74,7 +74,7 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
       CREATE ROLE authenticated;
       CREATE ROLE service_role;
     `);
-    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio', '016_stock_execution_research']) {
+    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio', '016_stock_execution_research', '017_stock_catalysts_and_guards']) {
       await db.exec(readFileSync(`supabase/migrations/${path}.sql`, 'utf8'));
     }
     const user = '00000000-0000-4000-8000-000000000001';
@@ -94,6 +94,14 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
     const old = () => db.query<{ id: string | null }>(`SELECT reserve_stock_autopilot_order($1, 'demo', $2, $2, $3, 1001, 100) AS id`, [user, version, day]);
     assert.equal((await db.query<{ allowed: boolean }>("SELECT has_table_privilege('authenticated','stock_research_runs','select') AS allowed")).rows[0].allowed, false);
     assert.equal((await db.query<{ allowed: boolean }>("SELECT has_table_privilege('service_role','stock_scan_journal','insert') AS allowed")).rows[0].allowed, true);
+    assert.equal((await db.query<{ allowed: boolean }>("SELECT has_table_privilege('authenticated','stock_shadow_observations','select') AS allowed")).rows[0].allowed, false);
+    await db.exec(`
+      INSERT INTO stock_guard_settings (user_id, environment, enabled) VALUES ('${user}', 'demo', true);
+      INSERT INTO stock_guard_state (user_id, environment, strategy, halted_at, reason) VALUES ('${user}', 'demo', 'breakout', now(), 'slippage');
+    `);
+    assert.equal(await reserve('AAPL', 1001), null);
+    assert.equal((await db.query<{ blocked: boolean }>("SELECT stock_entry_guard_blocked($1, 'real', 'breakout') AS blocked", [user])).rows[0].blocked, false);
+    await db.exec("UPDATE stock_guard_state SET halted_at=null, reason=null");
     assert.equal((await old()).rows[0].id, null);
     assert.ok(await reserve('AAPL', 1001));
     assert.equal(await reserve('MSFT', 1004), null);
@@ -107,6 +115,11 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
     assert.equal(await reserve('NVDA', 1137), null);
     await db.exec(`UPDATE stock_autopilot SET portfolio=null, symbol='NVDA', active_environment='demo'`);
     assert.equal((await old()).rows[0].id, null);
+    const nextDay = () => db.query<{ id: string | null }>(`SELECT reserve_stock_autopilot_order($1, 'demo', $2, $2, '2026-11-24', 1137, 100) AS id`, [user, version]);
+    await db.exec("UPDATE stock_guard_state SET halted_at=now(), reason='drawdown'");
+    assert.equal((await nextDay()).rows[0].id, null);
+    await db.exec("UPDATE stock_guard_state SET halted_at=null, reason=null");
+    assert.ok((await nextDay()).rows[0].id);
   } finally {
     await db.close();
   }

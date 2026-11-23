@@ -31,6 +31,11 @@ export function previousStockSession(now: number) {
   return null;
 }
 
+export function stockSessionMinute(day: string, minute: number) {
+  const anchor = Date.parse(`${day}T15:00:00Z`);
+  return anchor + (minute - stockMarketClock(anchor).minutes) * 60_000;
+}
+
 export function freshStockAsk(quote: { date: string | null; bid: number | null; ask: number | null; quoteType?: string | null } | undefined, now: number) {
   if (!quote?.date || quote.bid == null || quote.ask == null || quote.quoteType !== 'realtime') return null;
   const quoted = Date.parse(quote.date);

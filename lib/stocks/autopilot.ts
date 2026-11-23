@@ -9,6 +9,7 @@ import { prepareStockOrder, stockOrderFees, StockSizingError, type StockLeverage
 import { stockPortfolioEntry, stockPortfolioRisk, stockPortfolioSchema, type StockPortfolio } from './portfolio';
 import { estimatedStockEntryCost, scanStockSetups } from './setups';
 import { journalQuote, readStockCloseExecution, stockCalibrations, stockJournalFill, type StockJournalClose, type StockJournalCost, type StockJournalOrder, type StockJournalQuote } from './execution-journal';
+import { blockedStockStrategies } from './strategy-guard-data';
 
 export type StockEnvironment = 'demo' | 'real';
 export type StockAutoConfig = {
@@ -35,11 +36,12 @@ export async function reconcileStockOrder(broker: EtoroClient, id: string, reque
     ...(fill ? { fill_metrics: fill } : {}), broker_message: message, message };
 }
 
-type AutoExecution = { decision: StockJournalQuote; submission: StockJournalQuote; costs: StockJournalCost[] };
+type AutoExecution = { decision: StockJournalQuote; submission: StockJournalQuote; costs: StockJournalCost[]; slipBps?: number; plannedNetBps?: number };
 export async function submitStockOrder(db: Db, broker: EtoroClient, userId: string, id: ReturnType<typeof randomUUID>, request: StockOrder, execution?: AutoExecution) {
   const update = (patch: object) => db.from('etoro_stock_orders').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', userId).eq('id', id).eq('state', 'sending');
   if (execution) {
-    const saved = await update({ decision_quote: execution.decision, submission_quote: execution.submission, estimated_costs: execution.costs }).select('id').maybeSingle();
+    const saved = await update({ decision_quote: execution.decision, submission_quote: execution.submission,
+      estimated_costs: execution.costs, planned_slippage_bps: execution.slipBps ?? 3, planned_net_bps: execution.plannedNetBps ?? null }).select('id').maybeSingle();
     if (saved.error || !saved.data) {
       await update({ state: 'rejected', broker_message: 'The Tideframe execution journal could not save the quote before submission.' });
       throw new Error('Could not save the execution quote');
@@ -87,6 +89,8 @@ export async function scanStockAutopilot(db: Db, userId: string, config?: StockA
       continue;
     }
     if (!config || config.active_environment !== environment || !stockEntryWindow(config.strategy, now, true)) continue;
+    const paused = (await blockedStockStrategies(db, userId, environment, [config.strategy])).get(config.strategy);
+    if (paused) { messages.push(`Strategy guard paused new entries · ${paused}`); continue; }
     const instrument = await broker.instrument(config.symbol);
     if (!instrument) { messages.push('Selected ticker is unavailable'); continue; }
     const instrumentId = instrument.instrumentId;
@@ -173,7 +177,11 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
       return true;
     };
     if (await lossReached(risk.equity)) return lossMessage;
-    if (!settings.strategies.some(rule => stockEntryWindow(rule, now, true))) return 'Waiting for the next scheduled strategy entry window';
+    const inWindow = settings.strategies.filter(rule => stockEntryWindow(rule, now, true));
+    if (!inWindow.length) return 'Waiting for the next scheduled strategy entry window';
+    const paused = await blockedStockStrategies(db, account, environment, inWindow);
+    const strategies = inWindow.filter(rule => !paused.has(rule));
+    if (!strategies.length) return `Strategy guard paused new entries · ${[...paused.values()].join(' · ')}`;
     const amount = Number(config.amount);
     const exposure = amount * config.leverage;
     if (risk.positions.size >= settings.maxPositions || risk.gross + exposure > settings.maxExposure) return 'Skipped entries at the portfolio position or exposure limit';
@@ -187,7 +195,7 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
     const fills = await db.from('etoro_stock_orders').select('symbol, request, state, submission_quote, fill_metrics, broker_state').eq('user_id', account)
       .eq('environment', environment).eq('state', 'filled').not('fill_metrics', 'is', null).order('created_at', { ascending: false }).limit(300);
     const slippageBySymbol = stockCalibrations((fills.data ?? []) as StockJournalOrder[], symbols, sizing.leverage);
-    const scan = await scanStockSetups(broker, sizing, { symbols, rules: settings.strategies, automatic: true, slippageBySymbol }, now);
+    const scan = await scanStockSetups(broker, sizing, { symbols, rules: strategies, automatic: true, slippageBySymbol }, now);
     const candidate = scan.rows.find(candidate => candidate.evidence.status !== 'Skip' && (!settings.evidenceOnly || candidate.evidence.status === 'Qualified')
       && candidate.entryCost * 10_000 / exposure <= settings.maxCostBps
       && book.availableCash >= amount + candidate.entryCost);
@@ -230,7 +238,8 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
     if (!reserved.data) return 'Entry reservation was blocked by a newer setting, order, or session limit';
     await submitStockOrder(db, broker, account, reserved.data, order, {
       decision: { bid: candidate.bid, ask: candidate.ask, at: candidate.quoteAt, observedAt: scan.scannedAt },
-      submission: journalQuote(quote.bid, ask, quote.date), costs: candidate.costs,
+      submission: journalQuote(quote.bid, ask, quote.date), costs: candidate.costs, slipBps: candidate.slipBps,
+      plannedNetBps: candidate.evidence.status === 'Qualified' ? candidate.evidence.netBps ?? undefined : undefined,
     });
     return `${candidate.symbol} buy submitted to eToro ${environment}`;
   } finally {

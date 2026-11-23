@@ -12,6 +12,7 @@ import { stockSizingParams, stockSizingSchema, type StockLeverage, type StockOrd
 import { DEFAULT_STOCK_PORTFOLIO, stockPortfolioSchema, type StockPortfolio } from '@/lib/stocks/portfolio';
 import type { EtoroClient } from '@/lib/stocks/etoro';
 import { StockPortfolioFields } from './StockPortfolioFields';
+import { StockRiskSizer } from './StockRiskSizer';
 import { formatCurrency } from '@/lib/utils';
 
 export type StockEnvironment = 'demo' | 'real';
@@ -195,6 +196,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
         options={[{ value: 'single', label: 'One strategy' }, { value: 'portfolio', label: 'Portfolio' }]} disabled={!!busy} onChange={value => setPortfolioMode(value === 'portfolio')} />}
       {activeRule && !usePortfolio && <Link className="inline-block text-sm text-primary hover:underline" href={stockHref('research', { symbol, rule: activeRule.id, ...handoff })}>Backtest this strategy</Link>}
       {usePortfolio && <Link className="block text-sm text-primary hover:underline" href="/stocks/portfolio">Replay the portfolio</Link>}
+      {flow === 'auto' && <Link className="block text-sm text-primary hover:underline" href={`/stocks/scorecard?mode=${environment}`}>Strategy scorecard and guard</Link>}
       {connected ? <>
         <form onSubmit={preview} className="grid sm:grid-cols-2 lg:grid-cols-3 items-end gap-3">
           {usePortfolio ? <StockPortfolioFields settings={portfolio} onChange={setPortfolioDraft} /> : <>
@@ -219,6 +221,8 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
           {leveraged && <label className="text-sm">Stop loss (% of margin)<Input className="mt-1" type="number" min={Math.max(0.01, stopRange?.min ?? 0)} max={stopRange?.max ?? 50} step="any" inputMode="decimal" value={stop} required onChange={e => setStop(e.target.value)} /></label>}
           <Button type="submit" disabled={!!busy || !validLeverage || (flow === 'manual' && marketOpen !== true)}>{busy === 'review' || busy === 'estimate' ? 'Checking…' : flow === 'auto' ? 'Review Autopilot' : 'Review buy'}</Button>
         </form>
+        {flow === 'manual' && <StockRiskSizer key={`${environment}:${symbol}:${leverage}:${stop}`} symbol={symbol} environment={environment} leverage={leverage}
+          stopMarginPct={Number(stop)} marketOpen={marketOpen === true} onUse={value => { setAmount(String(value)); setMessage('Suggested margin copied. Review the latest quote before buying.'); }} />}
         {currentEligibility?.error && <p className="text-xs text-muted-foreground">{currentEligibility.error}</p>}
         {leveraged && currentEligibility && !leverageOption && <p className="text-xs text-loss">Choose leverage available for this stock and account.</p>}
         {leveraged && stopRange && <p className="text-xs text-muted-foreground">

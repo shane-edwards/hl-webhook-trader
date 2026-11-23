@@ -5,11 +5,15 @@ export type StockJournalQuote = { bid: number; ask: number; at: string | null; o
 export type StockJournalCost = { costType: string; value: number; currency: string };
 export type StockJournalFill = { price: number; units: number; executionAt: string | null; feesUsd: number | null; taxesUsd: number | null };
 export type StockJournalClose = { orderId: number; quote: StockJournalQuote | null; rate?: number; closedAt?: string | null; units?: number; proceeds?: number; complete?: boolean };
+export type StockStatementResult = { netUsd: number; closedAt: string; confirmedAt: string };
 export type StockJournalOrder = { id: string; created_at: string; symbol: StockTradeSymbol; strategy: StockTradeRule | null; state: string;
   reference_price: number; decision_quote: StockJournalQuote | null; submission_quote: StockJournalQuote | null;
   estimated_costs: StockJournalCost[] | null; fill_metrics: StockJournalFill | null; broker_message: string | null;
   close_execution: Record<string, StockJournalClose>; closed_at: string | null; signal_day: string | null; signal_expires_at: string | null;
-  statement_financing_usd: number | null; broker_order_id: number | null; broker_state: number | null; request: { settlementType: string; instrumentId: number; leverage: number; amount: number } };
+  statement_financing_usd: number | null; statement_result?: StockStatementResult | null; planned_slippage_bps?: number | null;
+  planned_net_bps?: number | null;
+  broker_order_id: number | null; broker_state: number | null;
+  request: { settlementType: string; instrumentId: number; leverage: number; amount: number } };
 
 export function journalQuote(bid: number, ask: number, at: string | null): StockJournalQuote {
   return { bid, ask, at, observedAt: new Date().toISOString() };

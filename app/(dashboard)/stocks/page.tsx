@@ -167,7 +167,10 @@ export default function StocksPage() {
               </details>
             </section>
           )}
-          {tab === 'setups' && !loading && <StockSetups connections={connections} />}
+          {tab === 'setups' && !loading && <>
+            <Button variant="outline" asChild><Link href="/stocks/catalysts">Catalyst scanner and shadow book</Link></Button>
+            <StockSetups connections={connections} />
+          </>}
           {(tab === 'trade' || tab === 'autopilot') && !loading && (
             <StockOrderTicket
               key={query.toString()}

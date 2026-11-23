@@ -17,8 +17,11 @@ type Journal = { orders: StockJournalOrder[]; scans: { observed_at: string; stat
 const money = (value: number | null | undefined) => value == null ? '—' : formatCurrency(value);
 const time = (value: string) => new Date(value).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-function JournalRow({ row, save, orders, asOf }: { row: StockJournalOrder; save: (id: string, amount: number | null) => Promise<void>; orders: StockJournalOrder[]; asOf: number }) {
+function JournalRow({ row, save, statement, orders, asOf }: { row: StockJournalOrder; save: (id: string, amount: number | null) => Promise<void>;
+  statement: (id: string, netUsd: number, closedOn: string) => Promise<void>; orders: StockJournalOrder[]; asOf: number }) {
   const [financing, setFinancing] = useState(row.statement_financing_usd == null ? '' : String(row.statement_financing_usd));
+  const [net, setNet] = useState(row.statement_result == null ? '' : String(row.statement_result.netUsd));
+  const [closedOn, setClosedOn] = useState(row.statement_result?.closedAt.slice(0, 10) ?? row.closed_at?.slice(0, 10) ?? '');
   const metrics = stockFillMetrics(row);
   const calibration = stockFillCalibration(orders, row.symbol, row.request.settlementType);
   const strategy = STOCK_TRADE_RULES.find(rule => rule.id === row.strategy);
@@ -40,6 +43,7 @@ function JournalRow({ row, save, orders, asOf }: { row: StockJournalOrder; save:
       <div><dt className="text-xs text-muted-foreground">Broker entry taxes</dt><dd>{money(row.fill_metrics?.taxesUsd)}</dd></div>
       {row.request.leverage > 1 && <div><dt className="text-xs text-muted-foreground">Quoted overnight estimate</dt><dd>{money(estimate?.value)}</dd></div>}
       {row.request.leverage > 1 && <div><dt className="text-xs text-muted-foreground">Financing from statement</dt><dd>{money(row.statement_financing_usd)}</dd></div>}
+      {row.statement_result && <div><dt className="text-xs text-muted-foreground">Net after fees and financing</dt><dd>{money(row.statement_result.netUsd)}</dd></div>}
     </dl>
     {Object.entries(row.close_execution).map(([id, close]) => <p key={id} className="text-xs text-muted-foreground">
       Exit #{close.orderId} · Submitted bid {money(close.quote?.bid)} · Fill {money(close.rate)}{close.closedAt && ` · ${time(close.closedAt)} ET`}
@@ -52,6 +56,14 @@ function JournalRow({ row, save, orders, asOf }: { row: StockJournalOrder; save:
         <Button type="submit" size="sm" variant="ghost">Save</Button>
       </form>}
     </div>
+    {row.state === 'filled' && row.broker_state !== 5 && <details className="text-sm">
+      <summary className="cursor-pointer text-primary">Reconcile closed trade with eToro statement</summary>
+      <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); void statement(row.id, Number(net), closedOn); }}>
+        <label className="text-xs text-muted-foreground">Statement net P&amp;L (USD)<Input className="mt-1" type="number" step="0.01" min="-1000000" max="1000000" required value={net} onChange={event => setNet(event.target.value)} /></label>
+        <label className="text-xs text-muted-foreground">Closed on<Input className="mt-1" type="date" required value={closedOn} onChange={event => setClosedOn(event.target.value)} /></label>
+        <Button type="submit" size="sm" variant="outline">Save statement result</Button>
+      </form>
+    </details>}
   </article>;
 }
 
@@ -79,7 +91,7 @@ export default function ExecutionJournalPage() {
       const response = await fetch('/api/stocks/journal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, environment: mode }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      setStatus('unavailable' in result ? `${result.updated} refreshed · ${result.unavailable} awaiting broker data` : 'Statement financing saved');
+      setStatus('unavailable' in result ? `${result.updated} refreshed · ${result.unavailable} awaiting broker data` : 'Statement data saved');
       await load();
     } catch (error) { setError(error instanceof Error ? error.message : 'Could not update journal.'); }
     finally { setBusy(false); }
@@ -98,7 +110,9 @@ export default function ExecutionJournalPage() {
       {data?.connected && <Button size="sm" variant="outline" disabled={busy} onClick={() => void action({ action: 'sync' })}>{busy ? 'Refreshing…' : 'Refresh eToro fills'}</Button>}
       {data && !data.connected && <p className="text-sm text-muted-foreground">Connect this eToro account to refresh broker fills.</p>}
       <p className="text-sm text-muted-foreground">{fills.length} matched fills · {average == null ? 'Slippage unavailable' : `${average.toFixed(2)} bps average slippage`}. The scanner uses the 75th percentile for a ticker and account after ten matched fills.</p>
-      {data?.orders.map(row => <JournalRow key={row.id} row={row} orders={data.orders} asOf={data.asOf} save={(id, usd) => action({ action: 'financing', id, usd })} />)}
+      <Button size="sm" variant="outline" asChild><Link href={`/stocks/scorecard?mode=${mode}`}>Strategy scorecard</Link></Button>
+      {data?.orders.map(row => <JournalRow key={row.id} row={row} orders={data.orders} asOf={data.asOf} save={(id, usd) => action({ action: 'financing', id, usd })}
+        statement={(id, netUsd, closedOn) => action({ action: 'statement', id, netUsd, closedOn })} />)}
       {data && !data.orders.length && <p className="text-sm">The journal will show stock orders as you review or submit them.</p>}
     </section>
     <section className="surface p-4 lg:p-6 space-y-2">
