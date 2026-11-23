@@ -3,12 +3,14 @@
 import { usePathname } from 'next/navigation';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { APP_NAME } from '@/lib/brand';
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/dashboard': { title: 'Dashboard', description: 'Account, positions and automation at a glance' },
-  '/autopilot': { title: 'Autopilot', description: 'Scans markets and trades by tested rules, within your risk limits' },
+  '/autopilot': { title: 'Crypto Autopilot', description: 'Native Hyperliquid scanning and execution within your risk limits' },
   '/trades': { title: 'Trades', description: 'Every trade this app has placed' },
-  '/markets': { title: 'Markets', description: 'Live funding, open interest and volume across Hyperliquid' },
+  '/markets': { title: 'Crypto Markets', description: 'Live funding, open interest and volume across Hyperliquid' },
+  '/stocks': { title: 'US Stocks', description: 'eToro portfolio, stock setups and historical simulations' },
   '/lab': { title: 'Strategy Lab', description: 'Backtest ideas with real costs before risking money' },
   '/lab/scalping': { title: 'Scalping research', description: 'TradingView ideas tested against perpetual futures data' },
   '/analytics': { title: 'Analytics', description: 'Performance statistics from your trade log' },
@@ -24,7 +26,7 @@ interface HeaderProps {
 
 export function Header({ onRefresh, refreshing, actions }: HeaderProps) {
   const pathname = usePathname();
-  const page = pageTitles[pathname] ?? { title: 'HL Trader', description: '' };
+  const page = pageTitles[pathname] ?? { title: APP_NAME, description: '' };
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 lg:px-8 h-16 border-b border-border bg-background/70 backdrop-blur-xl">

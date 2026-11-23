@@ -1,6 +1,14 @@
-# HL Webhook Trader
+# Tideframe
 
-A professional Next.js trading application that receives TradingView webhook alerts and executes perpetual futures orders on Hyperliquid on your behalf.
+Market research and strategy automation for Hyperliquid crypto perps and US stocks.
+
+## US Stocks and eToro
+
+Open **US Stocks → eToro account** and connect an eToro Demo or Real key pair with Read access. Keys are verified before they replace an existing connection, and are encrypted in each user's own server-only record. The connection reads eToro data and does not expose order endpoints. Apply `009_etoro_connections.sql` before deploying. Where `hl-autopilot` already exists, the migration also schedules weekday stock discovery at 15:00 UTC with two follow-up slots for other accounts. Set an identifying contact in `SEC_USER_AGENT` when operating the SEC filing client.
+
+**Discover** scans 12 selected US stocks. Its 100-point grade combines technical and relative strength (against SPY), market risk, spread and annual SEC filing metrics. Expand a result to see every factor, its score and data coverage. Strong buy also requires a recent quote, acceptable spread, positive SPY-relative performance and annual filing coverage. The scores are research rankings. Annual point-in-time figures support the current screen and are not used by the historical technical strategy replay.
+
+**Simulate** tests two native technical strategies with no TradingView input. Signals are evaluated on completed daily candles and filled on the next session's opening bid or ask with configurable extra slippage and commission. The final 30% starts flat, is reported separately and is replayed with doubled additional costs. Results use the broker's price series and exclude dividends. The stock strategies are research-only. Crypto Autopilot and the market scanner already run natively on Hyperliquid and retain their own execution controls.
 
 ## Features
 
@@ -55,7 +63,7 @@ npm install
 ### 2. Create a Supabase project
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Go to **SQL Editor** and run the migrations in order from `001_initial.sql` through `008_trading_safety.sql` (all in `supabase/migrations/`)
+2. Go to **SQL Editor** and run the migrations in order from `001_initial.sql` through `009_etoro_connections.sql` (all in `supabase/migrations/`)
 3. Copy your project URL, anon key, and service role key
 
 ### 3. Environment variables
@@ -173,7 +181,7 @@ The autopilot looks at each market you list, on completed hourly candles, and tr
 
 ## Scheduled jobs and database migrations
 
-Run the files in `supabase/migrations/` in order from 001 through 008. Apply 008 before deploying the safety update. Trading writes require its database coordination functions.
+Run the files in `supabase/migrations/` in order from 001 through 009 before deploying. Trading writes require the coordination functions in 008. The US Stocks connection and weekday scans use 009.
 
 | Job | Endpoint | Scheduler | What it does |
 |---|---|---|---|

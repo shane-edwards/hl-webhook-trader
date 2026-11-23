@@ -1,3 +1,4 @@
+import { APP_NAME } from '@/lib/brand';
 import { haltAndFlatten } from '@/lib/risk/flatten';
 import { withTradingLock } from '@/lib/trading-lock';
 // Per-account housekeeping run by the five-minute scan, after the Autopilot:
@@ -82,7 +83,7 @@ async function maybeSendSummary(hl: HyperliquidClient, db: Db, settings: Setting
     autopilot: { enabled: settings.autopilot_enabled === true, mode: settings.autopilot_mode === 'live' ? 'live' : 'paper', paperEquity: auto.data ? Number(auto.data.paper_equity) : null },
   });
   await db.from('portfolio_state').update({ last_summary_day: today, day_key: today, day_start_equity: account.totalValue, updated_at: new Date(now).toISOString() }).eq('user_id', userId);
-  return notify(text, `HL Trader daily summary, ${yesterday}`, userId);
+  return notify(text, `${APP_NAME} daily summary, ${yesterday}`, userId);
 }
 
 export interface UpkeepResult { notes: string[]; errors: string[] }

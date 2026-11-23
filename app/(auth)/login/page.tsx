@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { APP_NAME } from '@/lib/brand';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { TrendingUp, Lock, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -50,8 +51,8 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
             <TrendingUp className="w-7 h-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">HL Webhook Trader</h1>
-          <p className="text-muted-foreground text-sm mt-1">Automated perpetuals on Hyperliquid</p>
+          <h1 className="text-2xl font-bold text-foreground">{APP_NAME}</h1>
+          <p className="text-muted-foreground text-sm mt-1">Strategy research for crypto and US stocks</p>
         </div>
 
         {/* Card */}

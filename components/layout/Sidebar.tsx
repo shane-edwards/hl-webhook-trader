@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { APP_NAME } from '@/lib/brand';
 import {
-  LayoutDashboard, ArrowLeftRight, BarChart3, Settings, LogOut, CandlestickChart, FlaskConical, Radar, Bot,
+  LayoutDashboard, ArrowLeftRight, BarChart3, Settings, LogOut, CandlestickChart, FlaskConical, Radar, Bot, Landmark,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,8 @@ const navGroups: Array<{ title: string; items: NavItem[] }> = [
   {
     title: 'Research',
     items: [
-      { href: '/markets', label: 'Markets', short: 'Markets', icon: Radar },
+      { href: '/markets', label: 'Crypto Markets', short: 'Crypto', icon: Radar },
+      { href: '/stocks', label: 'US Stocks', short: 'Stocks', icon: Landmark },
       { href: '/lab', label: 'Strategy Lab', short: 'Lab', icon: FlaskConical },
       { href: '/analytics', label: 'Analytics', short: 'Stats', icon: BarChart3 },
     ],
@@ -55,8 +57,8 @@ export function Sidebar() {
           <CandlestickChart className="w-[18px] h-[18px] text-white" />
         </div>
         <div className="leading-tight">
-          <span className="text-[15px] font-semibold tracking-tight text-foreground block">HL Trader</span>
-          <span className="text-[11px] text-muted-foreground">Hyperliquid automation</span>
+          <span className="text-[15px] font-semibold tracking-tight text-foreground block">{APP_NAME}</span>
+          <span className="text-[11px] text-muted-foreground">Crypto and US stocks</span>
         </div>
       </div>
 
@@ -108,7 +110,8 @@ export function MobileNav() {
   return (
     <nav
       aria-label="Main"
-      className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/85 backdrop-blur-xl px-1 pt-1.5 pb-safe grid grid-cols-7"
+      className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/85 backdrop-blur-xl px-1 pt-1.5 pb-safe grid"
+      style={{ gridTemplateColumns: `repeat(${allItems.length}, minmax(0, 1fr))` }}
     >
       {allItems.map(({ href, short, icon: Icon }) => {
         const active = isActive(pathname, href);
