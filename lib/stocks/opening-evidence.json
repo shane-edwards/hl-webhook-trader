@@ -1,0 +1,461 @@
+{
+  "rows": [
+    {
+      "id": "control",
+      "diagnostic": true,
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "setups": 450,
+          "trades": 333,
+          "days": 145,
+          "symbols": 17,
+          "positiveSymbols": 1,
+          "grossBps": -17.60078949445345,
+          "netBps": -59.91451096258992,
+          "stressBps": -71.86060467083786,
+          "cfdBps": -83.72420782265229,
+          "minutes": 65.85585585585585,
+          "tByDay": -16.216391847440743
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "setups": 364,
+          "trades": 272,
+          "days": 118,
+          "symbols": 16,
+          "positiveSymbols": 2,
+          "grossBps": -21.173762900701398,
+          "netBps": -41.76396549347262,
+          "stressBps": -53.726389794553135,
+          "cfdBps": -65.6226019530596,
+          "minutes": 62.75735294117647,
+          "tByDay": -10.078451229051893
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "setups": 303,
+          "trades": 227,
+          "days": 100,
+          "symbols": 14,
+          "positiveSymbols": 0,
+          "grossBps": -26.21288100340581,
+          "netBps": -39.92836867170778,
+          "stressBps": -51.89244451457535,
+          "cfdBps": -63.79195447970404,
+          "minutes": 76.38766519823788,
+          "tByDay": -9.521841811817374
+        }
+      ],
+      "paperCandidate": false
+    },
+    {
+      "id": "ranked",
+      "diagnostic": false,
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "setups": 345,
+          "trades": 251,
+          "days": 128,
+          "symbols": 17,
+          "positiveSymbols": 0,
+          "grossBps": -11.670026990101341,
+          "netBps": -55.14615798466402,
+          "stressBps": -67.09654192380862,
+          "cfdBps": -78.968711829412,
+          "minutes": 60.59760956175299,
+          "tByDay": -11.819740938516942
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "setups": 294,
+          "trades": 215,
+          "days": 105,
+          "symbols": 17,
+          "positiveSymbols": 0,
+          "grossBps": -16.411935910453707,
+          "netBps": -38.97609606163107,
+          "stressBps": -50.94102869286845,
+          "cfdBps": -62.84224949715442,
+          "minutes": 65.5813953488372,
+          "tByDay": -9.096822808077636
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "setups": 237,
+          "trades": 162,
+          "days": 88,
+          "symbols": 17,
+          "positiveSymbols": 1,
+          "grossBps": -21.54374089751052,
+          "netBps": -36.00336318768847,
+          "stressBps": -47.97097047629359,
+          "cfdBps": -59.87753204933732,
+          "minutes": 52.592592592592595,
+          "tByDay": -6.430347258377891
+        }
+      ],
+      "paperCandidate": false
+    },
+    {
+      "id": "ranked-90",
+      "diagnostic": false,
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "setups": 345,
+          "trades": 251,
+          "days": 128,
+          "symbols": 17,
+          "positiveSymbols": 0,
+          "grossBps": -15.21850888516569,
+          "netBps": -58.68016355170144,
+          "stressBps": -70.62736783951924,
+          "cfdBps": -82.49318860198639,
+          "minutes": 39.9203187250996,
+          "tByDay": -15.476440368321809
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "setups": 294,
+          "trades": 215,
+          "days": 105,
+          "symbols": 17,
+          "positiveSymbols": 0,
+          "grossBps": -13.589296922499434,
+          "netBps": -36.16140684847201,
+          "stressBps": -48.12887194043184,
+          "cfdBps": -60.03514957452733,
+          "minutes": 39.627906976744185,
+          "tByDay": -7.457570993273311
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "setups": 237,
+          "trades": 162,
+          "days": 88,
+          "symbols": 17,
+          "positiveSymbols": 0,
+          "grossBps": -20.07440438090948,
+          "netBps": -34.53754020150047,
+          "stressBps": -46.50646633522754,
+          "cfdBps": -58.4156613845845,
+          "minutes": 37.03703703703704,
+          "tByDay": -7.762029672402809
+        }
+      ],
+      "paperCandidate": false
+    },
+    {
+      "id": "market-90",
+      "diagnostic": false,
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "setups": 345,
+          "trades": 345,
+          "days": 140,
+          "symbols": 17,
+          "positiveSymbols": 0,
+          "grossBps": -10.658457281159562,
+          "netBps": -55.02288508449606,
+          "stressBps": -66.9733799359845,
+          "cfdBps": -78.84577131189211,
+          "minutes": 90,
+          "tByDay": -7.949003012388008
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "setups": 294,
+          "trades": 294,
+          "days": 117,
+          "symbols": 17,
+          "positiveSymbols": 5,
+          "grossBps": 14.922430234998096,
+          "netBps": -9.208270147186578,
+          "stressBps": -21.199985788628997,
+          "cfdBps": -33.15468703713048,
+          "minutes": 90,
+          "tByDay": -1.2061461545046266
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "setups": 237,
+          "trades": 237,
+          "days": 95,
+          "symbols": 17,
+          "positiveSymbols": 6,
+          "grossBps": -10.602956102511211,
+          "netBps": -25.901051617825516,
+          "stressBps": -37.87774826064285,
+          "cfdBps": -49.80245950010538,
+          "minutes": 90,
+          "tByDay": -2.6276639939146875
+        }
+      ],
+      "paperCandidate": false
+    },
+    {
+      "id": "aligned",
+      "diagnostic": false,
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "setups": 201,
+          "trades": 150,
+          "days": 72,
+          "symbols": 17,
+          "positiveSymbols": 0,
+          "grossBps": -14.508559614414477,
+          "netBps": -57.94962921894198,
+          "stressBps": -69.89749079051799,
+          "cfdBps": -81.76462402037001,
+          "minutes": 40,
+          "tByDay": -12.27227558632229
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "setups": 173,
+          "trades": 129,
+          "days": 64,
+          "symbols": 17,
+          "positiveSymbols": 0,
+          "grossBps": -10.16282981678998,
+          "netBps": -32.358408837853965,
+          "stressBps": -44.32929560174986,
+          "cfdBps": -56.24240564690358,
+          "minutes": 40.69767441860465,
+          "tByDay": -4.281806227643088
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "setups": 125,
+          "trades": 88,
+          "days": 47,
+          "symbols": 17,
+          "positiveSymbols": 0,
+          "grossBps": -20.31986836439017,
+          "netBps": -35.38230326308173,
+          "stressBps": -47.35046933802034,
+          "cfdBps": -59.258146698315265,
+          "minutes": 37.5,
+          "tByDay": -5.4896647911552074
+        }
+      ],
+      "paperCandidate": false
+    },
+    {
+      "id": "fast",
+      "diagnostic": true,
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "setups": 85,
+          "trades": 72,
+          "days": 72,
+          "symbols": 5,
+          "positiveSymbols": 0,
+          "grossBps": -15.863959086758095,
+          "netBps": -53.71837554549265,
+          "stressBps": -61.67918607052167,
+          "cfdBps": -81.5236770628381,
+          "minutes": 17.15277777777778,
+          "tByDay": -8.31828943676238
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "setups": 67,
+          "trades": 62,
+          "days": 62,
+          "symbols": 5,
+          "positiveSymbols": 1,
+          "grossBps": -2.425380792265304,
+          "netBps": -18.34242902484228,
+          "stressBps": -26.327994580458817,
+          "cfdBps": -46.250172077921896,
+          "minutes": 19.838709677419356,
+          "tByDay": -1.9139210782970952
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "setups": 56,
+          "trades": 50,
+          "days": 50,
+          "symbols": 5,
+          "positiveSymbols": 1,
+          "grossBps": -1.7935362209334584,
+          "netBps": -10.487588316841821,
+          "stressBps": -18.47865045533774,
+          "cfdBps": -38.41807738873404,
+          "minutes": 19.6,
+          "tByDay": -0.7012267900473044
+        }
+      ],
+      "paperCandidate": false
+    }
+  ],
+  "coverage": [
+    {
+      "symbol": "AAPL",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "MSFT",
+      "complete": 390,
+      "incomplete": 0,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "NVDA",
+      "complete": 390,
+      "incomplete": 0,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "AMZN",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "TSLA",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "AMD",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "AVGO",
+      "complete": 390,
+      "incomplete": 0,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "META",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "GOOGL",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "PLTR",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "MU",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "JPM",
+      "complete": 390,
+      "incomplete": 0,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "XOM",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "LLY",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "CAT",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "BA",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "WMT",
+      "complete": 386,
+      "incomplete": 2,
+      "through": "2026-11-20"
+    },
+    {
+      "symbol": "SPY",
+      "complete": 389,
+      "incomplete": 1,
+      "through": "2026-11-20"
+    }
+  ],
+  "periods": [
+    {
+      "label": "2025 screen",
+      "from": "2025-05-01",
+      "to": "2026-01-01"
+    },
+    {
+      "label": "2026 H1 validation",
+      "from": "2026-01-01",
+      "to": "2026-07-01"
+    },
+    {
+      "label": "2026 H2 holdout",
+      "from": "2026-07-01",
+      "to": "2026-11-21"
+    }
+  ]
+}

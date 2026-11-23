@@ -38,7 +38,7 @@ export class EtoroClient {
     };
   }
 
-  async instrument(symbol: StockSymbol) {
+  async instrument(symbol: string) {
     const { results } = await this.get<{ results: Instrument[] }>(`/v2/market-data/instruments/search?query=${encodeURIComponent(symbol)}`);
     const matches = results.filter(i => i.symbol?.toUpperCase() === symbol && i.type?.toLowerCase() === (symbol === 'SPY' ? 'etf' : 'stocks') && Number.isSafeInteger(i.instrumentId) && i.instrumentId > 0);
     return matches.length === 1 ? matches[0] : null;
@@ -81,11 +81,12 @@ export class EtoroClient {
     return bars;
   }
 
-  /** One fixed 5-minute history window, including every page from each quote side. */
-  async intradayCandles(id: number, from: number, to: number, pace?: () => Promise<void>): Promise<IntradayBar[]> {
-    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > 28 * 86_400_000) throw new Error('Invalid intraday candle range');
+  /** One fixed history window, including every page from each quote side. */
+  async intradayCandles(id: number, from: number, to: number, pace?: () => Promise<void>, interval: '5m' | '30m' = '5m'): Promise<IntradayBar[]> {
+    const maxDays = interval === '30m' ? 175 : 28;
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > maxDays * 86_400_000) throw new Error('Invalid intraday candle range');
     const sides = async (side: 'bid' | 'ask') => {
-      const query = new URLSearchParams({ interval: '5m', limit: '2000', from: new Date(from).toISOString(), to: new Date(to).toISOString(), side });
+      const query = new URLSearchParams({ interval, limit: '2000', from: new Date(from).toISOString(), to: new Date(to).toISOString(), side });
       const all: Candle[] = [];
       for (let page = 0; page < 8; page++) {
         await pace?.();

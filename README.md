@@ -12,6 +12,8 @@ Open **US Stocks → eToro account** and connect an eToro Demo or Real key pair 
 
 **Intraday research** compares five fixed opening, VWAP, and SPY momentum rules on five-minute eToro candles. It separates the regular New York session from extended hours, reports historical results across three chronological periods, and replays recent data on demand. See [the research protocol](backtest/STOCK-INTRADAY.md).
 
+**Opening volume research** measures whether ranking unusual opening activity across a 17-stock basket improves the net outcome over choosing stocks by ordinary liquidity. It compares stock and CFD costs and keeps the last sample separate. See [the opening study](backtest/STOCK-OPENING.md).
+
 ## Features
 
 - **TradingView Integration** — Receive webhook signals and execute perp orders automatically
