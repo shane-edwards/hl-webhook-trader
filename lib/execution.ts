@@ -1,3 +1,4 @@
+import { withTradingLock } from '@/lib/trading-lock';
 // Order execution shared by the webhook, the manual trade ticket and the kill
 // switch, so every entry point records trades and manages stops the same way.
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -70,6 +71,12 @@ type TradeInsert = Record<string, any>;
  * row is written without them rather than lost.
  */
 export async function insertTrade(db: Db, row: TradeInsert): Promise<{ id: string }> {
+  if (row.hyperliquid_order_id) {
+    const existing = await db.from('trades').select('id').eq('user_id', row.user_id).eq('hyperliquid_order_id', row.hyperliquid_order_id).limit(1).maybeSingle();
+    if (existing.error) throw new Error(existing.error.message);
+    if (existing.data) return existing.data;
+    row = { ...row, execution_key: row.hyperliquid_order_id };
+  }
   const first = await db.from('trades').insert(row).select('id').single();
   if (!first.error) return first.data;
   const rest: TradeInsert = { ...row };
@@ -98,6 +105,10 @@ export interface OpenResult {
 }
 
 export async function openPosition(hl: HyperliquidClient, db: Db, p: OpenParams): Promise<OpenResult> {
+  return withTradingLock(hl, db, p.userId, () => openPositionLocked(hl, db, p));
+}
+
+async function openPositionLocked(hl: HyperliquidClient, db: Db, p: OpenParams): Promise<OpenResult> {
   // Every entry, whatever sent it, passes the account-wide limits first.
   await assertWithinPortfolioLimits(hl, db, p.userId, p.sizeUsd, p.limits ?? DEFAULT_PORTFOLIO_LIMITS);
 
@@ -134,8 +145,21 @@ export async function openPosition(hl: HyperliquidClient, db: Db, p: OpenParams)
       decision_price: decisionPrice, slippage_bps: slippageBps(p.side, decisionPrice, fill.fillPrice), order_type: slices > 1 ? 'sliced' : 'market',
     });
   } catch (err) {
-    // The order is live on the exchange; make a missing record loud rather than silent.
-    throw new Error(`Order ${fill.orderId} filled but could not be recorded: ${err instanceof Error ? err.message : err}`);
+    let recovery: string;
+    try {
+      const closed = await hl.closePosition(p.symbol, p.slippagePercent);
+      if (!closed.fullyClosed || await hl.getPosition(p.symbol)) throw new Error('a position remains open');
+      recovery = 'The position was closed immediately';
+    } catch (closeError) {
+      // Try to protect the actual remaining size even when the journal is down.
+      try {
+        const remaining = await hl.getPosition(p.symbol);
+        if (remaining) await hl.placeProtectiveOrders({ coin: p.symbol, side: remaining.side, size: remaining.size,
+          ...protectionPrices(remaining.side, remaining.entryPrice, p.stopLossPct ?? 2, null) });
+        recovery = 'Emergency protection was placed. Check the account before retrying';
+      } catch { recovery = `Emergency recovery failed (${closeError instanceof Error ? closeError.message : closeError}). Check the exchange immediately`; }
+    }
+    throw new Error(`Order ${fill.orderId} filled but could not be recorded: ${err instanceof Error ? err.message : err}. ${recovery}`);
   }
 
   const result: OpenResult = {
@@ -150,7 +174,8 @@ export async function openPosition(hl: HyperliquidClient, db: Db, p: OpenParams)
       // Protect the whole position (it may include earlier entries), from its average entry.
       const position = await hl.getPosition(p.symbol);
       if (!position) throw new Error('position not found after fill');
-      await hl.cancelProtectiveOrders(p.symbol); // replace any older stops rather than stacking them
+      const older = (await hl.getOpenOrders(p.symbol)).filter(o => o.isTrigger && o.reduceOnly);
+      let newStopOid: string | null = null;
       if (managed) {
         const { meta } = await hl.getAsset(p.symbol);
         const { legs, plan, warning } = buildExitLegs({
@@ -159,6 +184,7 @@ export async function openPosition(hl: HyperliquidClient, db: Db, p: OpenParams)
         });
         const oids = await hl.placeTriggerOrders({ coin: p.symbol, side: p.side, legs, grouping: 'na' });
         result.stopLossPx = plan.stop_px;
+        newStopOid = plan.stop_px != null ? oids[0] : null;
         result.takeProfitPx = plan.tp1_px;
         result.exitWarning = [sliceNote, warning].filter(Boolean).join('. ') || null;
         // The plan row is what lets the scan move the stop later. The orders above already rest on the exchange.
@@ -171,15 +197,17 @@ export async function openPosition(hl: HyperliquidClient, db: Db, p: OpenParams)
         }
       } else {
         const prices = protectionPrices(p.side, position.entryPrice, p.stopLossPct, p.takeProfitPct);
-        await hl.placeProtectiveOrders({ coin: p.symbol, side: p.side, size: position.size, ...prices });
+        const protection = await hl.placeProtectiveOrders({ coin: p.symbol, side: p.side, size: position.size, ...prices });
+        newStopOid = protection.stopLossOid;
         result.stopLossPx = prices.stopLossPx ?? null;
         result.takeProfitPx = prices.takeProfitPx ?? null;
       }
       // Do not take the exchange's word for it: look for the stop actually resting.
       if (result.stopLossPx != null) {
         const resting = await hl.getOpenOrders(p.symbol);
-        if (!resting.some(o => o.isTrigger && o.reduceOnly && /stop/i.test(o.orderType))) throw new Error('the stop-loss was accepted but is not resting on the exchange');
+        if (!newStopOid || !resting.some(o => String(o.oid) === newStopOid && o.isTrigger && o.reduceOnly && /stop/i.test(o.orderType) && o.size >= position.size * 0.999)) throw new Error('the stop-loss was accepted but is not resting on the exchange at the required size');
       }
+      await hl.cancelOrders(p.symbol, older.map(o => o.oid));
     } catch (err) {
       result.protectionError = err instanceof Error ? err.message : 'Unknown error';
     }
@@ -201,8 +229,12 @@ export interface CloseResult { fillPrice: number; size: number; tradeIds: string
 
 /** Closes the whole position, settles its trade records and clears leftover stop orders. */
 export async function closePositionFully(hl: HyperliquidClient, db: Db, userId: string, symbol: string, slippagePercent: number, notes?: string): Promise<CloseResult> {
+  return withTradingLock(hl, db, userId, () => closePositionFullyLocked(hl, db, userId, symbol, slippagePercent, notes));
+}
+
+async function closePositionFullyLocked(hl: HyperliquidClient, db: Db, userId: string, symbol: string, slippagePercent: number, notes?: string): Promise<CloseResult> {
   const closed = await hl.closePosition(symbol, slippagePercent);
-  if (!closed.fullyClosed) {
+  if (!closed.fullyClosed || await hl.getPosition(symbol)) {
     throw new Error(`Only ${closed.filledSize} ${symbol} closed; the rest is still open on the exchange`);
   }
   const tradeIds = await closeOpenTrades(db, userId, symbol, closed.fillPrice, notes);

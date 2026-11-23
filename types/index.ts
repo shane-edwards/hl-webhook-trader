@@ -38,6 +38,10 @@ export interface Trade {
 }
 
 export interface Settings {
+  trading_halted?: boolean;
+  notification_ntfy_topic?: string | null;
+  notification_telegram_chat_id?: string | null;
+  notification_email_to?: string | null;
   id: string;
   user_id: string;
   default_leverage: number;

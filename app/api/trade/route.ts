@@ -29,6 +29,7 @@ export async function POST(request: Request) {
   const ctx = await context();
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { supabase, user, settings } = ctx;
+  const notifyUser = (message: string) => notify(message, undefined, user.id);
   if (!settings) return NextResponse.json({ error: 'Settings not found' }, { status: 404 });
 
   const body = await request.json().catch(() => null);
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
       const order = await placeLimitEntry(hl, supabase, {
         userId: user.id, symbol, side, limitPx, sizeUsd, leverage, stopLossPct, takeProfitPct, expiryHours, chaseSeconds, journal, limits,
       });
-      await notify(chaseSeconds != null
+      await notifyUser(chaseSeconds != null
         ? `Manual: chasing a ${side} on ${symbol} from ${order.limit_px} (${order.size} ${symbol}; market after ${chaseSeconds}s)`
         : `Manual: limit ${side} resting on ${symbol} at ${order.limit_px} (${order.size} ${symbol}, expires in ${expiryHours}h)`);
       return NextResponse.json({ success: true, resting: true, chase: chaseSeconds != null, symbol, side, order });
@@ -109,10 +110,10 @@ export async function POST(request: Request) {
       exit, limits, payload: { journal }, slices, closeIfUnprotected: true,
     });
     if (opened.closedUnprotected) {
-      await notify(`Manual: ${symbol} ${side} was opened and CLOSED AT ONCE because its stop-loss could not be placed (${opened.protectionError})`);
+      await notifyUser(`Manual: ${symbol} ${side} was opened and CLOSED AT ONCE because its stop-loss could not be placed (${opened.protectionError})`);
       return NextResponse.json({ error: `The position was opened and closed again at once, because its stop-loss could not be placed: ${opened.protectionError}. You are flat in ${symbol}.` }, { status: 502 });
     }
-    await notify(`Manual: opened ${side} ${opened.size} ${symbol} at ${opened.fillPrice} (${leverage}x, ${opened.slippageBps.toFixed(1)} bps from mid)` + (opened.protectionError ? `. WARNING: stop/target NOT placed (${opened.protectionError})` : ''));
+    await notifyUser(`Manual: opened ${side} ${opened.size} ${symbol} at ${opened.fillPrice} (${leverage}x, ${opened.slippageBps.toFixed(1)} bps from mid)` + (opened.protectionError ? `. WARNING: stop/target NOT placed (${opened.protectionError})` : ''));
     return NextResponse.json({ success: true, symbol, side, ...opened });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -126,6 +127,7 @@ export async function DELETE(request: Request) {
   const ctx = await context();
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { supabase, user, settings } = ctx;
+  const notifyUser = (message: string) => notify(message, undefined, user.id);
 
   const symbol = normalizeSymbol(new URL(request.url).searchParams.get('symbol') ?? '');
   if (!/^[A-Z0-9]{1,20}$/.test(symbol)) return NextResponse.json({ error: 'Missing symbol' }, { status: 400 });
@@ -134,7 +136,7 @@ export async function DELETE(request: Request) {
     const hl = hlClientFromSettings(settings);
     if (!hl) return NextResponse.json({ error: 'Connect your wallet in Settings first' }, { status: 400 });
     const closed = await closePositionFully(hl, supabase, user.id, symbol, Number(settings?.slippage_percent ?? 2), 'Manually closed from dashboard');
-    await notify(`Manual: closed ${symbol} at ${closed.fillPrice}`);
+    await notifyUser(`Manual: closed ${symbol} at ${closed.fillPrice}`);
     return NextResponse.json({ success: true, symbol, fillPrice: closed.fillPrice, size: closed.size });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });

@@ -1,3 +1,4 @@
+import { withTradingLock } from '@/lib/trading-lock';
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     try {
       const hl = hlClientFromSettings(settings);
       if (!hl) throw new Error('Hyperliquid credentials not configured');
-      result = await runStrategyOnce(hl, cfg);
+      result = await withTradingLock(hl, supabase, settings.user_id, () => runStrategyOnce(hl, cfg));
     } catch (err) {
       result = {
         symbol: cfg.symbol, status: 'error', signalDate: null, trendScore: null, realizedVol: null,
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
     await supabase.from('strategy_runs').insert(runToRow(settings.user_id, result));
     // Quiet days ("held") are not worth a message; trades, dry-run signals and errors are.
     if (result.status !== 'held') {
-      await notify(`Strategy ${cfg.symbol} ${result.status === 'error' ? 'ERROR' : result.status}: ${result.message}`);
+      await notify(`Strategy ${cfg.symbol} ${result.status === 'error' ? 'ERROR' : result.status}: ${result.message}`, undefined, settings.user_id);
     }
     summary.push({ status: result.status, message: result.message });
   }

@@ -1,3 +1,4 @@
+import { withTradingLock } from '@/lib/trading-lock';
 // Managed exits: split take-profit, stop to break-even after the first target,
 // and a trailing stop.
 //
@@ -147,6 +148,10 @@ export interface ExitEvent { symbol: string; level: 'info' | 'error'; message: s
 
 /** One management pass over every managed position of a user. Never throws; problems come back as events. */
 export async function manageExits(hl: HyperliquidClient, db: Db, userId: string, slippagePercent: number): Promise<ExitEvent[]> {
+  return withTradingLock(hl, db, userId, () => manageExitsLocked(hl, db, userId, slippagePercent));
+}
+
+async function manageExitsLocked(hl: HyperliquidClient, db: Db, userId: string, slippagePercent: number): Promise<ExitEvent[]> {
   const events: ExitEvent[] = [];
   const { data: plans, error } = await db.from('position_plans').select('*').eq('user_id', userId).eq('status', 'active');
   if (error || !plans?.length) return events; // no table yet (migration 006) or nothing managed
@@ -175,6 +180,9 @@ export async function manageExits(hl: HyperliquidClient, db: Db, userId: string,
       }
       if (step.type === 'close') {
         const closed = await hl.closePosition(plan.symbol, slippagePercent);
+        if (!closed.fullyClosed || await hl.getPosition(plan.symbol)) {
+          throw new Error(`Only ${closed.filledSize} closed. The exit plan remains active for the remainder`);
+        }
         await hl.cancelProtectiveOrders(plan.symbol).catch(() => {});
         await db.from('position_plans').update({ status: 'done', last_note: step.reason, updated_at: now }).eq('id', plan.id);
         events.push({ symbol: plan.symbol, level: 'error', message: `Closed ${plan.symbol} at ${closed.fillPrice}: ${step.reason}` });
@@ -184,6 +192,8 @@ export async function manageExits(hl: HyperliquidClient, db: Db, userId: string,
       if (step.type === 'move_stop') {
         // New stop first, then cancel the old one: the position is never without a stop.
         const [oid] = await hl.placeTriggerOrders({ coin: plan.symbol, side: plan.side, legs: [{ kind: 'sl', triggerPx: step.stopPx, size: pos!.size }], grouping: 'na' });
+        const verified = (await hl.getOpenOrders(plan.symbol)).some(o => String(o.oid) === oid && o.isTrigger && o.reduceOnly && o.size >= pos!.size * 0.999);
+        if (!oid || !verified) throw new Error('Replacement stop is unconfirmed. Existing stops were retained');
         await hl.cancelOrders(plan.symbol, stops.map(s => s.oid)).catch(() => {});
         Object.assign(patch, { stop_px: step.stopPx, stop_oid: oid, last_note: step.reason });
         events.push({ symbol: plan.symbol, level: 'info', message: `${plan.symbol} stop now ${step.stopPx.toPrecision(6)} (${step.reason})` });

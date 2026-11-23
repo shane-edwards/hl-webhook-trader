@@ -31,6 +31,7 @@ export interface PortfolioCheckInput {
   newNotionalUsd: number;
   /** Account value at the start of the UTC day, or null when unknown (then the daily limit is skipped). */
   dayStartEquity: number | null;
+  dayPnlUsd?: number;
   limits: PortfolioLimits;
 }
 
@@ -39,9 +40,11 @@ export interface PortfolioCheckInput {
  * independent: every dollar of exposure counts toward one gross cap.
  */
 export function checkPortfolio(i: PortfolioCheckInput): { ok: boolean; reason: string | null } {
+  if (![i.equity, i.grossExposureUsd, i.newNotionalUsd].every(Number.isFinite) || i.newNotionalUsd < 0) return { ok: false, reason: 'Exposure or account data is invalid.' };
   if (!(i.equity > 0)) return { ok: false, reason: 'Account value is zero or unavailable.' };
+  if (!(i.dayStartEquity != null && i.dayStartEquity > 0)) return { ok: false, reason: 'Daily risk baseline is unavailable.' };
   if (i.dayStartEquity != null && i.dayStartEquity > 0) {
-    const dayPct = (i.equity / i.dayStartEquity - 1) * 100;
+    const dayPct = (i.dayPnlUsd ?? i.equity - i.dayStartEquity) / i.dayStartEquity * 100;
     if (dayPct <= -i.limits.dailyLossLimitPct) {
       return { ok: false, reason: `Daily loss limit reached: the account is down ${Math.abs(dayPct).toFixed(1)}% today (limit ${i.limits.dailyLossLimitPct}%). No new positions until 00:00 UTC.` };
     }
@@ -59,20 +62,25 @@ export async function dayStartEquity(db: Db, userId: string, equity: number, now
   const dayKey = new Date(now).toISOString().slice(0, 10);
   try {
     const { data, error } = await db.from('portfolio_state').select('day_key, day_start_equity').eq('user_id', userId).maybeSingle();
-    if (error) return null; // table not there yet (migration 006): skip the daily limit rather than block trading
+    if (error) throw new Error(error.message);
     if (data && String(data.day_key) === dayKey && Number(data.day_start_equity) > 0) return Number(data.day_start_equity);
-    await db.from('portfolio_state').upsert({ user_id: userId, day_key: dayKey, day_start_equity: equity, updated_at: new Date(now).toISOString() });
+    const saved = await db.from('portfolio_state').upsert({ user_id: userId, day_key: dayKey, day_start_equity: equity, updated_at: new Date(now).toISOString() });
+    if (saved.error) throw new Error(saved.error.message);
     return equity;
-  } catch {
-    return null;
+  } catch (err) {
+    throw new Error(`Daily risk state unavailable: ${err instanceof Error ? err.message : err}`);
   }
 }
 
 /** Throws with a plain-language reason if a new entry of `notionalUsd` would break a limit. */
 export async function assertWithinPortfolioLimits(hl: HyperliquidClient, db: Db, userId: string, notionalUsd: number, limits: PortfolioLimits): Promise<void> {
-  const [account, positions] = await Promise.all([hl.getAccountSummary(), hl.getPositions()]);
-  const gross = positions.reduce((a, p) => a + p.size * p.markPrice, 0);
-  const start = await dayStartEquity(db, userId, account.totalValue);
-  const check = checkPortfolio({ equity: account.totalValue, grossExposureUsd: gross, newNotionalUsd: notionalUsd, dayStartEquity: start, limits });
+  const [account, positions, orders] = await Promise.all([hl.getAccountSummary(), hl.getPositions(), hl.getOpenOrders()]);
+  const gross = positions.reduce((a, p) => a + p.size * p.markPrice, 0)
+    + orders.filter(o => !o.reduceOnly).reduce((a, o) => a + o.size * o.limitPx, 0);
+  // Production clients recover the day's baseline from exchange history and
+  // compare P&L, which excludes deposits and withdrawals.
+  const daily = await hl.getDailyRisk?.();
+  const start = await dayStartEquity(db, userId, daily?.startEquity ?? account.totalValue);
+  const check = checkPortfolio({ equity: account.totalValue, grossExposureUsd: gross, newNotionalUsd: notionalUsd, dayStartEquity: daily?.startEquity ?? start, dayPnlUsd: daily?.pnl, limits });
   if (!check.ok) throw new Error(`Blocked by a portfolio limit. ${check.reason}`);
 }

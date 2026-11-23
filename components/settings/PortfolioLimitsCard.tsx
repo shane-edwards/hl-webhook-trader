@@ -19,6 +19,9 @@ export function PortfolioLimitsCard({ settings, onSaved }: Props) {
   const [exposure, setExposure] = useState('3');
   const [dailyLoss, setDailyLoss] = useState('5');
   const [summary, setSummary] = useState(true);
+  const [topic, setTopic] = useState(settings.notification_ntfy_topic ?? '');
+  const [chatId, setChatId] = useState(settings.notification_telegram_chat_id ?? '');
+  const [email, setEmail] = useState(settings.notification_email_to ?? '');
   const [saving, setSaving] = useState(false);
   const [channels, setChannels] = useState<string[] | null>(null);
 
@@ -26,15 +29,18 @@ export function PortfolioLimitsCard({ settings, onSaved }: Props) {
     setExposure(String(settings.max_gross_exposure_x ?? 3));
     setDailyLoss(String(settings.portfolio_daily_loss_limit_pct ?? 5));
     setSummary(settings.daily_summary_enabled !== false);
+    setTopic(settings.notification_ntfy_topic ?? '');
+    setChatId(settings.notification_telegram_chat_id ?? '');
+    setEmail(settings.notification_email_to ?? '');
   }, [settings]);
-  useEffect(() => { fetch('/api/alerts').then(r => (r.ok ? r.json() : null)).then(d => setChannels(d?.channels ?? [])).catch(() => setChannels([])); }, []);
+  useEffect(() => { fetch('/api/alerts').then(r => (r.ok ? r.json() : null)).then(d => setChannels(d?.channels ?? [])).catch(() => setChannels([])); }, [settings.notification_ntfy_topic, settings.notification_telegram_chat_id, settings.notification_email_to]);
 
   async function save() {
     setSaving(true);
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ max_gross_exposure_x: parseFloat(exposure), portfolio_daily_loss_limit_pct: parseFloat(dailyLoss), daily_summary_enabled: summary }),
+        body: JSON.stringify({ max_gross_exposure_x: parseFloat(exposure), portfolio_daily_loss_limit_pct: parseFloat(dailyLoss), daily_summary_enabled: summary, notification_ntfy_topic: topic, notification_telegram_chat_id: chatId, notification_email_to: email }),
       });
       const data = await res.json();
       if (!res.ok) { toast.error(data.error ?? 'Could not save'); return; }
@@ -62,6 +68,15 @@ export function PortfolioLimitsCard({ settings, onSaved }: Props) {
       </CardHeader>
       <CardContent className="space-y-5">
         {!available && <p className="text-xs text-warning">Run database migration 006 to change these. Until then the defaults below apply.</p>}
+        <div className="rounded-lg border border-border p-3 space-y-2">
+          <p className="text-sm">{settings.trading_halted ? 'Trading is halted.' : 'Account recovery'}</p>
+          <Button variant="outline" onClick={async () => {
+            const response = await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resume_trading: true }) });
+            const result = await response.json();
+            if (!response.ok) { toast.error(result.error); return; }
+            onSaved(result.settings); toast.success('Trading resumed. Enable your chosen automation separately.');
+          }}>Resume trading after account check</Button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="pl-exposure">Max total exposure (× account value)</Label>
@@ -71,7 +86,7 @@ export function PortfolioLimitsCard({ settings, onSaved }: Props) {
           <div className="space-y-1.5">
             <Label htmlFor="pl-loss">Daily loss limit (%)</Label>
             <Input id="pl-loss" type="number" inputMode="decimal" min="0.5" max="90" step="0.5" value={dailyLoss} onChange={e => setDailyLoss(e.target.value)} disabled={!available} />
-            <p className="text-xs text-muted-foreground">Once the account is down this much since 00:00 UTC, no new positions open until the next day. Open positions keep their stops.</p>
+            <p className="text-xs text-muted-foreground">Once the account is down this much since 00:00 UTC, no new positions open until the next day. The limit uses the exchange baseline around UTC midnight. Open positions keep their stops.</p>
           </div>
         </div>
 
@@ -88,14 +103,15 @@ export function PortfolioLimitsCard({ settings, onSaved }: Props) {
             <span className="font-medium text-foreground">Alert channels: </span>
             {channels === null ? 'checking…' : channels.length ? channels.join(' and ') : 'none configured, so no alert or summary can be delivered yet.'}
           </p>
-          {channels !== null && channels.length === 0 && (
-            <div className="space-y-1.5">
-              <p>Every alert is kept in the log on the dashboard. To get them on your phone, set one of these in Vercel (Project, Settings, Environment Variables) and redeploy:</p>
-              <p><span className="font-medium text-foreground">ntfy, the quickest:</span> install the free ntfy app, subscribe to a long random topic name of your own, and set <code>NTFY_TOPIC</code> to that name. No account or bot. Anyone who knows the name can read the alerts, so treat it like a password.</p>
-              <p><span className="font-medium text-foreground">Telegram:</span> create a bot with @BotFather, then set <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code>.</p>
-              <p><span className="font-medium text-foreground">Email:</span> set <code>RESEND_API_KEY</code> and <code>ALERT_EMAIL_TO</code>.</p>
-            </div>
-          )}
+          <div className="space-y-2 pt-2">
+            <Label htmlFor="alert-topic">ntfy topic</Label>
+            <Input id="alert-topic" value={topic} onChange={e => setTopic(e.target.value)} placeholder="A random topic of at least 16 characters" />
+            <Label htmlFor="alert-chat">Telegram chat ID</Label>
+            <Input id="alert-chat" value={chatId} onChange={e => setChatId(e.target.value)} />
+            <Label htmlFor="alert-email">Alert email</Label>
+            <Input id="alert-email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+            <p>Subscribe to your topic in ntfy. Telegram and email delivery require the deployment&apos;s bot token or email service key. Save destinations before testing.</p>
+          </div>
           {channels !== null && <button type="button" className="text-primary hover:underline" onClick={testAlert}>Send a test alert</button>}
         </div>
 

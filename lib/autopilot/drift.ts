@@ -38,8 +38,8 @@ export function computeDrift(p: {
       if (!bars) continue;
       const from = bars.findIndex(b => b.t >= p.since);
       if (from < 0) continue;
-      // An empty funding map makes the simulator charge its default 0.03% a day; the paper book charges
-      // none. Over the holding periods here the difference is a few hundredths of a percent.
+      // The replay uses a 0.03% daily funding assumption. The forward paper
+      // book accrues actual exchange funding, so this comparison includes that difference.
       for (const t of simulate(bars, strategy, p.allowShort, new Map(), from).trades) {
         replay.push({ t: t.exitT, pnl: sizeNotional(p.equity, t.stopPct, p.risk) * t.net });
       }

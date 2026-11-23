@@ -47,7 +47,7 @@ export async function GET(request: Request) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         console.error('[autopilot]', message);
         await supabase.from('autopilot_events').insert({ user_id: settings.user_id, mode: cfg.mode, level: 'error', message: `Scan failed: ${message}` });
-        await notify(`Autopilot scan FAILED: ${message}`);
+        await notify(`Autopilot scan FAILED: ${message}`, undefined, settings.user_id);
         entry.error = message; failures.push(message);
       }
     }

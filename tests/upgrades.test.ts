@@ -67,8 +67,8 @@ test('portfolio limits: gross exposure cap counts every position, and the daily 
   const down = checkPortfolio({ ...base, equity: 940, grossExposureUsd: 0, newNotionalUsd: 50 }); // -6% today
   assert.equal(down.ok, false);
   assert.match(down.reason!, /Daily loss limit/);
-  // Unknown day-start (table missing) skips only the daily check.
-  assert.equal(checkPortfolio({ ...base, equity: 940, grossExposureUsd: 0, newNotionalUsd: 50, dayStartEquity: null }).ok, true);
+  // Unknown daily risk state blocks new entries.
+  assert.equal(checkPortfolio({ ...base, equity: 940, grossExposureUsd: 0, newNotionalUsd: 50, dayStartEquity: null }).ok, false);
 });
 
 test('portfolio limits are enforced inside openPosition, so no entry path can skip them', async () => {

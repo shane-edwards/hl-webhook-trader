@@ -50,6 +50,7 @@ export interface AccountSummary {
 }
 
 export interface HyperliquidConfig {
+  requireCoordination?: boolean;
   privateKey: string;
   isTestnet?: boolean;
   /**

@@ -1,3 +1,4 @@
+import { withTradingLock } from '@/lib/trading-lock';
 // Resting entries: post-only orders that pay the maker fee (0.015%) instead of
 // the taker fee (0.045%).
 //
@@ -38,6 +39,10 @@ export interface LimitEntryParams {
 }
 
 export async function placeLimitEntry(hl: HyperliquidClient, db: Db, p: LimitEntryParams) {
+  return withTradingLock(hl, db, p.userId, () => placeLimitEntryLocked(hl, db, p));
+}
+
+async function placeLimitEntryLocked(hl: HyperliquidClient, db: Db, p: LimitEntryParams) {
   const chase = p.chaseSeconds != null;
   const [mark, book] = await Promise.all([hl.getMarkPrice(p.symbol), chase ? hl.getBook(p.symbol) : null]);
   const best = book ? (p.side === 'long' ? book.bids[0]?.px : book.asks[0]?.px) : null;
@@ -85,6 +90,10 @@ const isDead = (status: string) => /cancel|reject|expired/i.test(status);
 
 /** One pass over a user's resting entries. Never throws; problems come back as events. */
 export async function managePending(hl: HyperliquidClient, db: Db, userId: string, now = Date.now(), opts: PendingOptions = {}): Promise<PendingEvent[]> {
+  return withTradingLock(hl, db, userId, () => managePendingLocked(hl, db, userId, now, opts));
+}
+
+async function managePendingLocked(hl: HyperliquidClient, db: Db, userId: string, now = Date.now(), opts: PendingOptions = {}): Promise<PendingEvent[]> {
   const events: PendingEvent[] = [];
   const { data: rows, error } = await db.from('pending_orders').select('*').eq('user_id', userId).eq('status', 'resting');
   if (error || !rows?.length) return events;
@@ -123,28 +132,45 @@ export async function managePending(hl: HyperliquidClient, db: Db, userId: strin
             const prices = protectionPrices(row.side, best, row.stop_loss_pct, row.take_profit_pct);
             const next = await hl.placeLimitEntry({ coin: row.symbol, isBuy: row.side === 'long', size: left, price: best, leverage: row.leverage, ...prices });
             row.prior_filled_notional += st.filledSize * row.limit_px; row.prior_filled_size = doneSize;
-            await db.from('pending_orders').update({
+            const recorded = await db.from('pending_orders').update({
               oid: next.oid, limit_px: next.price, prior_filled_size: row.prior_filled_size, prior_filled_notional: row.prior_filled_notional, updated_at: stamp,
             }).eq('id', row.id);
+            if (recorded.error) {
+              await hl.cancelOrders(row.symbol, [next.oid]);
+              if (await hl.getPosition(row.symbol)) {
+                const closed = await hl.closePosition(row.symbol, opts.slippagePercent ?? 2);
+                if (!closed.fullyClosed) throw new Error('Repriced entry recording failed and closure is incomplete');
+              }
+              throw new Error(`Repriced entry cancelled after a recording failure: ${recorded.error.message}`);
+            }
             row.oid = next.oid; row.limit_px = next.price;
             st = { status: 'open', filledSize: 0, originalSize: next.size, limitPx: next.price };
           }
         }
       }
 
-      let filled = row.prior_filled_size + st.filledSize;
-      let notional = row.prior_filled_notional + st.filledSize * row.limit_px;
+      if (raw.fallback_started && raw.fallback_size == null) throw new Error('Market fallback outcome needs reconciliation. Further purchases are blocked. Check the exchange');
+      let filled = row.prior_filled_size + st.filledSize + Number(raw.fallback_size ?? 0);
+      let notional = row.prior_filled_notional + st.filledSize * row.limit_px + Number(raw.fallback_notional ?? 0);
       const finished = st.status === 'filled' || isDead(st.status);
 
       // ---- a chase out of time: take what is left at market ----
       let fallback: string | null = null;
-      if (row.mode === 'chase' && finished && st.status !== 'filled' && chaseOver) {
+      if (row.mode === 'chase' && !raw.fallback_started && finished && st.status !== 'filled' && chaseOver) {
         const mark = await hl.getMarkPrice(row.symbol);
         const leftUsd = (row.size - filled) * mark;
         if (leftUsd >= MIN_ORDER_USD) {
+          const claimed = await db.from('pending_orders').update({ fallback_started: true, updated_at: stamp }).eq('id', row.id);
+          if (claimed.error) throw new Error(`Could not reserve fallback: ${claimed.error.message}`);
           const fill = await hl.placeMarketOrder({ coin: row.symbol, isBuy: row.side === 'long', sizeUsd: leftUsd, leverage: row.leverage, reduceOnly: false, slippagePercent: opts.slippagePercent ?? 2 });
           filled += fill.sizeInContracts; notional += fill.sizeInContracts * fill.fillPrice;
           fallback = `${fill.sizeInContracts} taken at market`;
+          const saved = await db.from('pending_orders').update({ fallback_size: fill.sizeInContracts, fallback_notional: fill.sizeInContracts * fill.fillPrice, updated_at: stamp }).eq('id', row.id);
+          if (saved.error) {
+            const closed = await hl.closePosition(row.symbol, opts.slippagePercent ?? 2);
+            if (!closed.fullyClosed || await hl.getPosition(row.symbol)) throw new Error('Fallback recording failed and closure is incomplete');
+            throw new Error(`Fallback recording failed; the position was closed immediately: ${saved.error.message}`);
+          }
         }
       }
 
@@ -159,12 +185,24 @@ export async function managePending(hl: HyperliquidClient, db: Db, userId: strin
           const short = (xs: typeof orders) => xs.reduce((a, o) => a + o.size, 0) < position.size * 0.999;
           const prices = protectionPrices(row.side, position.entryPrice, row.stop_loss_pct, row.take_profit_pct);
           const missing = {
-            stopLossPx: row.stop_loss_pct != null && (!stops.length || (fallback && short(stops))) ? prices.stopLossPx : undefined,
-            takeProfitPx: row.take_profit_pct != null && (!targets.length || (fallback && short(targets))) ? prices.takeProfitPx : undefined,
+            stopLossPx: row.stop_loss_pct != null && (!stops.length || ((fallback || raw.fallback_started) && short(stops))) ? prices.stopLossPx : undefined,
+            takeProfitPx: row.take_profit_pct != null && (!targets.length || ((fallback || raw.fallback_started) && short(targets))) ? prices.takeProfitPx : undefined,
           };
           if (missing.stopLossPx != null || missing.takeProfitPx != null) {
-            if (fallback) await hl.cancelProtectiveOrders(row.symbol);
-            await hl.placeProtectiveOrders({ coin: row.symbol, side: row.side, size: position.size, ...(fallback ? prices : missing) });
+            try {
+              const protection = await hl.placeProtectiveOrders({ coin: row.symbol, side: row.side, size: position.size, ...missing });
+              if (missing.stopLossPx != null) {
+                const confirmed = (await hl.getOpenOrders(row.symbol)).some(o => String(o.oid) === protection.stopLossOid && o.isTrigger && o.reduceOnly && o.size >= position.size * 0.999);
+                if (!confirmed) throw new Error('Stop was accepted but could not be verified');
+              }
+            } catch (err) {
+              if (row.stop_loss_pct != null) {
+                await hl.cancelOrders(row.symbol, [row.oid]);
+                const closed = await hl.closePosition(row.symbol, opts.slippagePercent ?? 2);
+                if (!closed.fullyClosed || await hl.getPosition(row.symbol)) throw new Error('Stop rejected and emergency close only partly filled');
+              }
+              throw err;
+            }
             events.push({ symbol: row.symbol, level: 'info', message: `${row.symbol}: stop/target placed for the filled ${what.toLowerCase()} entry` });
           }
         }
@@ -211,6 +249,10 @@ export async function managePending(hl: HyperliquidClient, db: Db, userId: strin
 
 /** Cancels a resting entry at the user's request. Anything that already filled stays open (and protected). */
 export async function cancelLimitEntry(hl: HyperliquidClient, db: Db, userId: string, id: string): Promise<PendingEvent[]> {
+  return withTradingLock(hl, db, userId, () => cancelLimitEntryLocked(hl, db, userId, id));
+}
+
+async function cancelLimitEntryLocked(hl: HyperliquidClient, db: Db, userId: string, id: string): Promise<PendingEvent[]> {
   const { data: row } = await db.from('pending_orders').select('*').eq('user_id', userId).eq('id', id).eq('status', 'resting').maybeSingle();
   if (!row) throw new Error('Order not found or no longer resting');
   await hl.cancelOrders(row.symbol, [row.oid]).catch(() => {}); // already gone is fine: the pass below settles it

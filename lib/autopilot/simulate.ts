@@ -17,48 +17,47 @@ export interface SimTrade {
 }
 export interface Run { trades: SimTrade[]; hourly: Array<{ date: string; r: number }> }
 
-/** 1x notional per position. Signal from bar i-1, executed at the open of bar i. */
+/** Fixed coin quantity, sized at 1x equity at entry. Completed-bar signal,
+ * next-bar execution. Hourly returns reconcile to the same cash P&L as trades. */
 export function simulate(bars: Bar[], s: StrategyDef, allowShort: boolean, funding: Map<string, number>, from = WARMUP_BARS): Run {
   const ind = computeIndicators(bars);
-  let pos: -1 | 0 | 1 = 0, entry = 0, stop = 0, held = 0, tradeNet = 0, tradeGross = 0, entryT = 0, stopPct = 0;
+  let pos: -1 | 0 | 1 = 0;
+  let equity = 1, entry = 0, entryNotional = 0, reference = 0, stop = 0;
+  let held = 0, costs = 0, entryT = 0, stopPct = 0;
   const trades: SimTrade[] = [];
   const hourly: Run['hourly'] = [];
   for (let i = Math.max(from, WARMUP_BARS); i < bars.length; i++) {
     const b = bars[i];
     const date = new Date(b.t).toISOString().slice(0, 10);
-    let r = 0;
+    const before = equity;
     const close = (px: number, extraCost = 0) => {
-      const g = pos * (px / entry - 1);
-      const move = pos * (px / (held === 0 ? entry : bars[i - 1].c) - 1);
-      r += move - COST - extraCost; tradeGross = g; tradeNet += move - COST - extraCost;
-      trades.push({ net: tradeNet, gross: tradeGross, date, entryT, exitT: b.t, stopPct });
-      pos = 0; tradeNet = 0; held = 0;
+      const exitCost = (COST + extraCost) * px / entry;
+      equity += entryNotional * (pos * (px - reference) / entry - exitCost);
+      costs += exitCost;
+      const gross = pos * (px / entry - 1);
+      trades.push({ net: gross - costs, gross, date, entryT, exitT: b.t, stopPct });
+      pos = 0; held = 0;
     };
-
     const sig = s.evaluate(ind, bars, i - 1, pos, allowShort);
-    // A position that was just closed is not re-opened on the same bar: its "hold" signal is not a fresh setup.
     const wasOpen = pos !== 0;
     if (wasOpen && (sig.target !== pos || (s.maxHoldHours > 0 && held >= s.maxHoldHours))) close(b.o);
-    if (pos === 0 && !wasOpen && sig.target !== 0) {
-      pos = sig.target; entry = b.o; stop = entry * (1 - pos * sig.stopPct); held = 0; entryT = b.t; stopPct = sig.stopPct;
-      r -= COST; tradeNet = -COST;
+    if (!wasOpen && sig.target !== 0 && equity > 0) {
+      pos = sig.target; entry = b.o; reference = entry; entryNotional = equity;
+      stop = entry * (1 - pos * sig.stopPct); held = 0; entryT = b.t; stopPct = sig.stopPct;
+      costs = COST; equity -= entryNotional * COST;
     }
     if (pos !== 0) {
-      const ref = held === 0 ? entry : bars[i - 1].c;
       const hit = pos === 1 ? b.l <= stop : b.h >= stop;
-      if (hit) {
-        // A gap through the stop fills at the open, not at the stop.
-        const px = pos === 1 ? Math.min(stop, b.o) : Math.max(stop, b.o);
-        const g = pos * (px / entry - 1), move = pos * (px / ref - 1);
-        r += move - COST - STOP_SLIPPAGE; tradeNet += move - COST - STOP_SLIPPAGE;
-        trades.push({ net: tradeNet, gross: g, date, entryT, exitT: b.t, stopPct });
-        pos = 0; tradeNet = 0; held = 0;
-      } else {
-        const move = pos * (b.c / ref - 1), fund = (pos * (funding.get(date) ?? 0.0003)) / 24;
-        r += move - fund; tradeNet += move - fund; held += 1;
+      if (hit) close(pos === 1 ? Math.min(stop, b.o) : Math.max(stop, b.o), STOP_SLIPPAGE);
+      else {
+        const fund = pos * (funding.get(date) ?? 0.0003) / 24 * b.c / entry;
+        equity += entryNotional * (pos * (b.c - reference) / entry - fund);
+        costs += fund; reference = b.c; held++;
       }
     }
-    hourly.push({ date, r });
+    equity = Math.max(0, equity);
+    hourly.push({ date, r: before > 0 ? equity / before - 1 : 0 });
+    if (equity === 0) break;
   }
   return { trades, hourly };
 }

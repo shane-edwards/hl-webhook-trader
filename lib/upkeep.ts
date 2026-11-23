@@ -1,3 +1,5 @@
+import { haltAndFlatten } from '@/lib/risk/flatten';
+import { withTradingLock } from '@/lib/trading-lock';
 // Per-account housekeeping run by the five-minute scan, after the Autopilot:
 // limit entries, managed exits, reconciling the trade log with the exchange,
 // and the once-a-day summary.
@@ -80,7 +82,7 @@ async function maybeSendSummary(hl: HyperliquidClient, db: Db, settings: Setting
     autopilot: { enabled: settings.autopilot_enabled === true, mode: settings.autopilot_mode === 'live' ? 'live' : 'paper', paperEquity: auto.data ? Number(auto.data.paper_equity) : null },
   });
   await db.from('portfolio_state').update({ last_summary_day: today, day_key: today, day_start_equity: account.totalValue, updated_at: new Date(now).toISOString() }).eq('user_id', userId);
-  return notify(text, `HL Trader daily summary, ${yesterday}`);
+  return notify(text, `HL Trader daily summary, ${yesterday}`, userId);
 }
 
 export interface UpkeepResult { notes: string[]; errors: string[] }
@@ -91,7 +93,17 @@ export interface UpkeepResult { notes: string[]; errors: string[] }
  * trade record the moment its position disappears from the exchange.
  */
 export async function runFastPass(hl: HyperliquidClient, db: Db, settings: SettingsRow, now = Date.now()): Promise<UpkeepResult> {
+  return withTradingLock(hl, db, settings.user_id, () => runFastPassLocked(hl, db, settings, now));
+}
+
+async function runFastPassLocked(hl: HyperliquidClient, db: Db, settings: SettingsRow, now = Date.now()): Promise<UpkeepResult> {
   const userId: string = settings.user_id;
+  const recovery = await db.from('settings').select('flatten_pending').eq('user_id', userId).maybeSingle();
+  if (recovery.error) throw new Error(recovery.error.message);
+  if (recovery.data?.flatten_pending) {
+    await haltAndFlatten(hl, db, userId, Number(settings.slippage_percent ?? 2));
+    return { notes: ['Account recovery verified flat'], errors: [] };
+  }
   const out: UpkeepResult = { notes: [], errors: [] };
   const step = async (name: string, fn: () => Promise<void>) => {
     try { await fn(); } catch (err) { out.errors.push(`${name}: ${err instanceof Error ? err.message : err}`); }
@@ -116,7 +128,7 @@ export async function runFastPass(hl: HyperliquidClient, db: Db, settings: Setti
   });
 
   const lines = [...out.errors.map(e => `ERROR ${e}`), ...out.notes];
-  if (lines.length) await notify(lines.join('\n'));
+  if (lines.length) await notify(lines.join('\n'), undefined, userId);
   return out;
 }
 
@@ -125,7 +137,17 @@ const FAST_SETTLE_AFTER_MS = 20_000;
 
 /** Everything the scan does for one account with a connected wallet. Each step is isolated: one failing does not stop the rest. */
 export async function runUpkeep(hl: HyperliquidClient, db: Db, settings: SettingsRow, now = Date.now()): Promise<UpkeepResult> {
+  return withTradingLock(hl, db, settings.user_id, () => runUpkeepLocked(hl, db, settings, now));
+}
+
+async function runUpkeepLocked(hl: HyperliquidClient, db: Db, settings: SettingsRow, now = Date.now()): Promise<UpkeepResult> {
   const userId: string = settings.user_id;
+  const recovery = await db.from('settings').select('flatten_pending').eq('user_id', userId).maybeSingle();
+  if (recovery.error) throw new Error(recovery.error.message);
+  if (recovery.data?.flatten_pending) {
+    await haltAndFlatten(hl, db, userId, Number(settings.slippage_percent ?? 2));
+    return { notes: ['Account recovery verified flat'], errors: [] };
+  }
   const out: UpkeepResult = { notes: [], errors: [] };
   const step = async (name: string, fn: () => Promise<void>) => {
     try { await fn(); } catch (err) { out.errors.push(`${name}: ${err instanceof Error ? err.message : err}`); }
@@ -144,6 +166,6 @@ export async function runUpkeep(hl: HyperliquidClient, db: Db, settings: Setting
   await step('daily summary', async () => { await maybeSendSummary(hl, db, settings, now); });
 
   const lines = [...out.errors.map(e => `ERROR ${e}`), ...out.notes];
-  if (lines.length) await notify(lines.join('\n'));
+  if (lines.length) await notify(lines.join('\n'), undefined, userId);
   return out;
 }

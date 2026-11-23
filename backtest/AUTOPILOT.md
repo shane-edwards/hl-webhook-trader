@@ -7,16 +7,16 @@ extra slippage on stops, and funding. Settings are the first ones chosen; nothin
 
 | Strategy | Direction | Trades / coin / yr | Win rate | Avg trade before costs (bps) | Avg trade after costs (bps) | Return / yr 2020–2022 | Return / yr 2023+ | of which 2025+ | Sharpe 2023+ | Worst drawdown 2023+ | Allowed to trade live |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Trend pullback | Long only | 57 | +38% | 6 | -13 | -4% | **-8%** | -8% | -0.48 | -44% | Paper only |
-| Trend pullback | Long & short | 112 | +39% | 10 | -6 | -10% | **-9%** | -2% | -0.31 | -41% | Paper only |
-| Trend breakout | Long only | 48 | +29% | 75 | 44 | +64% | **+19%** | -1% | 0.83 | -26% | **Yes** |
-| Trend breakout | Long & short | 92 | +28% | 39 | 15 | +35% | **+4%** | +6% | 0.29 | -38% | Paper only |
+| Trend pullback | Long only | 57 | +38% | 6 | -13 | -4% | **-8%** | -8% | -0.47 | -44% | Paper only |
+| Trend pullback | Long & short | 112 | +39% | 10 | -6 | -8% | **-9%** | -3% | -0.34 | -41% | Paper only |
+| Trend breakout | Long only | 48 | +28% | 75 | 47 | +65% | **+20%** | -1% | 0.83 | -26% | **Yes** |
+| Trend breakout | Long & short | 92 | +28% | 39 | 17 | +49% | **+7%** | +7% | 0.37 | -33% | Paper only (passed the gate; on probation) |
 | Momentum burst | Long only | 90 | +38% | 1 | -15 | +4% | **-13%** | -7% | -1.15 | -52% | Paper only |
-| Momentum burst | Long & short | 171 | +38% | 0 | -16 | -18% | **-25%** | -13% | -1.52 | -73% | Paper only |
-| MACD trend (4-hour) | Long only | 42 | +31% | 73 | 44 | +44% | **+18%** | +9% | 0.85 | -22% | Paper only (passed the gate; on probation) |
-| MACD trend (4-hour) | Long & short | 79 | +32% | 42 | 20 | +20% | **+11%** | +22% | 0.48 | -45% | Paper only (passed the gate; on probation) |
-| Volume breakout (daily) | Long only | 4 | +51% | 917 | 544 | +131% | **+19%** | -13% | 0.71 | -38% | Paper only (passed the gate; on probation) |
-| Volume breakout (daily) | Long & short | 7 | +45% | 552 | 295 | +104% | **+13%** | +9% | 0.49 | -45% | Paper only (passed the gate; on probation) |
+| Momentum burst | Long & short | 171 | +38% | 0 | -16 | -19% | **-25%** | -13% | -1.53 | -73% | Paper only |
+| MACD trend (4-hour) | Long only | 42 | +30% | 73 | 47 | +44% | **+18%** | +9% | 0.85 | -22% | Paper only (passed the gate; on probation) |
+| MACD trend (4-hour) | Long & short | 79 | +32% | 42 | 23 | +24% | **+13%** | +24% | 0.56 | -44% | Paper only (passed the gate; on probation) |
+| Volume breakout (daily) | Long only | 4 | +49% | 917 | 609 | +133% | **+19%** | -13% | 0.70 | -39% | Paper only (passed the gate; on probation) |
+| Volume breakout (daily) | Long & short | 7 | +46% | 552 | 377 | +115% | **+21%** | +16% | 0.68 | -37% | Paper only (passed the gate; on probation) |
 
 ## The live gate
 

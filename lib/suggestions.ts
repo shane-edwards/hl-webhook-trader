@@ -53,7 +53,7 @@ export interface Suggestion {
 
 /** Did this rule, in this direction mode, pass the backtest gate? */
 const passedGate = (id: string, allowShort: boolean) =>
-  evidence.strategies.some(e => e.id === id && e.allowShort === allowShort && e.gatePassed === true);
+  evidence.strategies.some(e => e.id === id && e.allowShort === allowShort && e.liveEligible === true && evidence.accountingVersion === 2);
 
 const round = (x: number, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -104,13 +104,13 @@ export function buildSuggestion(symbol: string, bars: Bar[], price: number): Sug
 
   if (!limitedHistory) {
     const up30 = ind.close[i] > ind.emaSlow[i];
-    factors.push({ label: '30-day trend', vote: up30 ? 1 : -1, counted: true, detail: `Price is ${up30 ? 'above' : 'below'} its 30-day average` });
+    factors.push({ label: '30-day trend', vote: 0, counted: false, detail: `Price is ${up30 ? 'above' : 'below'} its 30-day average` });
     const h = ind.h4;
     if (Number.isFinite(h.ema200[i])) {
       const up4 = h.close[i] > h.ema200[i];
-      factors.push({ label: '4-hour trend', vote: up4 ? 1 : -1, counted: true, detail: `4-hour close is ${up4 ? 'above' : 'below'} its 200-period average` });
+      factors.push({ label: '4-hour trend', vote: 0, counted: false, detail: `4-hour close is ${up4 ? 'above' : 'below'} its 200-period average` });
       const m = h.macd[i] > h.signal[i];
-      factors.push({ label: 'MACD (4-hour)', vote: m ? 1 : -1, counted: true, detail: `MACD is ${m ? 'above' : 'below'} its signal line` });
+      factors.push({ label: 'MACD (4-hour)', vote: 0, counted: false, detail: `MACD is ${m ? 'above' : 'below'} its signal line` });
     }
     for (const s of STRATEGIES) {
       // A fresh entry from flat is the strongest statement a rule makes.

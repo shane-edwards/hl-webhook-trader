@@ -298,6 +298,7 @@ export default function SettingsPage() {
               <pre className="text-xs text-muted-foreground overflow-x-auto">
 {`{
   "secret": "${webhookSecret || 'YOUR_SECRET'}",
+  "signal_id": "{{strategy.order.id}}-{{timenow}}",
   "position": "{{strategy.market_position}}",
   "symbol": "{{syminfo.basecurrency}}",
   "price": {{close}},

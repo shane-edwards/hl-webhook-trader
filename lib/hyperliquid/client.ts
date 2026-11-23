@@ -1,3 +1,4 @@
+import { ledgerCashflow } from '@/lib/risk/cashflows';
 import { ethers } from 'ethers';
 import type {
   AssetMeta,
@@ -11,6 +12,9 @@ import type {
 } from './types';
 import { limitOrderWire, orderAction, triggerOrderWire, type Grouping, type OrderWire } from './orders';
 import { signL1Action } from './signing';
+import { assertWithinPortfolioLimits, portfolioLimitsFromSettings } from '@/lib/risk/portfolio';
+import { randomBytes } from 'node:crypto';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 const MAINNET_URL = 'https://api.hyperliquid.xyz';
 const TESTNET_URL = 'https://api.hyperliquid-testnet.xyz';
@@ -25,10 +29,21 @@ export class HyperliquidClient {
   private isMainnet: boolean;
   private accountAddress: string;
   private lastNonce = 0;
+  private requireCoordination: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private actionContext?: { db: SupabaseClient<any, any, any>; resource: string; owner: string; userId: string };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setActionContext(db: SupabaseClient<any, any, any>, resource: string, owner: string, userId: string): () => void {
+    const previous = this.actionContext;
+    this.actionContext = { db, resource, owner, userId };
+    return () => { this.actionContext = previous; };
+  }
   private assetCache: Map<string, { index: number; meta: AssetMeta }> = new Map();
 
   constructor(config: HyperliquidConfig) {
     this.wallet = new ethers.Wallet(config.privateKey);
+    this.requireCoordination = config.requireCoordination === true;
     this.isMainnet = !config.isTestnet;
     this.baseUrl = config.isTestnet ? TESTNET_URL : MAINNET_URL;
 
@@ -64,21 +79,86 @@ export class HyperliquidClient {
 
   private async sendAction(action: unknown): Promise<ExchangeResponse> {
     // Nonces must be unique per signer; keep them strictly increasing within this client.
-    const nonce = Math.max(Date.now(), this.lastNonce + 1);
-    this.lastNonce = nonce;
-    const signature = await signL1Action(this.wallet, action, nonce, this.isMainnet);
-
-    const res = await fetch(`${this.baseUrl}/exchange`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, nonce, signature }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Hyperliquid exchange error ${res.status}: ${text}`);
+    let nonce = Math.max(Date.now(), this.lastNonce + 1);
+    const wireAction = action as { type: string; orders?: Array<OrderWire & { c?: string }> };
+    if (wireAction.orders) wireAction.orders.forEach(o => { o.c ??= `0x${randomBytes(16).toString('hex')}`; });
+    const ctx = this.actionContext;
+    if (this.requireCoordination && !ctx) throw new Error('Trading requires an account execution lease');
+    let actionId: string | undefined;
+    let expiresAfter = Date.now() + 15_000;
+    if (ctx) {
+      const entries = wireAction.orders?.filter(o => !o.r) ?? [];
+      if (entries.length) {
+        const { data: settings, error } = await ctx.db.from('settings').select('*').eq('user_id', ctx.userId).single();
+        if (error || !settings || settings.trading_halted) throw new Error('Trading is halted or account settings are unavailable');
+        // IOC prices include the worst-price guard. Reserve against that bound.
+        const notional = entries.reduce((sum, o) => sum + Number(o.s) * Number(o.p), 0);
+        await assertWithinPortfolioLimits(this, ctx.db, ctx.userId, notional, portfolioLimitsFromSettings(settings));
+        const positions = await this.getPositions();
+        const { universe } = await this.getMeta();
+        const orders = await this.getOpenOrders();
+        for (const entry of entries) {
+          const coin = universe[entry.a]?.name;
+          const position = positions.find(p => p.symbol === coin);
+          if (position && (position.side === 'long') !== entry.b) throw new Error(`Close the existing ${coin} position before reversing`);
+          const pending = orders.filter(o => o.coin === coin && !o.reduceOnly).reduce((sum, o) => sum + o.size * o.limitPx, 0);
+          if ((position ? position.size * position.markPrice : 0) + pending + Number(entry.s) * Number(entry.p) > Number(settings.max_position_size_usd)) {
+            throw new Error(`${coin} would exceed the maximum position size`);
+          }
+        }
+      }
+      const allocated = await ctx.db.rpc('next_trading_nonce', {
+        resource_key: ctx.resource, lease_owner: ctx.owner,
+        signer_key: `${this.isTestnet ? 'testnet' : 'mainnet'}:${this.wallet.address.toLowerCase()}`,
+        account_user: ctx.userId, increases_exposure: wireAction.orders?.some(o => !o.r) ?? false,
+      });
+      if (allocated.error) throw new Error(allocated.error.message);
+      nonce = Number(allocated.data);
+      expiresAfter = Date.now() + 15_000;
+      const journal = await ctx.db.from('exchange_actions').insert({ user_id: ctx.userId, resource: ctx.resource, nonce, action, expires_after: expiresAfter }).select('id').single();
+      if (journal.error && entries.length) throw new Error(`Could not record order intent: ${journal.error.message}`);
+      actionId = journal.data?.id;
     }
-    return res.json();
+    this.lastNonce = nonce;
+    const signature = await signL1Action(this.wallet, action, nonce, this.isMainnet, expiresAfter);
+
+    try {
+      const res = await fetch(`${this.baseUrl}/exchange`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, nonce, signature, expiresAfter }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Hyperliquid exchange error ${res.status}: ${text}`);
+      }
+      const result = await res.json();
+      if (ctx && actionId) {
+        const saved = await ctx.db.from('exchange_actions').update({ status: 'confirmed', response: result }).eq('id', actionId);
+        // Preserve an acknowledged fill so the caller can protect it, even if
+        // the database fails immediately after the exchange responds.
+        if (saved.error) await ctx.db.rpc('halt_trading_account', { resource_key: ctx.resource });
+      }
+      return result;
+    } catch (err) {
+      if (ctx) {
+        await ctx.db.rpc('halt_trading_account', { resource_key: ctx.resource });
+        await ctx.db.from('settings').update({ trading_halted: true, flatten_pending: true }).eq('user_id', ctx.userId);
+        if (actionId) await ctx.db.from('exchange_actions').update({ status: 'uncertain' }).eq('id', actionId);
+        // A delayed entry must expire before we verify the account and close
+        // any fill. Otherwise it could arrive after recovery has gone flat.
+        if (wireAction.orders?.some(o => !o.r)) await new Promise(resolve => setTimeout(resolve, Math.max(0, expiresAfter - Date.now()) + 250));
+        // An entry may have filled despite a lost response. Risk-reducing
+        // closure is safe to repeat and continues to be allowed while halted.
+        for (const order of wireAction.orders?.filter(o => !o.r) ?? []) {
+          const { universe } = await this.getMeta();
+          const coin = universe[order.a]?.name;
+          if (coin && await this.getPosition(coin)) await this.closePosition(coin);
+        }
+      }
+      throw err;
+    }
   }
 
   async getMeta(): Promise<MetaResponse> {
@@ -170,6 +250,35 @@ export class HyperliquidClient {
     };
   }
 
+  /** Exchange P&L excludes cash movements. Use the latest observation at or
+   * before UTC midnight, with at most one hour of sampling uncertainty. */
+  async getDailyRisk(): Promise<{ startEquity: number; pnl: number; netDeposits: number }> {
+    const rows = await this.infoRequest<Array<[string, { accountValueHistory: Array<[number, string]>; pnlHistory: Array<[number, string]> }]>>({ type: 'portfolio', user: this.address });
+    const day = rows.find(([name]) => name === 'day')?.[1];
+    const midnight = new Date().setUTCHours(0, 0, 0, 0);
+    const start = day?.accountValueHistory.filter(([t]) => t <= midnight).at(-1);
+    const pnlStart = day?.pnlHistory.filter(([t]) => t <= midnight).at(-1);
+    const pnlEnd = day?.pnlHistory.at(-1);
+    if (!start || !pnlStart || !pnlEnd || midnight - start[0] > 3_600_000 || !(Number(start[1]) > 0)) {
+      throw new Error('Exchange daily risk history is unavailable. New exposure is blocked');
+    }
+    const last = day!.accountValueHistory.at(-1)!;
+    const [account, ledger] = await Promise.all([
+      this.getAccountSummary(),
+      this.infoRequest<Array<{ time: number; delta: Record<string, unknown> }>>({ type: 'userNonFundingLedgerUpdates', user: this.address, startTime: start[0] + 1 }),
+    ]);
+    if (ledger.length >= 500) throw new Error('Cash movement history is incomplete. New exposure is blocked');
+    const flows = ledger.reduce((sum, row) => sum + ledgerCashflow(row.delta, this.address), 0);
+    const recentFlows = ledger.filter(row => row.time > last[0]).reduce((sum, row) => sum + ledgerCashflow(row.delta, this.address), 0);
+    const allTime = rows.find(([name]) => name === 'allTime')?.[1];
+    const cumulativePnl = Number(allTime?.pnlHistory.at(-1)?.[1] ?? pnlEnd[1]);
+    return {
+      startEquity: Number(start[1]),
+      pnl: account.totalValue - Number(start[1]) - flows,
+      netDeposits: Number(last[1]) - cumulativePnl + recentFlows,
+    };
+  }
+
   /** Completed daily candles, oldest first. The candle still forming today is dropped. */
   async getDailyCandles(coin: string, days: number): Promise<Array<{ time: number; close: number }>> {
     const endTime = Date.now();
@@ -201,6 +310,20 @@ export class HyperliquidClient {
       .filter(c => c.T < now)
       .sort((x, y) => x.t - y.t)
       .map(c => ({ t: c.t, o: parseFloat(c.o), h: parseFloat(c.h), l: parseFloat(c.l), c: parseFloat(c.c), v: parseFloat(c.v ?? '0') }));
+  }
+
+  async getFundingRates(coin: string, startTime: number, endTime: number): Promise<Array<{ time: number; rate: number }>> {
+    const out: Array<{ time: number; rate: number }> = [];
+    let cursor = startTime;
+    while (cursor <= endTime) {
+      const page = await this.infoRequest<Array<{ time: number; fundingRate: string }>>({ type: 'fundingHistory', coin, startTime: cursor, endTime });
+      if (!page.length) break;
+      out.push(...page.map(r => ({ time: r.time, rate: Number(r.fundingRate) })));
+      const next = Math.max(...page.map(r => r.time)) + 1;
+      if (next <= cursor) throw new Error('Funding history pagination did not advance');
+      cursor = next;
+    }
+    return out;
   }
 
   async setLeverage(coin: string, leverage: number, isCross = true): Promise<void> {
@@ -386,7 +509,7 @@ export class HyperliquidClient {
   }
 
   /** Open orders for a coin, including untriggered stop-loss / take-profit orders. */
-  async getOpenOrders(coin?: string): Promise<Array<{ coin: string; oid: number; isTrigger: boolean; reduceOnly: boolean; triggerPx: number; side: 'buy' | 'sell'; size: number; orderType: string }>> {
+  async getOpenOrders(coin?: string): Promise<Array<{ coin: string; oid: number; isTrigger: boolean; reduceOnly: boolean; triggerPx: number; limitPx: number; side: 'buy' | 'sell'; size: number; orderType: string }>> {
     const raw = await this.infoRequest<Array<Record<string, unknown>>>({ type: 'frontendOpenOrders', user: this.address });
     return (raw ?? [])
       .filter(o => !coin || o.coin === coin.toUpperCase())
@@ -396,6 +519,7 @@ export class HyperliquidClient {
         isTrigger: o.isTrigger === true,
         reduceOnly: o.reduceOnly === true,
         triggerPx: parseFloat(String(o.triggerPx ?? '0')),
+        limitPx: parseFloat(String(o.limitPx ?? '0')),
         side: o.side === 'B' ? 'buy' as const : 'sell' as const,
         size: parseFloat(String(o.sz ?? '0')),
         orderType: String(o.orderType ?? ''),

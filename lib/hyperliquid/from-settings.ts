@@ -18,6 +18,7 @@ export function hlClientFromSettings(settings: CredentialSettings | null | undef
   if (!envKey && !encrypted) return null;
 
   return createHLClient({
+    requireCoordination: true,
     privateKey: envKey ?? decrypt(encrypted!),
     accountAddress: envKey ? process.env.HL_WALLET_ADDRESS : settings?.hl_wallet_address,
     // Testnet if either source says so: a stale flag should never route test orders to mainnet.
