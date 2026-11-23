@@ -40,7 +40,10 @@ export class EtoroClient {
 
   async instrument(symbol: string) {
     const { results } = await this.get<{ results: Instrument[] }>(`/v2/market-data/instruments/search?query=${encodeURIComponent(symbol)}`);
-    const matches = results.filter(i => i.symbol?.toUpperCase() === symbol && i.type?.toLowerCase() === (symbol === 'SPY' ? 'etf' : 'stocks') && Number.isSafeInteger(i.instrumentId) && i.instrumentId > 0);
+    const eligible = results.filter(i => i.type?.toLowerCase() === (symbol === 'SPY' ? 'etf' : 'stocks') && Number.isSafeInteger(i.instrumentId) && i.instrumentId > 0);
+    // Some US tickers carry a country suffix when other exchanges share the base ticker.
+    const suffixed = eligible.filter(i => i.symbol?.toUpperCase() === `${symbol}.US`);
+    const matches = suffixed.length ? suffixed : eligible.filter(i => i.symbol?.toUpperCase() === symbol);
     return matches.length === 1 ? matches[0] : null;
   }
 

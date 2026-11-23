@@ -13,6 +13,7 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   '/stocks': { title: 'US Stocks', description: 'eToro portfolio, stock setups and historical simulations' },
   '/stocks/intraday': { title: 'US stock intraday research', description: 'Five-minute simulations on eToro bid and ask candles' },
   '/stocks/opening': { title: 'Opening volume research', description: 'Ranked stock setups and cost comparisons' },
+  '/stocks/factors': { title: 'Earnings and reversal research', description: 'SEC filing timing, eToro execution costs and replication' },
   '/lab': { title: 'Strategy Lab', description: 'Backtest ideas with real costs before risking money' },
   '/lab/scalping': { title: 'Scalping research', description: 'TradingView ideas tested against perpetual futures data' },
   '/analytics': { title: 'Analytics', description: 'Performance statistics from your trade log' },

@@ -40,6 +40,10 @@ export default function StockIntradayPage() {
       <Header actions={<Button asChild variant="outline" size="sm"><Link href="/stocks">US Stocks</Link></Button>} />
       <div className="p-4 lg:p-8 space-y-5 w-full max-w-[1400px] mx-auto">
         <section className="surface p-4 flex flex-wrap items-center justify-between gap-3">
+          <div><h2 className="font-semibold">Earnings and reversal research</h2><p className="text-sm text-muted-foreground">Test public SEC filing events and compare the same rule on a separate stock universe.</p></div>
+          <Button asChild size="sm" variant="outline"><Link href="/stocks/factors">View earnings study</Link></Button>
+        </section>
+        <section className="surface p-4 flex flex-wrap items-center justify-between gap-3">
           <div><h2 className="font-semibold">Broader opening-volume study</h2><p className="text-sm text-muted-foreground">Compare daily stock selection and broker costs across 17 US stocks.</p></div>
           <Button asChild size="sm" variant="outline"><Link href="/stocks/opening">View opening study</Link></Button>
         </section>

@@ -1,0 +1,307 @@
+{
+  "parts": [
+    {
+      "label": "2025 price signal",
+      "from": "2025-05-01",
+      "to": "2026-01-01"
+    },
+    {
+      "label": "2026 Q2 validation",
+      "from": "2026-04-01",
+      "to": "2026-07-01"
+    },
+    {
+      "label": "2026 H2 later test",
+      "from": "2026-07-01",
+      "to": "2026-11-21"
+    }
+  ],
+  "rows": [
+    {
+      "family": "reversal",
+      "rule": {
+        "id": "rev-2-2-0.012-3",
+        "family": "reversal",
+        "entry": 2,
+        "lookback": 2,
+        "threshold": 0.012,
+        "hold": 3,
+        "name": "10:30 reversal, 60m signal, 1.2% lag, 90m hold"
+      },
+      "tested": 20,
+      "selected": 0,
+      "stages": [
+        {
+          "trades": 211,
+          "activeDays": 131,
+          "positiveSymbols": 1,
+          "grossBps": 3.0542684962911575,
+          "netBps": -37.99569794353426,
+          "stressBps": -47.96431207852953,
+          "averageMinutes": 90,
+          "tByDay": -3.544696703424209,
+          "interval95Bps": [
+            -59.36908819111297,
+            -16.984816060545253
+          ]
+        },
+        {
+          "trades": 111,
+          "activeDays": 61,
+          "positiveSymbols": 10,
+          "grossBps": 29.730103782305036,
+          "netBps": 18.447310450955175,
+          "stressBps": 8.433556576867074,
+          "averageMinutes": 90,
+          "tByDay": 1.0031323244180688,
+          "interval95Bps": [
+            -19.075514877033132,
+            53.06828191794545
+          ]
+        },
+        {
+          "trades": 166,
+          "activeDays": 94,
+          "positiveSymbols": 3,
+          "grossBps": -10.025760451155637,
+          "netBps": -22.11849131254123,
+          "stressBps": -32.099803086894084,
+          "averageMinutes": 90,
+          "tByDay": -1.9428100683018217,
+          "interval95Bps": [
+            -43.98988187600416,
+            -0.7205931962540971
+          ]
+        }
+      ],
+      "previouslyExamined": false,
+      "paperCandidate": false
+    },
+    {
+      "family": "close",
+      "rule": {
+        "id": "close-0.012",
+        "family": "close",
+        "entry": 12,
+        "lookback": 12,
+        "threshold": 0.012,
+        "hold": 1,
+        "name": "15:30 reversal, 1.2% lag"
+      },
+      "tested": 2,
+      "selected": 0,
+      "stages": [
+        {
+          "trades": 267,
+          "activeDays": 150,
+          "positiveSymbols": 0,
+          "grossBps": -20.392982903998966,
+          "netBps": -44.28733786512128,
+          "stressBps": -54.25092032316329,
+          "averageMinutes": 30,
+          "tByDay": -10.277807061003799,
+          "interval95Bps": [
+            -52.53225083005597,
+            -36.82477975110283
+          ]
+        },
+        {
+          "trades": 112,
+          "activeDays": 59,
+          "positiveSymbols": 6,
+          "grossBps": 13.544392795855554,
+          "netBps": 4.282446277787677,
+          "stressBps": -5.719979385929439,
+          "averageMinutes": 30,
+          "tByDay": 0.47853535862369895,
+          "interval95Bps": [
+            -11.80987784569526,
+            21.226832416416123
+          ]
+        },
+        {
+          "trades": 193,
+          "activeDays": 98,
+          "positiveSymbols": 4,
+          "grossBps": -1.0312854537872018,
+          "netBps": -10.37236391852549,
+          "stressBps": -20.36306954237382,
+          "averageMinutes": 30,
+          "tByDay": -1.7176468990427112,
+          "interval95Bps": [
+            -22.507008205566443,
+            0.7216513677402667
+          ]
+        }
+      ],
+      "previouslyExamined": false,
+      "paperCandidate": false
+    },
+    {
+      "family": "earnings",
+      "rule": {
+        "id": "event--1-0.01-12",
+        "family": "earnings",
+        "entry": 1,
+        "direction": -1,
+        "threshold": 0.01,
+        "hold": 12,
+        "name": "Earnings gap-down rebound, 1% gap, to close"
+      },
+      "tested": 12,
+      "selected": 0,
+      "stages": [
+        {
+          "trades": 18,
+          "activeDays": 18,
+          "positiveSymbols": 6,
+          "grossBps": 5.329284413867985,
+          "netBps": -20.260999399841424,
+          "stressBps": -30.24379668502565,
+          "averageMinutes": 360,
+          "tByDay": -0.39895811952913973,
+          "interval95Bps": [
+            -107.02210824570933,
+            94.42602485007347
+          ]
+        },
+        {
+          "trades": 8,
+          "activeDays": 7,
+          "positiveSymbols": 5,
+          "grossBps": 51.932378868566055,
+          "netBps": 41.9415202340577,
+          "stressBps": 31.908977097489938,
+          "averageMinutes": 360,
+          "tByDay": 0.6553398396259426,
+          "interval95Bps": null
+        },
+        {
+          "trades": 16,
+          "activeDays": 13,
+          "positiveSymbols": 8,
+          "grossBps": 44.94279768906866,
+          "netBps": 34.776540343977324,
+          "stressBps": 24.749727329387852,
+          "averageMinutes": 360,
+          "tByDay": 0.5712422701086355,
+          "interval95Bps": [
+            -71.45768921934457,
+            153.90590886960882
+          ]
+        }
+      ],
+      "previouslyExamined": false,
+      "paperCandidate": false
+    }
+  ],
+  "coverage": [
+    {
+      "symbol": "AAPL",
+      "sessions": 389
+    },
+    {
+      "symbol": "MSFT",
+      "sessions": 390
+    },
+    {
+      "symbol": "NVDA",
+      "sessions": 390
+    },
+    {
+      "symbol": "AMZN",
+      "sessions": 389
+    },
+    {
+      "symbol": "TSLA",
+      "sessions": 389
+    },
+    {
+      "symbol": "AMD",
+      "sessions": 389
+    },
+    {
+      "symbol": "AVGO",
+      "sessions": 390
+    },
+    {
+      "symbol": "META",
+      "sessions": 389
+    },
+    {
+      "symbol": "GOOGL",
+      "sessions": 389
+    },
+    {
+      "symbol": "PLTR",
+      "sessions": 389
+    },
+    {
+      "symbol": "MU",
+      "sessions": 389
+    },
+    {
+      "symbol": "JPM",
+      "sessions": 390
+    },
+    {
+      "symbol": "XOM",
+      "sessions": 389
+    },
+    {
+      "symbol": "LLY",
+      "sessions": 389
+    },
+    {
+      "symbol": "CAT",
+      "sessions": 389
+    },
+    {
+      "symbol": "BA",
+      "sessions": 389
+    },
+    {
+      "symbol": "WMT",
+      "sessions": 386
+    },
+    {
+      "symbol": "SPY",
+      "sessions": 389
+    }
+  ],
+  "eventCount": 109,
+  "quoteAudit": [
+    {
+      "label": "2025 price signal",
+      "count": 35856,
+      "medianBps": 31.666942559179834,
+      "underTen": 0
+    },
+    {
+      "label": "2026 Q2 validation",
+      "count": 13356,
+      "medianBps": 1.8989745537406022,
+      "underTen": 12895
+    },
+    {
+      "label": "2026 H2 later test",
+      "count": 21804,
+      "medianBps": 2.2028857803718496,
+      "underTen": 20942
+    }
+  ],
+  "otherGapControl": {
+    "trades": 152,
+    "activeDays": 88,
+    "positiveSymbols": 7,
+    "grossBps": -16.522611873324234,
+    "netBps": -26.778280703065924,
+    "stressBps": -36.7558658568276,
+    "averageMinutes": 360,
+    "tByDay": -1.1669744973790204,
+    "interval95Bps": [
+      -71.29646852342412,
+      16.33106864707292
+    ]
+  }
+}

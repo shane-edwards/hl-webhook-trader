@@ -14,6 +14,8 @@ Open **US Stocks → eToro account** and connect an eToro Demo or Real key pair 
 
 **Opening volume research** measures whether ranking unusual opening activity across a 17-stock basket improves the net outcome over choosing stocks by ordinary liquidity. It compares stock and CFD costs and keeps the last sample separate. See [the opening study](backtest/STOCK-OPENING.md).
 
+**Earnings and reversal research** compares market-relative stock moves and SEC-timestamped earnings events, checks changes in the broker quote spread, and tests a frozen earnings setup on a different stock universe. See [the factor study](backtest/STOCK-FACTORS.md).
+
 ## Features
 
 - **TradingView Integration** — Receive webhook signals and execute perp orders automatically

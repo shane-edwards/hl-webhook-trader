@@ -1,0 +1,85 @@
+{
+  "symbols": [
+    "COST",
+    "UNH",
+    "BAC",
+    "GS",
+    "CVX",
+    "SLB",
+    "UNP",
+    "UPS",
+    "HD",
+    "LOW",
+    "ORCL",
+    "CRM",
+    "ADP",
+    "INTC",
+    "QCOM",
+    "NFLX",
+    "DIS",
+    "MCD",
+    "PEP",
+    "KO",
+    "MRK",
+    "PFE",
+    "TXN",
+    "AMAT",
+    "GE",
+    "IBM"
+  ],
+  "unavailable": [],
+  "from": "2026-04-01",
+  "to": "2026-11-21",
+  "events": 76,
+  "result": {
+    "trades": 14,
+    "activeDays": 14,
+    "positiveSymbols": 6,
+    "grossBps": 36.8973452127603,
+    "netBps": 26.54209311704657,
+    "stressBps": 16.521865520385326,
+    "averageMinutes": 360,
+    "tByDay": 0.5022560083114085,
+    "interval95Bps": [
+      -74.74009289554034,
+      122.00230775904117
+    ]
+  },
+  "q2": {
+    "trades": 5,
+    "activeDays": 5,
+    "positiveSymbols": 3,
+    "grossBps": 28.95342759647401,
+    "netBps": 17.97167639844144,
+    "stressBps": 7.958302907993703,
+    "averageMinutes": 360,
+    "tByDay": 0.22042358441901247,
+    "interval95Bps": null
+  },
+  "h2": {
+    "trades": 9,
+    "activeDays": 9,
+    "positiveSymbols": 4,
+    "grossBps": 41.31063277736381,
+    "netBps": 31.303435738493867,
+    "stressBps": 21.279400305047357,
+    "averageMinutes": 360,
+    "tByDay": 0.43390107090576796,
+    "interval95Bps": null
+  },
+  "shortResult": {
+    "trades": 14,
+    "activeDays": 14,
+    "positiveSymbols": 5,
+    "grossBps": 15.616037093160175,
+    "netBps": 3.3542922752180084,
+    "stressBps": -6.6473911064923765,
+    "averageMinutes": 60,
+    "tByDay": 0.11225811284235529,
+    "interval95Bps": [
+      -52.671631547285195,
+      59.67040249341305
+    ]
+  },
+  "paperCandidate": false
+}

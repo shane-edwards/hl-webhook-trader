@@ -60,3 +60,13 @@ test('eToro uses the selected read endpoint and pairs bid and ask candles withou
   assert.equal(quotes[0].date, '2026-11-23T02:54:18.97Z');
   assert.equal(requests.length, 4);
 });
+
+test('eToro resolves a US-suffixed ticker without substituting an overseas listing', async t => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ results: [
+    { instrumentId: 10, symbol: 'CVX.PA', type: 'Stocks' },
+    { instrumentId: 20, symbol: 'CVX.US', type: 'Stocks' },
+  ] }));
+  const broker = new EtoroClient({ apiKey: 'test-key', userKey: 'test-user', environment: 'real' });
+  assert.equal((await broker.instrument('CVX'))?.instrumentId, 20);
+  assert.equal(await broker.instrument('XYZ'), null);
+});
