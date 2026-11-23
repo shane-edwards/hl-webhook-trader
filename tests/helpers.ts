@@ -53,7 +53,7 @@ export function memoryDb(seed: Record<string, Row[]> = {}) {
     };
     return q;
   };
-  return { db: { from } as never, tables };
+  return { db: { from, rpc: memoryRpc() } as never, tables };
 }
 
 interface SimOrder {
@@ -156,7 +156,7 @@ export class SimExchange {
   }
   async getOpenOrders(coin?: string) {
     return this.open().filter(o => o.active && (!coin || o.coin === coin)).map(o => ({
-      coin: o.coin, oid: o.oid, isTrigger: o.kind !== 'limit', reduceOnly: o.reduceOnly, triggerPx: o.kind === 'limit' ? 0 : o.px,
+      coin: o.coin, oid: o.oid, limitPx: o.px, isTrigger: o.kind !== 'limit', reduceOnly: o.reduceOnly, triggerPx: o.kind === 'limit' ? 0 : o.px,
       side: o.isBuy ? 'buy' as const : 'sell' as const, size: o.size, orderType: o.kind === 'sl' ? 'Stop Market' : o.kind === 'tp' ? 'Take Profit Market' : 'Limit',
     }));
   }
@@ -191,4 +191,19 @@ export class SimExchange {
     }
   }
   resting(coin: string, kind?: SimOrder['kind']) { return this.open().filter(o => o.coin === coin && o.active && (!kind || o.kind === kind)); }
+}
+
+/** Lease/nonce behavior shared by isolated database doubles. */
+export function memoryRpc() {
+  const leases = new Map<string, string>();
+  let nonce = Date.now();
+  return async (name: string, args: Record<string, string>) => {
+    if (name === 'acquire_trading_lock') {
+      if (leases.has(args.resource_key)) return { data: false, error: null };
+      leases.set(args.resource_key, args.lease_owner);
+      return { data: true, error: null };
+    }
+    if (name === 'release_trading_lock') leases.delete(args.resource_key);
+    return { data: name === 'next_trading_nonce' ? ++nonce : true, error: null };
+  };
 }

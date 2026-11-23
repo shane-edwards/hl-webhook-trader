@@ -43,21 +43,70 @@ export async function connectInjected(): Promise<ConnectedWallet> {
 
 export async function connectWalletConnect(): Promise<ConnectedWallet> {
   if (!walletConnectProjectId) throw new Error('WalletConnect is not configured');
-  const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
-  const provider = await EthereumProvider.init({
+  const [{ default: SignClient }, { default: QRCode }] = await Promise.all([
+    import('@walletconnect/sign-client'), import('qrcode'),
+  ]);
+  const client = await SignClient.init({
     projectId: walletConnectProjectId,
-    // Signing needs no particular chain; offer the common ones so any wallet can pair.
-    optionalChains: [42161, 1, 56, 137, 10, 8453],
-    showQrModal: true,
-    metadata: {
-      name: 'HL Trader',
-      description: 'Approve a trade-only key for Hyperliquid',
-      url: window.location.origin,
-      icons: [],
-    },
+    metadata: { name: 'HL Trader', description: 'Approve a trading key for Hyperliquid', url: window.location.origin, icons: [] },
   });
-  await provider.connect();
-  return describe(provider as unknown as Eip1193Provider, 'walletconnect');
+  const { uri, approval } = await client.connect({
+    optionalNamespaces: { eip155: {
+      chains: [42161, 1, 56, 137, 10, 8453].map(id => `eip155:${id}`),
+      methods: ['eth_signTypedData_v4'], events: ['accountsChanged', 'chainChanged'],
+    } },
+  });
+  const pending = approval();
+  const dialog = document.createElement('dialog');
+  dialog.className = 'rounded-xl p-6 bg-white text-black max-w-sm w-full';
+  dialog.setAttribute('aria-label', 'Connect your wallet');
+  const title = document.createElement('h2');
+  title.textContent = 'Connect your wallet';
+  const qr = document.createElement('img');
+  qr.alt = 'Scan with your wallet to connect';
+  qr.width = 288; qr.height = 288;
+  const link = document.createElement('a');
+  link.textContent = 'Open wallet';
+  link.className = 'block underline my-3';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.className = 'rounded border px-4 py-2';
+  dialog.append(title, qr, link, cancel);
+  let cancelled = false;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const cancellation = new Promise<never>((_, reject) => {
+    const stop = () => { cancelled = true; reject(new Error('Wallet connection cancelled')); };
+    cancel.onclick = stop;
+    dialog.addEventListener('cancel', stop);
+    timeout = setTimeout(stop, 120_000);
+  });
+  // If approval arrives after dismissal, close that unused session as well.
+  void pending.then(session => { if (cancelled) return client.disconnect({ topic: session.topic, reason: { code: 6000, message: 'Connection cancelled' } }); }).catch(() => {});
+  try {
+    if (uri) {
+      qr.src = await QRCode.toDataURL(uri, { width: 288, margin: 2 });
+      link.href = uri;
+      document.body.append(dialog);
+      dialog.showModal();
+    }
+    const session = await Promise.race([pending, cancellation]);
+    const account = session.namespaces.eip155?.accounts[0];
+    if (!account) throw new Error('The wallet did not share an Ethereum account');
+    const [, chain, address] = account.split(':');
+    const chainId = Number(chain);
+    const provider: Eip1193Provider = {
+      async request({ method, params }) {
+        if (method === 'eth_requestAccounts') return [address];
+        if (method === 'eth_chainId') return `0x${chainId.toString(16)}`;
+        return client.request({ topic: session.topic, chainId: `eip155:${chainId}`, request: { method, params } });
+      },
+      async disconnect() { await client.disconnect({ topic: session.topic, reason: { code: 6000, message: 'Disconnected' } }); },
+    };
+    return { provider, address, chainId, kind: 'walletconnect' };
+  } finally {
+    clearTimeout(timeout);
+    dialog.close(); dialog.remove();
+  }
 }
 
 /** Asks the wallet to sign EIP-712 typed data and returns the 65-byte hex signature. */

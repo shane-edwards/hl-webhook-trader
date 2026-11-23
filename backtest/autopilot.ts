@@ -59,7 +59,7 @@ const evidence = STRATEGIES.flatMap(s =>
     const late = stats(runs, SPLIT, '2100-01-01');
     // The gate: profitable in BOTH halves, and each trade earns well above its cost.
     const gatePassed = early.annualReturn > 0 && late.annualReturn > 0 && late.avgNetBps > 15 && late.profitFactor > 1.1;
-    const liveEligible = gatePassed && !s.paperOnly;
+    const liveEligible = gatePassed && !s.paperOnly && !allowShort;
     // Shown separately because it is the most recent stretch and was not used to design the rules.
     const recent = stats(runs, '2025-01-01', '2100-01-01');
     return { id: s.id, allowShort, liveEligible, gatePassed, early, late, recent };
@@ -68,7 +68,7 @@ const evidence = STRATEGIES.flatMap(s =>
 
 writeFileSync(
   join(process.cwd(), 'lib', 'autopilot', 'evidence.json'),
-  JSON.stringify({ generatedThrough: last, coins: COINS, splitDate: SPLIT, strategies: evidence }, null, 2) + '\n'
+  JSON.stringify({ accountingVersion: 2, generatedThrough: last, coins: COINS, splitDate: SPLIT, strategies: evidence }, null, 2) + '\n'
 );
 
 const pct = (x: number) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(0)}%`;

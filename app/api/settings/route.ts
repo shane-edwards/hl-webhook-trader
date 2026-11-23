@@ -1,3 +1,5 @@
+import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
+import { accountResource, withTradingLock } from '@/lib/trading-lock';
 import { NextResponse } from 'next/server';
 import { isAddress } from 'ethers';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
@@ -155,6 +157,29 @@ export async function PUT(request: Request) {
   }
 
   const serviceClient = createServiceClient();
+  for (const field of ['notification_ntfy_topic', 'notification_telegram_chat_id', 'notification_email_to']) {
+    if (!(field in body)) continue;
+    const value = String(body[field] ?? '').trim();
+    if (value.length > 200) return bad('Alert destination is too long');
+    if (field === 'notification_ntfy_topic' && value && !/^[A-Za-z0-9_-]{16,128}$/.test(value)) return bad('Use a random ntfy topic of 16–128 letters, numbers, underscores or hyphens');
+    if (field === 'notification_telegram_chat_id' && value && !/^-?[0-9]+$/.test(value)) return bad('Telegram chat id must be numeric');
+    if (field === 'notification_email_to' && value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) return bad('Enter a valid alert email');
+    update[field] = value || null;
+  }
+  if (body.resume_trading === true) {
+    const current = await serviceClient.from('settings').select('*').eq('user_id', user.id).single();
+    const hl = hlClientFromSettings(current.data);
+    if (!hl) return bad('Connect your wallet first');
+    try {
+      await withTradingLock(hl, serviceClient, user.id, async () => {
+        if ((await hl.getPositions()).length || (await hl.getOpenOrders()).some(o => !o.reduceOnly)) throw new Error('Close positions and cancel entries before resuming trading');
+        const cleared = await serviceClient.from('trading_accounts').update({ halted: false }).eq('resource', accountResource(hl, user.id));
+        if (cleared.error) throw new Error(cleared.error.message);
+        update.trading_halted = false;
+        update.flatten_pending = false;
+      });
+    } catch (err) { return bad(err instanceof Error ? err.message : 'Could not resume trading'); }
+  }
   const { data, error } = await serviceClient
     .from('settings')
     .update(update)

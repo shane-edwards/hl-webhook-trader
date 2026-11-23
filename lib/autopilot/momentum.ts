@@ -37,7 +37,7 @@ export interface MomentumEvent { level: 'info' | 'trade' | 'warn' | 'error'; sym
  * One pass of the paper momentum book. Does nothing unless a week has passed
  * since the last rebalance. Returns the realised P&L to add to paper equity.
  */
-export async function runMomentumPaper(hl: HyperliquidClient, db: Db, userId: string, paperEquity: number, now = Date.now()): Promise<{ pnl: number; events: MomentumEvent[] }> {
+export async function runMomentumPaper(hl: HyperliquidClient, db: Db, userId: string, paperEquity: number, now = Date.now(), limits?: { canOpen: boolean; maxPositions: number; availableNotional: number }): Promise<{ pnl: number; events: MomentumEvent[] }> {
   const events: MomentumEvent[] = [];
   const { data: legs, error } = await db.from('autopilot_positions').select('*')
     .eq('user_id', userId).eq('mode', 'paper').eq('strategy_id', MOMENTUM_ID).eq('status', 'open');
@@ -71,16 +71,19 @@ export async function runMomentumPaper(hl: HyperliquidClient, db: Db, userId: st
   const priceOf = new Map(ranked.map(r => [r.symbol, r.price]));
   let pnl = 0;
   for (const leg of openLegs) {
-    const exit = priceOf.get(leg.symbol) ?? Number(leg.entry_price); // unpriceable: closed flat rather than guessed
+    const exit = priceOf.get(leg.symbol);
+    if (exit == null) throw new Error(`Cannot settle ${leg.symbol} without a price. The basket remains open`);
     const dir = leg.side === 'long' ? 1 : -1;
-    const legPnl = Number(leg.notional_usd) * (dir * (exit / Number(leg.entry_price) - 1)) - Number(leg.notional_usd) * 2 * PAPER_COST;
+    const legPnl = Number(leg.notional_usd) * (dir * (exit / Number(leg.entry_price) - 1)) - Number(leg.notional_usd) * PAPER_COST * (1 + exit / Number(leg.entry_price)) - Number(leg.funding_paid ?? 0);
     pnl += legPnl;
-    await db.from('autopilot_positions').update({ status: 'closed', exit_price: exit, exit_time: new Date(now).toISOString(), exit_reason: 'weekly rebalance', pnl: legPnl }).eq('id', leg.id);
+    const saved = await db.from('autopilot_positions').update({ status: 'closed', exit_price: exit, exit_time: new Date(now).toISOString(), exit_reason: 'weekly rebalance', pnl: legPnl }).eq('id', leg.id);
+    if (saved.error) throw new Error(saved.error.message);
   }
   if (openLegs.length) events.push({ level: 'trade', message: `Momentum basket closed for the week: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} across ${openLegs.length} legs` });
 
+  if (limits && (!limits.canOpen || longs.length + shorts.length > limits.maxPositions)) return { pnl, events };
   // Open this week's basket.
-  const equity = paperEquity + pnl;
+  const equity = Math.min(paperEquity + pnl, limits?.availableNotional ?? Infinity);
   const rebalanceDay = Math.floor(now / DAY_MS) * DAY_MS;
   const rows = [...longs.map(r => ({ r, side: 'long' as const })), ...shorts.map(r => ({ r, side: 'short' as const }))].map(({ r, side }) => {
     const notional = (equity * SIDE_ALLOCATION) / longs.length;

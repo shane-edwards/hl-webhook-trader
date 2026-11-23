@@ -64,7 +64,7 @@ export async function DELETE(
 
     // Closing on the exchange closes the whole position, so every open record
     // for the symbol is settled, not just the one that was clicked.
-    const closed = await closePositionFully(hl, supabase, user.id, trade.symbol, Number(settings.slippage_percent), MANUAL_NOTE);
+    const closed = await closePositionFully(hl, serviceClient, user.id, trade.symbol, Number(settings.slippage_percent), MANUAL_NOTE);
 
     const { data: updated } = await supabase.from('trades').select('*').eq('id', id).single();
     return NextResponse.json({ trade: updated, fillPrice: closed.fillPrice });

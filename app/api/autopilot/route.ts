@@ -1,3 +1,4 @@
+import { withTradingLock } from '@/lib/trading-lock';
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
@@ -90,12 +91,21 @@ export async function POST(request: Request) {
 
   try {
     if (body?.action === 'reset') {
-      await service.from('autopilot_state').update({ halted_reason: null, peak_equity: null, day_key: null }).eq('user_id', user.id).eq('mode', cfg.mode);
+      const hl = cfg.mode === 'paper' ? marketDataClient() : hlClientFromSettings(settings);
+      if (!hl) throw new Error('Wallet unavailable');
+      await withTradingLock(hl, service, user.id, async () => {
+        const reset = await service.from('autopilot_state').update({ halted_reason: null, peak_equity: null, day_key: null }).eq('user_id', user.id).eq('mode', cfg.mode);
+        if (reset.error) throw new Error(reset.error.message);
+      }, cfg.mode === 'paper');
       return NextResponse.json({ ok: true });
     }
     if (body?.action === 'reset_paper') {
-      await service.from('autopilot_positions').delete().eq('user_id', user.id).eq('mode', 'paper');
-      await service.from('autopilot_state').delete().eq('user_id', user.id).eq('mode', 'paper');
+      await withTradingLock(marketDataClient(), service, user.id, async () => {
+        const positions = await service.from('autopilot_positions').delete().eq('user_id', user.id).eq('mode', 'paper');
+        if (positions.error) throw new Error(positions.error.message);
+        const state = await service.from('autopilot_state').delete().eq('user_id', user.id).eq('mode', 'paper');
+        if (state.error) throw new Error(state.error.message);
+      }, true);
       return NextResponse.json({ ok: true });
     }
     if (body?.action === 'scan') {

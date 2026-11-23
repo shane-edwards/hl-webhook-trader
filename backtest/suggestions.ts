@@ -1,3 +1,4 @@
+import evidence from '../lib/autopilot/evidence.json';
 // Scorecard for the trade ideas, run over history:  npm run backtest:suggestions
 //
 // Replays lib/suggestions.ts (the same code the dashboard uses) hour by hour
@@ -49,6 +50,15 @@ async function replay(coin: string): Promise<Idea[]> {
   const ideas: Idea[] = [];
   let prev = 'neutral';
   for (let i = WINDOW; i < bars.length - WEEK_BARS; i++) {
+    // With only breakout votes eligible, a close inside the prior 48-hour
+    // range is necessarily neutral. Skip rebuilding the full indicator window
+    // on those hours while preserving the exact read-change sequence.
+    const eligible = evidence.strategies.filter(e => e.liveEligible);
+    const onlyBreakouts = eligible.every(e => e.id === 'trend_breakout');
+    const prior = bars.slice(i - 48, i);
+    const possibleLong = eligible.some(e => e.id === 'trend_breakout') && bars[i].c > Math.max(...prior.map(b => b.h));
+    const possibleShort = eligible.some(e => e.id === 'trend_breakout' && e.allowShort) && bars[i].c < Math.min(...prior.map(b => b.l));
+    if (onlyBreakouts && !possibleLong && !possibleShort) { prev = 'neutral'; continue; }
     const s = buildSuggestion(coin, bars.slice(i - WINDOW + 1, i + 1), bars[i].c);
     if (s.bias !== 'neutral' && s.bias !== prev) {
       const lv = s[s.bias], dir = s.bias === 'long' ? 1 : -1;
@@ -99,7 +109,7 @@ function paired(ideas: Idea[]) {
   const overall = mean(all.map(i => i.pct));
   const recent = periods[periods.length - 1];
   const signed = (x: number) => { const r = Math.round(x * 100) / 100; return `${r > 0 ? '+' : ''}${r === 0 ? '0.00' : r.toFixed(2)}%`; };
-  const edge = `Across all ${all.length} ideas the average result was ${signed(overall)} per idea after costs, which is no edge; in ${recent.name} it was ${signed(recent.avgPct)} over ${recent.ideas} ideas.`;
+  const edge = `Across all ${all.length} ideas the average result was ${signed(overall)} per idea after costs in this historical replay; in ${recent.name} it was ${signed(recent.avgPct)} over ${recent.ideas} ideas.`;
 
   const out = { generatedThrough: through, coins: COINS, costPct: COST_PCT, ideas: all.length, verdict, edge, pooled, periods };
   writeFileSync(join(process.cwd(), 'lib', 'suggestions-evidence.json'), JSON.stringify(out, null, 2) + '\n');

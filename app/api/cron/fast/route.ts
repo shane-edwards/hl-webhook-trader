@@ -1,3 +1,4 @@
+import { processWebhookQueue } from '@/lib/webhook-queue';
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
@@ -6,7 +7,7 @@ import { cronAuthorized } from '@/lib/cron-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // The fast scan. Called every 10 seconds by Supabase's scheduler, but only
 // while there is an open trade, a managed exit plan or a resting entry (the
@@ -20,14 +21,16 @@ export const maxDuration = 30;
 export async function GET(request: Request) {
   if (!cronAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const supabase = createServiceClient();
+  const webhookJobs = await processWebhookQueue();
 
-  const [plans, pending, open] = await Promise.all([
+  const [plans, pending, open, recovery] = await Promise.all([
     supabase.from('position_plans').select('user_id').eq('status', 'active'),
     supabase.from('pending_orders').select('user_id').eq('status', 'resting'),
     supabase.from('trades').select('user_id').eq('status', 'open'),
+    supabase.from('settings').select('user_id').eq('flatten_pending', true),
   ]);
-  const users = [...new Set([...(plans.data ?? []), ...(pending.data ?? []), ...(open.data ?? [])].map(r => r.user_id as string))];
-  if (!users.length) return NextResponse.json({ ran: 0 });
+  const users = [...new Set([...(plans.data ?? []), ...(pending.data ?? []), ...(open.data ?? []), ...(recovery.data ?? [])].map(r => r.user_id as string))];
+  if (!users.length) return NextResponse.json({ ran: 0, webhookJobs });
 
   const { data: rows, error } = await supabase.from('settings').select('*').in('user_id', users);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -40,5 +43,5 @@ export async function GET(request: Request) {
     notes += r.notes.length; errors += r.errors.length;
     if (r.errors.length) console.error('[fast]', r.errors.join(' | '));
   }
-  return NextResponse.json({ ran: rows?.length ?? 0, notes, errors });
+  return NextResponse.json({ ran: rows?.length ?? 0, notes, errors, webhookJobs });
 }

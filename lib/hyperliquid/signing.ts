@@ -17,9 +17,10 @@ const AGENT_TYPES = {
 
 export interface Signature { r: string; s: string; v: number }
 
-export function actionHash(action: unknown, vaultAddress: string | null, nonce: number): string {
+export function actionHash(action: unknown, vaultAddress: string | null, nonce: number, expiresAfter?: number): string {
   const packed = msgpack.encode(action);
-  const data = new Uint8Array(packed.length + (vaultAddress ? 29 : 9));
+  const baseLength = packed.length + (vaultAddress ? 29 : 9);
+  const data = new Uint8Array(baseLength + (expiresAfter == null ? 0 : 9));
   data.set(packed);
   new DataView(data.buffer).setBigUint64(packed.length, BigInt(nonce), false);
   if (vaultAddress) {
@@ -28,13 +29,17 @@ export function actionHash(action: unknown, vaultAddress: string | null, nonce: 
   } else {
     data[packed.length + 8] = 0;
   }
+  if (expiresAfter != null) {
+    data[baseLength] = 0;
+    new DataView(data.buffer).setBigUint64(baseLength + 1, BigInt(expiresAfter), false);
+  }
   return ethers.keccak256(data);
 }
 
-export async function signL1Action(wallet: ethers.Wallet, action: unknown, nonce: number, isMainnet: boolean): Promise<Signature> {
+export async function signL1Action(wallet: ethers.Wallet, action: unknown, nonce: number, isMainnet: boolean, expiresAfter?: number): Promise<Signature> {
   const sig = await wallet.signTypedData(L1_DOMAIN, AGENT_TYPES, {
     source: isMainnet ? 'a' : 'b',
-    connectionId: actionHash(action, null, nonce),
+    connectionId: actionHash(action, null, nonce, expiresAfter),
   });
   const { r, s, v } = ethers.Signature.from(sig);
   return { r, s, v };

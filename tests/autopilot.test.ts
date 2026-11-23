@@ -1,3 +1,4 @@
+import { memoryRpc } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional } from '../lib/autopilot/risk';
@@ -86,7 +87,7 @@ function fakeDb() {
     };
     return q;
   };
-  return { db: { from } as never, tables };
+  return { db: { from, rpc: memoryRpc() } as never, tables };
 }
 
 /** Hourly bars: a long steady uptrend ending in either a breakout bar or a down bar, one hour before `now`. */

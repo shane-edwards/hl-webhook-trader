@@ -55,7 +55,7 @@ npm install
 ### 2. Create a Supabase project
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Go to **SQL Editor** and run the migrations in order: `001_initial.sql`, `002_strategy_and_hardening.sql`, `003_protection.sql` (all in `supabase/migrations/`)
+2. Go to **SQL Editor** and run the migrations in order from `001_initial.sql` through `008_trading_safety.sql` (all in `supabase/migrations/`)
 3. Copy your project URL, anon key, and service role key
 
 ### 3. Environment variables
@@ -105,6 +105,7 @@ In your TradingView alert:
 ```json
 {
   "secret": "YOUR_WEBHOOK_SECRET",
+  "signal_id": "{{strategy.order.id}}-{{timenow}}",
   "position": "{{strategy.market_position}}",
   "symbol": "{{syminfo.basecurrency}}",
   "price": {{close}},
@@ -172,8 +173,7 @@ The autopilot looks at each market you list, on completed hourly candles, and tr
 
 ## Scheduled jobs and database migrations
 
-Run the files in `supabase/migrations/` in order (001 to 007). Each is additive, and the app keeps working before a
-new one is run: features that need it say so.
+Run the files in `supabase/migrations/` in order from 001 through 008. Apply 008 before deploying the safety update. Trading writes require its database coordination functions.
 
 | Job | Endpoint | Scheduler | What it does |
 |---|---|---|---|
@@ -254,3 +254,17 @@ npm test                 # unit tests (signal, engine, order logic)
 ## Disclaimer
 
 This software is for educational and personal use only. Trading cryptocurrencies involves substantial risk of loss, and leverage multiplies it: in the backtest a BTC position held at a constant 3x or more was liquidated in every period tested. No strategy here is guaranteed to make money. Use testnet before trading with real funds, and never trade money you cannot afford to lose.
+
+## Trading safety update
+
+Apply `supabase/migrations/008_trading_safety.sql` before deploying this version. The migration adds account execution leases, a shared signer nonce counter, durable exchange action records, a webhook queue, recovery state and per-user alerts. It extends the existing `hl-fast` schedule to wake for queued signals and account recovery. Verify that `hl-autopilot` exists before applying the scheduling block.
+
+TradingView payloads now require `signal_id`. Use a unique value for each original alert and preserve it when retrying delivery. The example above combines TradingView's order ID and alert time. Plain alerts also need a unique ID. A successful webhook response is HTTP 202 after durable queue acceptance. Execution follows on the next fast scan, typically within ten seconds. Signals expire after three minutes in the queue. Duplicate delivery does not execute a second trade.
+
+The kill switch disables all automation, cancels entry orders, closes positions and verifies the account is flat. A failed recovery remains scheduled for another attempt. New exposure stays halted until **Settings → Account limits → Resume trading after account check** succeeds. That check requires a flat account with no resting entries. Enable the automation you want afterward.
+
+Set alert destinations in the Account limits card. Topics, Telegram chat IDs and email recipients belong to each user. Deployment-level Telegram and email service credentials provide delivery. Existing global alert destinations receive operational messages. Account alerts use their saved user destinations.
+
+Daily entry limits use exchange equity history around UTC midnight, current account value and ledger cash movements. The baseline can precede midnight by up to one hour because the exchange samples its portfolio history. Missing or incomplete history blocks new exposure. Deposits and withdrawals are excluded from the loss calculation.
+
+Autopilot evidence has been regenerated using fixed coin quantities and reconciled trade and equity accounting. Newly qualifying short variants remain on paper pending forward validation. Paper risk includes open-position P&L, estimated closing costs and accrued exchange funding. The current historical study continues to show weak recent results for the live long-only strategy.
