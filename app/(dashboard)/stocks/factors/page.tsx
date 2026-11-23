@@ -31,6 +31,7 @@ export default function StockFactorsPage() {
           <p className="text-sm text-muted-foreground">After a public earnings filing, require a gap down of at least 1% relative to SPY. Use the 10 a.m. ask with an entry spread of at most 10 bps. The main test exits at the closing bid. The short comparison exits after 60 minutes.</p>
           <p className="text-xs text-muted-foreground">The executable rule attempts to exit at 3:50 p.m. ET to leave time before the closing bell. The results below used the closing bid.</p>
           <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" asChild><Link href={stockHref('research', { rule: 'earnings-rebound' })}>Run backtest</Link></Button>
             <Button size="sm" asChild><Link href={stockHref('trade', { rule: 'earnings-rebound' })}>Review in Trade</Link></Button>
             <Button size="sm" variant="outline" asChild><Link href={stockHref('autopilot', { rule: 'earnings-rebound' })}>Open in Autopilot</Link></Button>
           </div>

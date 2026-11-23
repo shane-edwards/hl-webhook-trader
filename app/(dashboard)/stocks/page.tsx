@@ -3,16 +3,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
 import { stockHref, stockSection } from '@/components/layout/workspaces';
-import { STOCKS, STOCK_RULES, type StockSymbol, type StockRule, type researchStock } from '@/lib/stocks/research';
+import { STOCK_RULES, type StockSymbol } from '@/lib/stocks/research';
 import type { gradeStock } from '@/lib/stocks/grade';
 import type { EtoroClient } from '@/lib/stocks/etoro';
 import { StockOrderTicket } from '@/components/stocks/StockOrderTicket';
+import { StockBacktest } from '@/components/stocks/StockBacktest';
 import { INSIDE_BREAKOUT, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS } from '@/lib/stocks/trade-rules';
 import insideDayEvidence from '@/lib/stocks/inside-day-evidence.json';
 
@@ -23,11 +23,9 @@ type Discovery = NonNullable<ReturnType<typeof gradeStock>> & {
   quote: { bid: number | null; ask: number | null; date: string | null; quoteType?: 'realtime' | 'delayed' | null } | null;
 };
 type Scan = { rows: Discovery[]; unavailable: string[]; scannedAt: string };
-type Simulation = { symbol: StockSymbol; rule: StockRule; result: NonNullable<ReturnType<typeof researchStock>> };
 const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 const money = (n: number | null | undefined) => n == null ? '—' : dollars.format(n);
 const pct = (n: number) => `${(100 * n).toFixed(2)}%`;
-const selectClass = 'block w-full rounded-md border border-border bg-background px-3 h-10 text-sm';
 
 async function stocksRequest<T>(query = '', init?: RequestInit): Promise<T> {
   const response = await fetch('/api/stocks' + query, init);
@@ -54,12 +52,6 @@ export default function StocksPage() {
   const [scan, setScan] = useState<Scan | null>(null);
   const [strongOnly, setStrongOnly] = useState(false);
   const [portfolio, setPortfolio] = useState<{ mode: Environment; book: PositionBook } | null>(null);
-  const [selectedSymbol, setSymbol] = useState<StockSymbol | null>(null);
-  const symbol = selectedSymbol ?? STOCKS.find(value => value === requestedSymbol) ?? 'AAPL';
-  const [rule, setRule] = useState<StockRule>('breakout');
-  const [slipBps, setSlipBps] = useState('3');
-  const [commission, setCommission] = useState('1');
-  const [simulation, setSimulation] = useState<Simulation | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -158,7 +150,7 @@ export default function StocksPage() {
                     </details>
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" asChild><Link href={stockHref('trade', { symbol: row.symbol, ...(row.setups[0] ? { rule: row.setups[0] } : {}) })}>Review {row.symbol}</Link></Button>
-                      <Button size="sm" variant="outline" asChild><Link href={stockHref('research', { symbol: row.symbol })} onClick={() => { setSymbol(null); setSimulation(null); }}>Simulate</Link></Button>
+                      <Button size="sm" variant="outline" asChild><Link href={stockHref('research', { symbol: row.symbol, ...(row.setups[0] ? { rule: row.setups[0] } : {}) })}>Backtest</Link></Button>
                     </div>
                   </article>
                 ))}</div>
@@ -183,6 +175,7 @@ export default function StocksPage() {
             />
           )}
           {tab === 'research' && <div className="space-y-3">
+            <StockBacktest key={`${requestedRule}:${requestedSymbol}`} connected={!!environment} loading={loading} initialRule={requestedRule} initialSymbol={requestedSymbol} />
             <section className="surface p-4 lg:p-6 space-y-3">
               <h2 className="text-base font-semibold">{INSIDE_BREAKOUT.name}</h2>
               <p className="text-sm text-muted-foreground">{insideDayEvidence.stages[2].trades} holdout trades across {insideDayEvidence.symbols.length} eligible stocks. Average net return {pct((insideDayEvidence.stages[2].netBps ?? 0) / 10_000)} per trade, or {pct((insideDayEvidence.stages[2].stressBps ?? 0) / 10_000)} with higher costs.</p>
@@ -195,40 +188,6 @@ export default function StocksPage() {
                 <p className="mt-2">Signals use regular-session bars. Trades fill at the next opening ask or bid on a $10,000 position. Base costs add 3 bps and $1 per side. Higher costs double both. {insideDayEvidence.stages[2].positiveMarkets} stocks finished positive under higher costs.</p>
               </details>
             </section>
-            <section className="surface p-4 lg:p-6 space-y-4">
-              <h2 className="text-lg font-semibold">Daily strategy simulator</h2>
-              {!loading && !environment && <p className="text-sm text-muted-foreground"><Link className="text-primary underline" href={stockHref('account')}>Connect eToro</Link> to load historical quotes.</p>}
-              <form className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3" onSubmit={e => {
-                e.preventDefault();
-                setSimulation(null);
-                void perform('simulate', async () => setSimulation(await stocksRequest<Simulation>(`?view=research&${new URLSearchParams({ symbol, rule, slipBps, commission })}`)));
-              }}>
-                <label className="text-sm">Stock<select className={selectClass} value={symbol} disabled={pending} onChange={e => setSymbol(e.target.value as StockSymbol)}>{STOCKS.map(s => <option key={s}>{s}</option>)}</select></label>
-                <label className="text-sm">Strategy<select className={selectClass} value={rule} disabled={pending} onChange={e => setRule(e.target.value as StockRule)}>{STOCK_RULES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-                <label className="text-sm">Extra slippage per side (bps)<Input type="number" min="0" max="100" step="0.1" required value={slipBps} disabled={pending} onChange={e => setSlipBps(e.target.value)} /></label>
-                <label className="text-sm">Commission per side (USD)<Input type="number" min="0" max="30" step="0.01" required value={commission} disabled={pending} onChange={e => setCommission(e.target.value)} /></label>
-                <Button type="submit" disabled={!environment || pending}>{busy === 'simulate' ? 'Running…' : 'Run simulation'}</Button>
-              </form>
-              <p className="text-sm text-muted-foreground">{STOCK_RULES.find(s => s.id === rule)?.entry}. Exit: {STOCK_RULES.find(s => s.id === rule)?.exit}.</p>
-              <p className="text-xs text-muted-foreground">Starts with $10,000 and simulates one long position at a time. Signals use closed daily bars. Trades use the next opening ask or bid, plus your costs. The final 30% starts flat and is replayed again with double extra costs. Returns use broker price candles and exclude dividends.</p>
-            </section>
-            {simulation && <section className="surface p-4 lg:p-6 space-y-4">
-              <h3 className="font-semibold">{simulation.symbol} · {STOCK_RULES.find(r => r.id === simulation.rule)?.name}</h3>
-              <p className="text-xs text-muted-foreground">{simulation.result.from} to {simulation.result.to} · Later sample starts {simulation.result.holdoutFrom}</p>
-              <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                {[
-                  ['Full return', pct(simulation.result.return)], ['Buy and hold', pct(simulation.result.hold)],
-                  ['Max drawdown', pct(simulation.result.drawdown)], ['Trades / wins', `${simulation.result.trades} / ${simulation.result.wins}`],
-                  ['Early sample', pct(simulation.result.earlyReturn)], ['Later sample', pct(simulation.result.holdoutReturn)],
-                  ['Later buy and hold', pct(simulation.result.holdoutHold)], ['Later, higher costs', pct(simulation.result.stressReturn)],
-                ].map(([label, value]) => <div key={label}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="font-semibold tabular-nums">{value}</dd></div>)}
-              </dl>
-              <div className="h-52" aria-label="Simulated equity curve"><ResponsiveContainer width="100%" height="100%"><LineChart data={simulation.result.series}>
-                <XAxis dataKey="day" minTickGap={64} tick={{ fontSize: 10 }} /><YAxis width={62} tick={{ fontSize: 10 }} tickFormatter={value => money(value)} domain={['auto', 'auto']} />
-                <Tooltip formatter={value => money(Number(value))} contentStyle={{ background: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }} /><Line type="linear" dataKey="equity" dot={false} stroke="var(--series-1)" />
-              </LineChart></ResponsiveContainer></div>
-              <p className="text-xs text-muted-foreground">{simulation.result.holdoutTrades} closed trades in the later sample.</p>
-            </section>}
           </div>}
           {tab === 'account' && <div className="space-y-3">
             <section className="surface p-4 lg:p-6 space-y-4">

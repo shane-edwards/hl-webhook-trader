@@ -44,7 +44,7 @@ export const cryptoActivity = [
 ];
 
 export const stockResearch = [
-  { label: 'Daily simulator', href: stockHref('research'), pathname: '/stocks' },
+  { label: 'Backtest', href: stockHref('research'), pathname: '/stocks' },
   { label: 'Intraday', href: '/stocks/intraday', pathname: '/stocks/intraday' },
   { label: 'Opening volume', href: '/stocks/opening', pathname: '/stocks/opening' },
   { label: 'Earnings', href: '/stocks/factors', pathname: '/stocks/factors' },

@@ -1,9 +1,8 @@
-import { sma } from '@/lib/strategy/trend';
 import type { EtoroClient, IntradayBar } from './etoro';
 import { earningsBeforeOpen, type EarningsFiling } from './factor-research';
 import { STOCK_CIK } from './fundamentals';
 import { regularStockSessions, type StockSession } from './intraday';
-import { stockSignal, type StockBar } from './research';
+import { stockSignal, type DailyStockRule, type StockBar } from './research';
 import { previousStockSession, stockMarketClock } from './session';
 import { type StockTradeRule, type StockTradeSymbol } from './trade-rules';
 
@@ -20,19 +19,11 @@ export function regularDailyBars(sessions: StockSession[]): StockBar[] {
   }));
 }
 
-export function dailyTradeSignal(bars: StockBar[], rule: Exclude<StockTradeRule, 'earnings-rebound'>, held: number | null) {
-  const i = bars.length - 1;
-  const closes = bars.map(bar => bar.bidClose);
-  if (rule !== 'inside-day') return stockSignal(bars, closes, i, rule, held);
-  if (i < 50) return false;
-  const close = closes[i];
-  if (held != null) return close < sma(closes, 10, i) || held >= 5;
-  const inside = bars[i - 1];
-  const prior = bars[i - 2];
-  return close > sma(closes, 50, i) && inside.high < prior.high && inside.low > prior.low && close > inside.high;
+export function dailyTradeSignal(bars: StockBar[], rule: DailyStockRule, held: number | null) {
+  return stockSignal(bars, bars.map(bar => bar.bidClose), bars.length - 1, rule, held);
 }
 
-export async function stockTradeDailyBars(broker: EtoroClient, instrumentId: number, rule: Exclude<StockTradeRule, 'earnings-rebound'>, now: number) {
+export async function stockTradeDailyBars(broker: EtoroClient, instrumentId: number, rule: DailyStockRule, now: number) {
   if (rule !== 'inside-day') return broker.candles(instrumentId, 240, now, true);
   // This setup was replayed on regular-session prices, so extended-hours prints cannot trigger it.
   const paired = await broker.intradayCandles(instrumentId, now - 120 * DAY, now, undefined, '30m');
@@ -62,7 +53,7 @@ export function earningsRebound(stock: IntradayBar[], market: IntradayBar[], fil
   };
 }
 
-async function recentEarnings(symbol: StockTradeSymbol): Promise<EarningsFiling[]> {
+export async function recentEarnings(symbol: StockTradeSymbol): Promise<EarningsFiling[]> {
   const cik = STOCK_CIK[symbol];
   if (!cik) return [];
   const response = await fetch(`https://data.sec.gov/submissions/CIK${String(cik).padStart(10, '0')}.json`, {

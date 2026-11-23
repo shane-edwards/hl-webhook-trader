@@ -8,8 +8,17 @@ export const STOCK_RULES = [
   { id: 'pullback', name: 'Trend pullback', entry: 'Close reclaims its five-session average while above the 50-session average', exit: 'Close below the five-session average or hold 10 sessions' },
 ] as const;
 export type StockRule = typeof STOCK_RULES[number]['id'];
+export type DailyStockRule = StockRule | 'inside-day';
 
-export function stockSignal(bars: StockBar[], closes: number[], i: number, rule: StockRule, held: number | null) {
+export function stockSignal(bars: StockBar[], closes: number[], i: number, rule: DailyStockRule, held: number | null) {
+  if (rule === 'inside-day') {
+    if (i < 50) return false;
+    const close = closes[i];
+    if (held != null) return close < sma(closes, 10, i) || held >= 5;
+    const inside = bars[i - 1];
+    const prior = bars[i - 2];
+    return close > sma(closes, 50, i) && inside.high < prior.high && inside.low > prior.low && close > inside.high;
+  }
   if (i < 100) return false;
   const close = closes[i];
   if (rule === 'breakout') {
@@ -32,10 +41,10 @@ export function stockSetups(bars: StockBar[]) {
   };
 }
 
-type Cost = { slipBps: number; commission: number };
+export type StockReplayCost = { slipBps: number; commission: number };
 const START = 10_000;
 
-function simulate(bars: StockBar[], rule: StockRule, start: number, end: number, cost: Cost) {
+function simulate(bars: StockBar[], rule: DailyStockRule, start: number, end: number, cost: StockReplayCost, canEnter?: (previous: StockBar, current: StockBar) => boolean) {
   const closes = bars.map(bar => bar.bidClose);
   const slip = cost.slipBps / 10_000;
   const sell = (units: number, price: number) => Math.max(0, units * price * (1 - slip) - cost.commission);
@@ -50,7 +59,7 @@ function simulate(bars: StockBar[], rule: StockRule, start: number, end: number,
       wins += Number(cash > entryCash);
       trades++;
       units = 0;
-    } else if (pending === 'buy' && i < end - 1 && cash > cost.commission) {
+    } else if (pending === 'buy' && i < end - 1 && cash > cost.commission && (!canEnter || canEnter(bars[i - 1], bar))) {
       entryCash = cash;
       entryIndex = i;
       units = (cash - cost.commission) / (bar.askOpen * (1 + slip));
@@ -73,14 +82,14 @@ function simulate(bars: StockBar[], rule: StockRule, start: number, end: number,
   return { return: cash / START - 1, hold: sell(holdUnits, bars[end - 1].bidClose) / START - 1, drawdown, trades, wins, series };
 }
 
-export function researchStock(bars: StockBar[], rule: StockRule, cost: Cost) {
-  if (bars.length < 260) return null;
-  const start = 100;
+export function researchStock(bars: StockBar[], rule: DailyStockRule, cost: StockReplayCost, canEnter?: (previous: StockBar, current: StockBar) => boolean) {
+  const start = rule === 'inside-day' ? 50 : 100;
+  if (bars.length < (rule === 'inside-day' ? 120 : 260)) return null;
   const split = start + Math.floor((bars.length - start) * 0.7);
-  const result = simulate(bars, rule, start, bars.length, cost);
-  const first = simulate(bars, rule, start, split, cost);
-  const later = simulate(bars, rule, split, bars.length, cost);
-  const stress = simulate(bars, rule, split, bars.length, { slipBps: 2 * cost.slipBps, commission: 2 * cost.commission });
+  const result = simulate(bars, rule, start, bars.length, cost, canEnter);
+  const first = simulate(bars, rule, start, split, cost, canEnter);
+  const later = simulate(bars, rule, split, bars.length, cost, canEnter);
+  const stress = simulate(bars, rule, split, bars.length, { slipBps: 2 * cost.slipBps, commission: 2 * cost.commission }, canEnter);
   return {
     ...result, from: bars[start].day, to: bars.at(-1)!.day, holdoutFrom: bars[split].day,
     earlyReturn: first.return, holdoutReturn: later.return, holdoutHold: later.hold, holdoutTrades: later.trades, stressReturn: stress.return,

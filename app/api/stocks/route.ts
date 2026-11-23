@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { encrypt } from '@/lib/encryption';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { EtoroClient, EtoroError, isStockSymbol } from '@/lib/stocks/etoro';
-import { STOCK_RULES, researchStock } from '@/lib/stocks/research';
+import { stockBacktest } from '@/lib/stocks/backtest';
 import { Credentials, etoroFromConnection } from '@/lib/stocks/connection';
 import { discoverStocks } from '@/lib/stocks/discovery';
 import { regularStockSessions, replayStockIntraday, STOCK_INTRADAY_RULES, summarizeIntraday } from '@/lib/stocks/intraday';
+import { isStockTradeRule, isStockTradeSymbol, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -96,16 +97,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ symbol, from: sessions[0].day, to: sessions.at(-1)!.day, sessions: sessions.length, results });
     }
     if (view === 'research') {
-      const symbol = query.get('symbol'), rule = STOCK_RULES.find(r => r.id === query.get('rule'));
+      const symbol = query.get('symbol'), rule = query.get('rule');
       const slipBps = Number(query.get('slipBps') ?? 3), commission = Number(query.get('commission') ?? 1);
-      if (!isStockSymbol(symbol) || !rule || !Number.isFinite(slipBps) || slipBps < 0 || slipBps > 100 || !Number.isFinite(commission) || commission < 0 || commission > 30) {
-        return fail('Select a stock, strategy, and valid cost assumptions.', 400);
+      if (!isStockTradeSymbol(symbol) || !isStockTradeRule(rule) || !supportsStockTradeRule(rule, symbol) || !Number.isFinite(slipBps) || slipBps < 0 || slipBps > 100 || !Number.isFinite(commission) || commission < 0 || commission > 30) {
+        return fail('Choose a supported stock and strategy, with valid cost assumptions.', 400);
       }
       const instrument = await broker.instrument(symbol);
       if (!instrument) return fail('eToro did not return a unique match for this ticker.', 404);
-      const bars = await broker.candles(instrument.instrumentId, 1800);
-      const result = researchStock(bars, rule.id, { slipBps, commission });
-      return result ? NextResponse.json({ symbol, rule: rule.id, result }) : fail('There are fewer than 260 paired daily candles for this ticker.', 422);
+      const result = await stockBacktest(broker, symbol, instrument.instrumentId, rule, { slipBps, commission });
+      return result ? NextResponse.json({ symbol, rule, result }) : fail('eToro has insufficient paired session history for this stock and strategy.', 422);
     }
     if (view !== 'discover') return fail('Unknown stocks view.', 400);
 

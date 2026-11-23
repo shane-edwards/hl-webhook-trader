@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { stockHref } from '@/components/layout/workspaces';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
@@ -158,6 +160,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
         })}>Pause entries</Button>
       </div>}
       {flow === 'auto' && auto?.last_message && <p className="text-sm text-muted-foreground">{auto.last_message}</p>}
+      {activeRule && <Link className="inline-block text-sm text-primary hover:underline" href={stockHref('research', { symbol, rule: activeRule.id })}>Backtest this strategy</Link>}
       {connected ? <>
         <form onSubmit={preview} className="grid sm:grid-cols-2 lg:grid-cols-3 items-end gap-3">
           <label className="text-sm">Stock<select className={selectClass} value={symbol} onChange={e => setSymbol(e.target.value as StockTradeSymbol)}>{[...STOCK_TRADE_SYMBOLS].sort().map(s => <option key={s}>{s}</option>)}</select></label>

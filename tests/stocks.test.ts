@@ -9,6 +9,52 @@ import { type IntradayBar } from '../lib/stocks/etoro';
 import { INSIDE_DAY_SYMBOLS, supportsStockTradeRule } from '../lib/stocks/trade-rules';
 import { approvedStockStop, prepareStockOrder } from '../lib/stocks/leverage';
 import { reconcileStockOrder } from '../lib/stocks/autopilot';
+import { earningsReplayFill, earningsReplayWindows, stockBacktest } from '../lib/stocks/backtest';
+
+test('earnings replay uses the qualifying session and the actual 3:50 bid rather than the closing quote', () => {
+  const filings = [
+    { time: Date.parse('2025-11-26T14:29Z'), reportDate: '2025-11-26' },
+    { time: Date.parse('2025-11-28T19:00Z'), reportDate: '2025-11-28' },
+    { time: Date.parse('2026-04-30T20:03Z'), reportDate: '2026-04-30' },
+  ];
+  const [window, extra] = earningsReplayWindows(filings, '2025-11-26', '2026-05-01');
+  assert.equal(extra, undefined);
+  assert.equal(window.day, '2026-05-01');
+  assert.equal(new Date(window.open).toISOString(), '2026-05-01T13:30:00.000Z');
+  const at = (hour: string, bid: number, ask = bid + 0.01): IntradayBar => ({
+    t: Date.parse(`2026-05-01T${hour}Z`), bidOpen: bid, askOpen: ask, bidHigh: bid, bidLow: bid, bidClose: bid, volume: 10,
+  });
+  const entry = at('14:00', 100);
+  const exit = at('19:50', 101);
+  const closing = at('19:55', 97);
+  const signal = { validUntil: entry.t + 300_000, exitAt: exit.t, maxSpread: 0.001 };
+  assert.deepEqual(earningsReplayFill(signal, [entry, exit, closing], window), { day: window.day, ask: 100.01, bid: 101 });
+  assert.equal(earningsReplayFill(signal, [entry, closing], window), null);
+  assert.equal(earningsReplayFill(signal, [at('14:00', 100, 100.21), exit], window), null);
+});
+
+test('inside-day replay reads the same full regular sessions as the live rule and reports the trade', async () => {
+  const now = Date.parse('2026-11-23T15:00Z');
+  const dates: string[] = [];
+  for (let t = Date.parse('2026-05-01T15:00Z'); t < now; t += 86_400_000) {
+    const clock = stockMarketClock(t);
+    if (clock.tradingDay && clock.close === 960) dates.push(clock.day);
+  }
+  const paired = dates.flatMap((day, i) => {
+    const anchor = Date.parse(`${day}T15:00Z`);
+    const open = anchor + (570 - stockMarketClock(anchor).minutes) * 60_000;
+    const high = i < 55 ? 102 : i === 55 ? 101 : 105;
+    const low = i === 55 ? 99 : 98;
+    const quote = i === 56 ? 102 : 100;
+    return Array.from({ length: 13 }, (_, j): IntradayBar => ({
+      t: open + j * 30 * 60_000, bidOpen: quote, askOpen: quote + 0.05, bidClose: quote, bidLow: low, bidHigh: high, volume: 100,
+    }));
+  });
+  const broker = { intradayCandles: async (_id: number, from: number, to: number) => paired.filter(bar => bar.t >= from && bar.t < to) } as unknown as EtoroClient;
+  const result = await stockBacktest(broker, 'AAPL', 1001, 'inside-day', { slipBps: 0, commission: 0 }, now);
+  assert.equal(result?.kind, 'daily');
+  assert.equal(result.trades, 1);
+});
 
 test('leveraged stock orders translate a margin stop into a price and require a fresh review if risk rises', () => {
   const quote = { ask: 100, bid: 99.95 };
