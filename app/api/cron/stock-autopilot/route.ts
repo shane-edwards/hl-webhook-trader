@@ -30,6 +30,10 @@ export async function GET(request: Request) {
     if (user) {
       const saved = await db.from('stock_autopilot').update({ last_run_at: new Date().toISOString(), last_message: message }).eq('user_id', userId).eq('updated_at', user.updated_at);
       if (saved.error) throw saved.error;
+      if (user.active_environment && (message !== 'Waiting for the next scheduled strategy entry window' || /submitted/.test(message))) {
+        await db.from('stock_scan_journal').insert({ user_id: userId, environment: user.active_environment,
+          state: /buy submitted/.test(message) ? 'submitted' : /could not finish/i.test(message) ? 'error' : 'skipped', detail: message });
+      }
     }
     if (/unconfirmed|declined the exit|could not finish|protective exit is required/.test(message)) await notify(`Stock Autopilot: ${message}`, undefined, userId);
   }));

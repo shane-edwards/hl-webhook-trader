@@ -1,0 +1,2626 @@
+{
+  "from": "2026-01-01",
+  "through": "2026-11-20",
+  "trades": [
+    {
+      "symbol": "AAPL",
+      "rule": "breakout",
+      "day": "2026-04-16",
+      "closed": "2026-06-09",
+      "regime": "rising-volatile",
+      "grossBps": 1260.8,
+      "spreadBps": 18.3589,
+      "nights": 53
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "breakout",
+      "day": "2026-07-10",
+      "closed": "2026-08-03",
+      "regime": "rising-calm",
+      "grossBps": -165.6,
+      "spreadBps": 9.5277,
+      "nights": 24
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "breakout",
+      "day": "2026-09-02",
+      "closed": "2026-11-03",
+      "regime": "falling-calm",
+      "grossBps": -35.8,
+      "spreadBps": 6.7284,
+      "nights": 61
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-04-16",
+      "closed": "2026-04-22",
+      "regime": "rising-volatile",
+      "grossBps": 49.6,
+      "spreadBps": 18.3589,
+      "nights": 6
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-04-23",
+      "closed": "2026-04-27",
+      "regime": "rising-calm",
+      "grossBps": -322.7,
+      "spreadBps": 10.5386,
+      "nights": 4
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-05-01",
+      "closed": "2026-05-15",
+      "regime": "rising-calm",
+      "grossBps": 670.6,
+      "spreadBps": 8.2455,
+      "nights": 14
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-05-20",
+      "closed": "2026-06-02",
+      "regime": "rising-calm",
+      "grossBps": 302.4,
+      "spreadBps": 5.3612,
+      "nights": 12
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-06-03",
+      "closed": "2026-06-04",
+      "regime": "rising-calm",
+      "grossBps": -25.2,
+      "spreadBps": 13.044,
+      "nights": 1
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-06-05",
+      "closed": "2026-06-08",
+      "regime": "rising-calm",
+      "grossBps": -135.9,
+      "spreadBps": 11.8143,
+      "nights": 3
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-06-16",
+      "closed": "2026-06-23",
+      "regime": "rising-calm",
+      "grossBps": 81.3,
+      "spreadBps": 7.7871,
+      "nights": 4
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-07-16",
+      "closed": "2026-07-21",
+      "regime": "rising-calm",
+      "grossBps": -143.7,
+      "spreadBps": 14.3166,
+      "nights": 5
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-07-27",
+      "closed": "2026-07-31",
+      "regime": "falling-calm",
+      "grossBps": -889.6,
+      "spreadBps": 17.3134,
+      "nights": 4
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-08-07",
+      "closed": "2026-08-11",
+      "regime": "rising-calm",
+      "grossBps": -120.8,
+      "spreadBps": 5.1358,
+      "nights": 4
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-08-27",
+      "closed": "2026-09-08",
+      "regime": "rising-calm",
+      "grossBps": 214.5,
+      "spreadBps": 2.8977,
+      "nights": 11
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-09-11",
+      "closed": "2026-09-24",
+      "regime": "falling-calm",
+      "grossBps": 280.1,
+      "spreadBps": 6.7143,
+      "nights": 13
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-09-28",
+      "closed": "2026-09-30",
+      "regime": "rising-calm",
+      "grossBps": -283.4,
+      "spreadBps": 0.5874,
+      "nights": 2
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-10-05",
+      "closed": "2026-10-19",
+      "regime": "rising-calm",
+      "grossBps": 241.9,
+      "spreadBps": 1.8029,
+      "nights": 14
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-10-22",
+      "closed": "2026-10-27",
+      "regime": "rising-calm",
+      "grossBps": -53.9,
+      "spreadBps": 1.4495,
+      "nights": 5
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-10-28",
+      "closed": "2026-10-29",
+      "regime": "falling-calm",
+      "grossBps": 31.4,
+      "spreadBps": 2.8823,
+      "nights": 1
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-10-30",
+      "closed": "2026-11-02",
+      "regime": "falling-calm",
+      "grossBps": -118.6,
+      "spreadBps": 5.4785,
+      "nights": 3
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "pullback",
+      "day": "2026-11-05",
+      "closed": "2026-11-17",
+      "regime": "falling-calm",
+      "grossBps": -30.8,
+      "spreadBps": 4.2385,
+      "nights": 12
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "inside-day",
+      "day": "2026-05-13",
+      "closed": "2026-05-20",
+      "regime": "rising-calm",
+      "grossBps": 166.3,
+      "spreadBps": 8.5135,
+      "nights": 7
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "inside-day",
+      "day": "2026-05-21",
+      "closed": "2026-05-29",
+      "regime": "rising-calm",
+      "grossBps": 345.9,
+      "spreadBps": 7.9681,
+      "nights": 7
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "inside-day",
+      "day": "2026-08-31",
+      "closed": "2026-09-08",
+      "regime": "rising-calm",
+      "grossBps": -74.8,
+      "spreadBps": 7.8174,
+      "nights": 7
+    },
+    {
+      "symbol": "AAPL",
+      "rule": "inside-day",
+      "day": "2026-10-30",
+      "closed": "2026-11-02",
+      "regime": "falling-calm",
+      "grossBps": -118.6,
+      "spreadBps": 5.4785,
+      "nights": 3
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "breakout",
+      "day": "2026-04-23",
+      "closed": "2026-05-01",
+      "regime": "rising-calm",
+      "grossBps": -169,
+      "spreadBps": 11.9019,
+      "nights": 8
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "breakout",
+      "day": "2026-06-01",
+      "closed": "2026-06-10",
+      "regime": "rising-calm",
+      "grossBps": -1432.4,
+      "spreadBps": 12.4664,
+      "nights": 9
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "breakout",
+      "day": "2026-07-17",
+      "closed": "2026-11-03",
+      "regime": "rising-calm",
+      "grossBps": 2879.1,
+      "spreadBps": 14.4202,
+      "nights": 108
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "breakout",
+      "day": "2026-11-05",
+      "closed": "2026-11-18",
+      "regime": "falling-calm",
+      "grossBps": -902.1,
+      "spreadBps": 14.9372,
+      "nights": 13
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-04-27",
+      "closed": "2026-05-01",
+      "regime": "rising-calm",
+      "grossBps": -213.3,
+      "spreadBps": 7.8231,
+      "nights": 4
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-05-07",
+      "closed": "2026-05-12",
+      "regime": "rising-calm",
+      "grossBps": -136.5,
+      "spreadBps": 4.9986,
+      "nights": 5
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-05-18",
+      "closed": "2026-05-22",
+      "regime": "rising-calm",
+      "grossBps": 59.8,
+      "spreadBps": 0.24,
+      "nights": 4
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-05-29",
+      "closed": "2026-06-04",
+      "regime": "rising-calm",
+      "grossBps": 85.6,
+      "spreadBps": 10.6297,
+      "nights": 6
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-08-24",
+      "closed": "2026-09-02",
+      "regime": "rising-calm",
+      "grossBps": 342.3,
+      "spreadBps": 13.0219,
+      "nights": 9
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-09-04",
+      "closed": "2026-09-08",
+      "regime": "rising-calm",
+      "grossBps": -331.4,
+      "spreadBps": 10.7748,
+      "nights": 3
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-09-14",
+      "closed": "2026-09-17",
+      "regime": "falling-calm",
+      "grossBps": 1.8,
+      "spreadBps": 18.0901,
+      "nights": 3
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-09-18",
+      "closed": "2026-09-21",
+      "regime": "falling-calm",
+      "grossBps": -50.9,
+      "spreadBps": 9.6391,
+      "nights": 3
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-09-22",
+      "closed": "2026-09-25",
+      "regime": "rising-calm",
+      "grossBps": -164.2,
+      "spreadBps": 19.2993,
+      "nights": 3
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-09-28",
+      "closed": "2026-10-09",
+      "regime": "rising-calm",
+      "grossBps": 455.6,
+      "spreadBps": 18.5793,
+      "nights": 11
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-10-12",
+      "closed": "2026-10-15",
+      "regime": "rising-calm",
+      "grossBps": -81.9,
+      "spreadBps": 18.0297,
+      "nights": 3
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-10-16",
+      "closed": "2026-10-19",
+      "regime": "rising-calm",
+      "grossBps": -237.7,
+      "spreadBps": 9.6035,
+      "nights": 3
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-10-27",
+      "closed": "2026-11-02",
+      "regime": "falling-calm",
+      "grossBps": -158.2,
+      "spreadBps": 10.5125,
+      "nights": 6
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "pullback",
+      "day": "2026-11-05",
+      "closed": "2026-11-11",
+      "regime": "falling-calm",
+      "grossBps": -381,
+      "spreadBps": 14.9372,
+      "nights": 6
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "inside-day",
+      "day": "2026-08-07",
+      "closed": "2026-08-14",
+      "regime": "rising-calm",
+      "grossBps": -77.7,
+      "spreadBps": 4.0017,
+      "nights": 7
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "inside-day",
+      "day": "2026-10-06",
+      "closed": "2026-10-13",
+      "regime": "rising-calm",
+      "grossBps": 250.8,
+      "spreadBps": 4.5176,
+      "nights": 7
+    },
+    {
+      "symbol": "MSFT",
+      "rule": "inside-day",
+      "day": "2026-11-05",
+      "closed": "2026-11-12",
+      "regime": "falling-calm",
+      "grossBps": -606.5,
+      "spreadBps": 14.9372,
+      "nights": 7
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "breakout",
+      "day": "2026-02-26",
+      "closed": "2026-03-02",
+      "regime": "rising-calm",
+      "grossBps": -961.2,
+      "spreadBps": 4.1303,
+      "nights": 4
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "breakout",
+      "day": "2026-04-15",
+      "closed": "2026-06-08",
+      "regime": "rising-volatile",
+      "grossBps": 691.6,
+      "spreadBps": 2.5439,
+      "nights": 53
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "breakout",
+      "day": "2026-08-06",
+      "closed": "2026-08-24",
+      "regime": "rising-calm",
+      "grossBps": -271.9,
+      "spreadBps": 7.2202,
+      "nights": 18
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "breakout",
+      "day": "2026-08-28",
+      "closed": "2026-09-15",
+      "regime": "rising-calm",
+      "grossBps": -618.3,
+      "spreadBps": 5.7173,
+      "nights": 17
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "breakout",
+      "day": "2026-10-06",
+      "closed": "2026-10-13",
+      "regime": "rising-calm",
+      "grossBps": -731.8,
+      "spreadBps": 4.1305,
+      "nights": 7
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-04-23",
+      "closed": "2026-04-24",
+      "regime": "rising-calm",
+      "grossBps": -112.7,
+      "spreadBps": 6.9136,
+      "nights": 1
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-04-27",
+      "closed": "2026-04-30",
+      "regime": "rising-calm",
+      "grossBps": 16.2,
+      "spreadBps": 7.1521,
+      "nights": 3
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-05-07",
+      "closed": "2026-05-19",
+      "regime": "rising-calm",
+      "grossBps": 545.5,
+      "spreadBps": 4.7998,
+      "nights": 12
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-06-02",
+      "closed": "2026-06-04",
+      "regime": "rising-calm",
+      "grossBps": -587.8,
+      "spreadBps": 6.1606,
+      "nights": 2
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-06-05",
+      "closed": "2026-06-08",
+      "regime": "rising-calm",
+      "grossBps": -200.6,
+      "spreadBps": 3.264,
+      "nights": 3
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-06-16",
+      "closed": "2026-06-18",
+      "regime": "rising-calm",
+      "grossBps": -174.9,
+      "spreadBps": 8.9962,
+      "nights": 2
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-06-22",
+      "closed": "2026-06-23",
+      "regime": "rising-calm",
+      "grossBps": -434.4,
+      "spreadBps": 7.0925,
+      "nights": 1
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-07-15",
+      "closed": "2026-07-17",
+      "regime": "rising-calm",
+      "grossBps": -448.8,
+      "spreadBps": 4.2453,
+      "nights": 2
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-08-13",
+      "closed": "2026-08-19",
+      "regime": "rising-calm",
+      "grossBps": -151.1,
+      "spreadBps": 2.6655,
+      "nights": 6
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-08-28",
+      "closed": "2026-09-02",
+      "regime": "rising-calm",
+      "grossBps": -374.5,
+      "spreadBps": 5.7173,
+      "nights": 5
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-09-03",
+      "closed": "2026-09-10",
+      "regime": "falling-calm",
+      "grossBps": -239.5,
+      "spreadBps": 4.8668,
+      "nights": 6
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-09-18",
+      "closed": "2026-09-25",
+      "regime": "falling-calm",
+      "grossBps": 274.9,
+      "spreadBps": 8.6687,
+      "nights": 7
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "pullback",
+      "day": "2026-09-29",
+      "closed": "2026-10-09",
+      "regime": "rising-calm",
+      "grossBps": 123.4,
+      "spreadBps": 3.0294,
+      "nights": 10
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "inside-day",
+      "day": "2026-04-13",
+      "closed": "2026-04-20",
+      "regime": "rising-volatile",
+      "grossBps": 769.5,
+      "spreadBps": 3.2232,
+      "nights": 7
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "inside-day",
+      "day": "2026-05-07",
+      "closed": "2026-05-14",
+      "regime": "rising-calm",
+      "grossBps": 1030.5,
+      "spreadBps": 4.7998,
+      "nights": 7
+    },
+    {
+      "symbol": "NVDA",
+      "rule": "inside-day",
+      "day": "2026-07-13",
+      "closed": "2026-07-20",
+      "regime": "rising-calm",
+      "grossBps": -130.4,
+      "spreadBps": 3.8338,
+      "nights": 7
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "breakout",
+      "day": "2026-04-10",
+      "closed": "2026-05-20",
+      "regime": "rising-volatile",
+      "grossBps": 1051,
+      "spreadBps": 1.7004,
+      "nights": 40
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "breakout",
+      "day": "2026-07-16",
+      "closed": "2026-07-24",
+      "regime": "rising-calm",
+      "grossBps": -823.6,
+      "spreadBps": 3.9183,
+      "nights": 8
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "breakout",
+      "day": "2026-08-03",
+      "closed": "2026-08-18",
+      "regime": "rising-calm",
+      "grossBps": -634.4,
+      "spreadBps": 13.6406,
+      "nights": 15
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "breakout",
+      "day": "2026-10-08",
+      "closed": "2026-10-26",
+      "regime": "rising-calm",
+      "grossBps": -390.3,
+      "spreadBps": 7.7,
+      "nights": 18
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-04-22",
+      "closed": "2026-05-06",
+      "regime": "rising-volatile",
+      "grossBps": 816.3,
+      "spreadBps": 17.4133,
+      "nights": 14
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-05-14",
+      "closed": "2026-05-15",
+      "regime": "rising-calm",
+      "grossBps": -255.7,
+      "spreadBps": 5.2014,
+      "nights": 1
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-05-21",
+      "closed": "2026-06-02",
+      "regime": "rising-calm",
+      "grossBps": -237.3,
+      "spreadBps": 3.7959,
+      "nights": 11
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-08-11",
+      "closed": "2026-08-12",
+      "regime": "rising-calm",
+      "grossBps": -187.6,
+      "spreadBps": 21.8748,
+      "nights": 1
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-08-20",
+      "closed": "2026-08-21",
+      "regime": "rising-calm",
+      "grossBps": -94.6,
+      "spreadBps": 6.4572,
+      "nights": 1
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-08-25",
+      "closed": "2026-08-26",
+      "regime": "rising-calm",
+      "grossBps": -50.7,
+      "spreadBps": 7.6141,
+      "nights": 1
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-08-31",
+      "closed": "2026-09-01",
+      "regime": "rising-calm",
+      "grossBps": -337.2,
+      "spreadBps": 8.7161,
+      "nights": 1
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-09-08",
+      "closed": "2026-09-10",
+      "regime": "rising-calm",
+      "grossBps": -262.7,
+      "spreadBps": 8.1776,
+      "nights": 2
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-09-14",
+      "closed": "2026-09-15",
+      "regime": "falling-calm",
+      "grossBps": -29.6,
+      "spreadBps": 13.4207,
+      "nights": 1
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-10-12",
+      "closed": "2026-10-14",
+      "regime": "rising-calm",
+      "grossBps": -175.2,
+      "spreadBps": 3.0467,
+      "nights": 2
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-10-20",
+      "closed": "2026-10-23",
+      "regime": "falling-calm",
+      "grossBps": -582.6,
+      "spreadBps": 5.6784,
+      "nights": 3
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "pullback",
+      "day": "2026-11-19",
+      "closed": "2026-11-20",
+      "regime": "falling-volatile",
+      "grossBps": -713.9,
+      "spreadBps": 2.5675,
+      "nights": 1
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "inside-day",
+      "day": "2026-04-15",
+      "closed": "2026-04-22",
+      "regime": "rising-volatile",
+      "grossBps": 110.2,
+      "spreadBps": 2.4043,
+      "nights": 7
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "inside-day",
+      "day": "2026-10-12",
+      "closed": "2026-10-15",
+      "regime": "rising-calm",
+      "grossBps": -462.1,
+      "spreadBps": 3.0467,
+      "nights": 3
+    },
+    {
+      "symbol": "AMZN",
+      "rule": "inside-day",
+      "day": "2026-11-05",
+      "closed": "2026-11-12",
+      "regime": "falling-calm",
+      "grossBps": -122,
+      "spreadBps": 6.9976,
+      "nights": 7
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "breakout",
+      "day": "2026-04-09",
+      "closed": "2026-06-01",
+      "regime": "rising-volatile",
+      "grossBps": 1914.9,
+      "spreadBps": 10.1231,
+      "nights": 52
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "breakout",
+      "day": "2026-08-05",
+      "closed": "2026-09-02",
+      "regime": "rising-calm",
+      "grossBps": -1277.1,
+      "spreadBps": 9.1346,
+      "nights": 28
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "pullback",
+      "day": "2026-04-23",
+      "closed": "2026-05-07",
+      "regime": "rising-calm",
+      "grossBps": 1739.2,
+      "spreadBps": 6.7455,
+      "nights": 14
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "pullback",
+      "day": "2026-05-14",
+      "closed": "2026-05-19",
+      "regime": "rising-calm",
+      "grossBps": -5.3,
+      "spreadBps": 9.3089,
+      "nights": 5
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "pullback",
+      "day": "2026-05-27",
+      "closed": "2026-06-01",
+      "regime": "rising-calm",
+      "grossBps": -262.4,
+      "spreadBps": 9.5664,
+      "nights": 5
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "pullback",
+      "day": "2026-06-05",
+      "closed": "2026-06-09",
+      "regime": "rising-calm",
+      "grossBps": 21.8,
+      "spreadBps": 10.3675,
+      "nights": 4
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "pullback",
+      "day": "2026-06-16",
+      "closed": "2026-06-18",
+      "regime": "rising-calm",
+      "grossBps": -96.7,
+      "spreadBps": 13.2547,
+      "nights": 2
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "pullback",
+      "day": "2026-06-22",
+      "closed": "2026-06-23",
+      "regime": "rising-calm",
+      "grossBps": -493.2,
+      "spreadBps": 12.8434,
+      "nights": 1
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "pullback",
+      "day": "2026-10-01",
+      "closed": "2026-10-02",
+      "regime": "falling-calm",
+      "grossBps": -261.7,
+      "spreadBps": 12.5406,
+      "nights": 1
+    },
+    {
+      "symbol": "GOOGL",
+      "rule": "inside-day",
+      "day": "2026-10-06",
+      "closed": "2026-10-13",
+      "regime": "rising-calm",
+      "grossBps": 249,
+      "spreadBps": 5.7537,
+      "nights": 7
+    },
+    {
+      "symbol": "META",
+      "rule": "breakout",
+      "day": "2026-04-15",
+      "closed": "2026-05-01",
+      "regime": "rising-volatile",
+      "grossBps": -803.3,
+      "spreadBps": 8.0833,
+      "nights": 16
+    },
+    {
+      "symbol": "META",
+      "rule": "breakout",
+      "day": "2026-07-10",
+      "closed": "2026-07-27",
+      "regime": "rising-calm",
+      "grossBps": -807.3,
+      "spreadBps": 10.734,
+      "nights": 17
+    },
+    {
+      "symbol": "META",
+      "rule": "breakout",
+      "day": "2026-09-10",
+      "closed": "2026-10-19",
+      "regime": "falling-calm",
+      "grossBps": 828.5,
+      "spreadBps": 29.7855,
+      "nights": 39
+    },
+    {
+      "symbol": "META",
+      "rule": "pullback",
+      "day": "2026-04-27",
+      "closed": "2026-04-29",
+      "regime": "rising-calm",
+      "grossBps": -16.9,
+      "spreadBps": 14.0002,
+      "nights": 2
+    },
+    {
+      "symbol": "META",
+      "rule": "pullback",
+      "day": "2026-06-04",
+      "closed": "2026-06-08",
+      "regime": "rising-calm",
+      "grossBps": -505.3,
+      "spreadBps": 17.6141,
+      "nights": 4
+    },
+    {
+      "symbol": "META",
+      "rule": "pullback",
+      "day": "2026-09-22",
+      "closed": "2026-09-29",
+      "regime": "rising-calm",
+      "grossBps": -85.2,
+      "spreadBps": 10.6604,
+      "nights": 7
+    },
+    {
+      "symbol": "META",
+      "rule": "pullback",
+      "day": "2026-10-05",
+      "closed": "2026-10-08",
+      "regime": "rising-calm",
+      "grossBps": -46.2,
+      "spreadBps": 8.3825,
+      "nights": 3
+    },
+    {
+      "symbol": "META",
+      "rule": "pullback",
+      "day": "2026-10-13",
+      "closed": "2026-10-16",
+      "regime": "rising-calm",
+      "grossBps": 12.9,
+      "spreadBps": 22.9314,
+      "nights": 3
+    },
+    {
+      "symbol": "META",
+      "rule": "inside-day",
+      "day": "2026-03-05",
+      "closed": "2026-03-09",
+      "regime": "falling-calm",
+      "grossBps": -428.9,
+      "spreadBps": 5.5782,
+      "nights": 4
+    },
+    {
+      "symbol": "META",
+      "rule": "inside-day",
+      "day": "2026-04-15",
+      "closed": "2026-04-22",
+      "regime": "rising-volatile",
+      "grossBps": 71.8,
+      "spreadBps": 8.0833,
+      "nights": 7
+    },
+    {
+      "symbol": "META",
+      "rule": "inside-day",
+      "day": "2026-07-08",
+      "closed": "2026-07-15",
+      "regime": "rising-calm",
+      "grossBps": 798.9,
+      "spreadBps": 9.9211,
+      "nights": 7
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "breakout",
+      "day": "2026-05-08",
+      "closed": "2026-06-08",
+      "regime": "rising-calm",
+      "grossBps": -489.9,
+      "spreadBps": 16.3038,
+      "nights": 30
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "breakout",
+      "day": "2026-10-27",
+      "closed": "2026-11-06",
+      "regime": "falling-calm",
+      "grossBps": -1240.5,
+      "spreadBps": 1.2564,
+      "nights": 10
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-05-22",
+      "closed": "2026-06-02",
+      "regime": "rising-calm",
+      "grossBps": -107.5,
+      "spreadBps": 5.2044,
+      "nights": 10
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-06-12",
+      "closed": "2026-06-18",
+      "regime": "falling-calm",
+      "grossBps": -25.6,
+      "spreadBps": 6.0095,
+      "nights": 6
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-06-23",
+      "closed": "2026-06-24",
+      "regime": "falling-calm",
+      "grossBps": -316.9,
+      "spreadBps": 10.4405,
+      "nights": 1
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-06-30",
+      "closed": "2026-07-06",
+      "regime": "falling-calm",
+      "grossBps": -222,
+      "spreadBps": 11.8023,
+      "nights": 3
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-07-07",
+      "closed": "2026-07-08",
+      "regime": "rising-calm",
+      "grossBps": -410.4,
+      "spreadBps": 18.2272,
+      "nights": 1
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-09-01",
+      "closed": "2026-09-08",
+      "regime": "falling-calm",
+      "grossBps": -99.8,
+      "spreadBps": 2.2166,
+      "nights": 6
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-09-09",
+      "closed": "2026-09-11",
+      "regime": "falling-calm",
+      "grossBps": -109.8,
+      "spreadBps": 11.1292,
+      "nights": 2
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-09-14",
+      "closed": "2026-09-15",
+      "regime": "falling-calm",
+      "grossBps": -18.4,
+      "spreadBps": 16.9459,
+      "nights": 1
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-09-18",
+      "closed": "2026-09-28",
+      "regime": "falling-calm",
+      "grossBps": -26,
+      "spreadBps": 14.883,
+      "nights": 10
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-10-05",
+      "closed": "2026-10-09",
+      "regime": "rising-calm",
+      "grossBps": 362.4,
+      "spreadBps": 6.2309,
+      "nights": 4
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-10-12",
+      "closed": "2026-10-13",
+      "regime": "rising-calm",
+      "grossBps": -270.6,
+      "spreadBps": 4.7034,
+      "nights": 1
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-10-20",
+      "closed": "2026-10-26",
+      "regime": "falling-calm",
+      "grossBps": 373.5,
+      "spreadBps": 10.2583,
+      "nights": 6
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-10-27",
+      "closed": "2026-11-02",
+      "regime": "falling-calm",
+      "grossBps": 158.3,
+      "spreadBps": 1.2564,
+      "nights": 6
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-11-03",
+      "closed": "2026-11-04",
+      "regime": "falling-calm",
+      "grossBps": -658.1,
+      "spreadBps": 4.92,
+      "nights": 1
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "pullback",
+      "day": "2026-11-10",
+      "closed": "2026-11-17",
+      "regime": "falling-volatile",
+      "grossBps": 317.8,
+      "spreadBps": 18.5984,
+      "nights": 7
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "inside-day",
+      "day": "2026-04-20",
+      "closed": "2026-04-24",
+      "regime": "rising-volatile",
+      "grossBps": -818.2,
+      "spreadBps": 4.445,
+      "nights": 4
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "inside-day",
+      "day": "2026-10-21",
+      "closed": "2026-10-28",
+      "regime": "falling-calm",
+      "grossBps": 754.5,
+      "spreadBps": 4.9801,
+      "nights": 7
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "inside-day",
+      "day": "2026-11-10",
+      "closed": "2026-11-11",
+      "regime": "falling-volatile",
+      "grossBps": 431.8,
+      "spreadBps": 18.5984,
+      "nights": 1
+    },
+    {
+      "symbol": "TSLA",
+      "rule": "inside-day",
+      "day": "2026-11-12",
+      "closed": "2026-11-17",
+      "regime": "falling-volatile",
+      "grossBps": -107.2,
+      "spreadBps": 6.986,
+      "nights": 5
+    },
+    {
+      "symbol": "JPM",
+      "rule": "breakout",
+      "day": "2026-04-09",
+      "closed": "2026-05-11",
+      "regime": "rising-volatile",
+      "grossBps": -207.9,
+      "spreadBps": 8.1264,
+      "nights": 32
+    },
+    {
+      "symbol": "JPM",
+      "rule": "breakout",
+      "day": "2026-07-27",
+      "closed": "2026-08-21",
+      "regime": "falling-calm",
+      "grossBps": -63.1,
+      "spreadBps": 27.6923,
+      "nights": 25
+    },
+    {
+      "symbol": "JPM",
+      "rule": "breakout",
+      "day": "2026-11-05",
+      "closed": "2026-11-18",
+      "regime": "falling-calm",
+      "grossBps": -894.5,
+      "spreadBps": 23.1198,
+      "nights": 13
+    },
+    {
+      "symbol": "JPM",
+      "rule": "pullback",
+      "day": "2026-04-20",
+      "closed": "2026-04-24",
+      "regime": "rising-volatile",
+      "grossBps": -3.2,
+      "spreadBps": 10.9398,
+      "nights": 4
+    },
+    {
+      "symbol": "JPM",
+      "rule": "pullback",
+      "day": "2026-09-03",
+      "closed": "2026-09-09",
+      "regime": "falling-calm",
+      "grossBps": -191.9,
+      "spreadBps": 24.5166,
+      "nights": 5
+    },
+    {
+      "symbol": "JPM",
+      "rule": "pullback",
+      "day": "2026-11-05",
+      "closed": "2026-11-06",
+      "regime": "falling-calm",
+      "grossBps": -727.9,
+      "spreadBps": 23.1198,
+      "nights": 1
+    },
+    {
+      "symbol": "JPM",
+      "rule": "inside-day",
+      "day": "2026-04-20",
+      "closed": "2026-04-27",
+      "regime": "rising-volatile",
+      "grossBps": -140.5,
+      "spreadBps": 10.9398,
+      "nights": 7
+    },
+    {
+      "symbol": "XOM",
+      "rule": "breakout",
+      "day": "2026-03-30",
+      "closed": "2026-04-09",
+      "regime": "falling-calm",
+      "grossBps": -934.9,
+      "spreadBps": 22.0315,
+      "nights": 7
+    },
+    {
+      "symbol": "XOM",
+      "rule": "breakout",
+      "day": "2026-05-19",
+      "closed": "2026-05-28",
+      "regime": "rising-calm",
+      "grossBps": -720.8,
+      "spreadBps": 26.627,
+      "nights": 8
+    },
+    {
+      "symbol": "XOM",
+      "rule": "breakout",
+      "day": "2026-07-23",
+      "closed": "2026-08-28",
+      "regime": "rising-calm",
+      "grossBps": -0.6,
+      "spreadBps": 23.0223,
+      "nights": 36
+    },
+    {
+      "symbol": "XOM",
+      "rule": "breakout",
+      "day": "2026-10-13",
+      "closed": "2026-11-05",
+      "regime": "rising-calm",
+      "grossBps": -159.8,
+      "spreadBps": 28.7637,
+      "nights": 23
+    },
+    {
+      "symbol": "XOM",
+      "rule": "pullback",
+      "day": "2026-03-02",
+      "closed": "2026-03-05",
+      "regime": "falling-calm",
+      "grossBps": -508.2,
+      "spreadBps": 11.9354,
+      "nights": 3
+    },
+    {
+      "symbol": "XOM",
+      "rule": "pullback",
+      "day": "2026-04-08",
+      "closed": "2026-04-09",
+      "regime": "rising-volatile",
+      "grossBps": 230.2,
+      "spreadBps": 28.1174,
+      "nights": 1
+    },
+    {
+      "symbol": "WMT",
+      "rule": "breakout",
+      "day": "2026-04-09",
+      "closed": "2026-05-22",
+      "regime": "rising-volatile",
+      "grossBps": -537.1,
+      "spreadBps": 11.6968,
+      "nights": 43
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-02-24",
+      "closed": "2026-02-27",
+      "regime": "falling-calm",
+      "grossBps": -44.3,
+      "spreadBps": 5.5314,
+      "nights": 3
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-03-02",
+      "closed": "2026-03-06",
+      "regime": "falling-calm",
+      "grossBps": -429.5,
+      "spreadBps": 10.9204,
+      "nights": 4
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-03-11",
+      "closed": "2026-03-12",
+      "regime": "falling-calm",
+      "grossBps": -240.6,
+      "spreadBps": 7.9866,
+      "nights": 1
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-03-13",
+      "closed": "2026-03-18",
+      "regime": "falling-calm",
+      "grossBps": -124.8,
+      "spreadBps": 4.768,
+      "nights": 5
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-04-09",
+      "closed": "2026-04-14",
+      "regime": "rising-volatile",
+      "grossBps": -423.9,
+      "spreadBps": 11.6968,
+      "nights": 5
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-04-20",
+      "closed": "2026-04-28",
+      "regime": "rising-volatile",
+      "grossBps": 97.6,
+      "spreadBps": 5.4636,
+      "nights": 8
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-05-01",
+      "closed": "2026-05-07",
+      "regime": "rising-calm",
+      "grossBps": -149.5,
+      "spreadBps": 21.1977,
+      "nights": 6
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-05-11",
+      "closed": "2026-05-12",
+      "regime": "rising-calm",
+      "grossBps": -161.6,
+      "spreadBps": 26.8611,
+      "nights": 1
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-05-13",
+      "closed": "2026-05-21",
+      "regime": "rising-calm",
+      "grossBps": -381,
+      "spreadBps": 12.3762,
+      "nights": 8
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-10-23",
+      "closed": "2026-10-28",
+      "regime": "falling-calm",
+      "grossBps": -257,
+      "spreadBps": 23.0074,
+      "nights": 5
+    },
+    {
+      "symbol": "WMT",
+      "rule": "pullback",
+      "day": "2026-10-30",
+      "closed": "2026-11-09",
+      "regime": "falling-calm",
+      "grossBps": 98.3,
+      "spreadBps": 14.608,
+      "nights": 10
+    },
+    {
+      "symbol": "SPY",
+      "rule": "breakout",
+      "day": "2026-04-14",
+      "closed": "2026-07-24",
+      "regime": "rising-volatile",
+      "grossBps": 738.1,
+      "spreadBps": 0.727,
+      "nights": 94
+    },
+    {
+      "symbol": "SPY",
+      "rule": "breakout",
+      "day": "2026-08-04",
+      "closed": "2026-08-21",
+      "regime": "rising-calm",
+      "grossBps": 69.9,
+      "spreadBps": 1.4459,
+      "nights": 17
+    },
+    {
+      "symbol": "SPY",
+      "rule": "breakout",
+      "day": "2026-10-07",
+      "closed": "2026-10-19",
+      "regime": "rising-calm",
+      "grossBps": -109.8,
+      "spreadBps": 0.5156,
+      "nights": 12
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-02-25",
+      "closed": "2026-03-02",
+      "regime": "falling-calm",
+      "grossBps": -167.9,
+      "spreadBps": 0.7243,
+      "nights": 5
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-04-23",
+      "closed": "2026-04-24",
+      "regime": "rising-calm",
+      "grossBps": 19.3,
+      "spreadBps": 0.4228,
+      "nights": 1
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-04-27",
+      "closed": "2026-04-29",
+      "regime": "rising-calm",
+      "grossBps": -30.3,
+      "spreadBps": 0.4207,
+      "nights": 2
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-05-01",
+      "closed": "2026-05-15",
+      "regime": "rising-calm",
+      "grossBps": 285.6,
+      "spreadBps": 0.4159,
+      "nights": 14
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-05-21",
+      "closed": "2026-06-04",
+      "regime": "rising-calm",
+      "grossBps": 181.2,
+      "spreadBps": 0.5415,
+      "nights": 13
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-06-05",
+      "closed": "2026-06-08",
+      "regime": "rising-calm",
+      "grossBps": -121.2,
+      "spreadBps": 0.9304,
+      "nights": 3
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-06-12",
+      "closed": "2026-06-18",
+      "regime": "falling-calm",
+      "grossBps": 93.6,
+      "spreadBps": 0.405,
+      "nights": 6
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-06-22",
+      "closed": "2026-06-23",
+      "regime": "rising-calm",
+      "grossBps": -186.3,
+      "spreadBps": 1.0699,
+      "nights": 1
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-06-30",
+      "closed": "2026-07-08",
+      "regime": "falling-calm",
+      "grossBps": 25.5,
+      "spreadBps": 0.8093,
+      "nights": 5
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-07-10",
+      "closed": "2026-07-14",
+      "regime": "rising-calm",
+      "grossBps": -16.9,
+      "spreadBps": 1.0636,
+      "nights": 4
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-07-15",
+      "closed": "2026-07-17",
+      "regime": "rising-calm",
+      "grossBps": -160.2,
+      "spreadBps": 0.2652,
+      "nights": 2
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-07-22",
+      "closed": "2026-07-24",
+      "regime": "rising-calm",
+      "grossBps": -110,
+      "spreadBps": 1.0713,
+      "nights": 2
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-08-13",
+      "closed": "2026-08-18",
+      "regime": "rising-calm",
+      "grossBps": -78.4,
+      "spreadBps": 0.6454,
+      "nights": 5
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-08-26",
+      "closed": "2026-09-01",
+      "regime": "rising-calm",
+      "grossBps": -36.7,
+      "spreadBps": 0.9153,
+      "nights": 6
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-09-04",
+      "closed": "2026-09-09",
+      "regime": "rising-calm",
+      "grossBps": -103.9,
+      "spreadBps": 0.9066,
+      "nights": 4
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-09-14",
+      "closed": "2026-09-15",
+      "regime": "falling-calm",
+      "grossBps": 15.4,
+      "spreadBps": 0.7905,
+      "nights": 1
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-09-18",
+      "closed": "2026-09-24",
+      "regime": "falling-calm",
+      "grossBps": 36,
+      "spreadBps": 1.4447,
+      "nights": 6
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-09-28",
+      "closed": "2026-09-29",
+      "regime": "rising-calm",
+      "grossBps": -21.1,
+      "spreadBps": 0.3904,
+      "nights": 1
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-10-05",
+      "closed": "2026-10-09",
+      "regime": "rising-calm",
+      "grossBps": 83.9,
+      "spreadBps": 1.0391,
+      "nights": 4
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-10-12",
+      "closed": "2026-10-15",
+      "regime": "rising-calm",
+      "grossBps": -160.9,
+      "spreadBps": 0.5136,
+      "nights": 3
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-10-21",
+      "closed": "2026-10-23",
+      "regime": "falling-calm",
+      "grossBps": -146.9,
+      "spreadBps": 0.5187,
+      "nights": 2
+    },
+    {
+      "symbol": "SPY",
+      "rule": "pullback",
+      "day": "2026-10-28",
+      "closed": "2026-11-02",
+      "regime": "falling-calm",
+      "grossBps": -154.8,
+      "spreadBps": 1.1666,
+      "nights": 5
+    },
+    {
+      "symbol": "AMD",
+      "rule": "breakout",
+      "day": "2026-03-26",
+      "closed": "2026-07-29",
+      "regime": "falling-calm",
+      "grossBps": 10584.8,
+      "spreadBps": 13.6438,
+      "nights": 115
+    },
+    {
+      "symbol": "AMD",
+      "rule": "breakout",
+      "day": "2026-09-10",
+      "closed": "2026-10-13",
+      "regime": "falling-calm",
+      "grossBps": 1350.4,
+      "spreadBps": 22.3687,
+      "nights": 33
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-05-06",
+      "closed": "2026-05-15",
+      "regime": "rising-calm",
+      "grossBps": 575.5,
+      "spreadBps": 18.7809,
+      "nights": 9
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-05-21",
+      "closed": "2026-06-05",
+      "regime": "rising-calm",
+      "grossBps": 1312.4,
+      "spreadBps": 21.4689,
+      "nights": 14
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-06-12",
+      "closed": "2026-06-18",
+      "regime": "falling-calm",
+      "grossBps": 644.8,
+      "spreadBps": 8.2031,
+      "nights": 6
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-06-22",
+      "closed": "2026-06-24",
+      "regime": "rising-calm",
+      "grossBps": -459.8,
+      "spreadBps": 17.0333,
+      "nights": 2
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-06-26",
+      "closed": "2026-06-29",
+      "regime": "falling-calm",
+      "grossBps": 57,
+      "spreadBps": 7.8846,
+      "nights": 3
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-06-30",
+      "closed": "2026-07-02",
+      "regime": "falling-calm",
+      "grossBps": -130.6,
+      "spreadBps": 9.5289,
+      "nights": 2
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-07-07",
+      "closed": "2026-07-08",
+      "regime": "rising-calm",
+      "grossBps": -221.8,
+      "spreadBps": 3.876,
+      "nights": 1
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-07-10",
+      "closed": "2026-07-14",
+      "regime": "rising-calm",
+      "grossBps": 428.9,
+      "spreadBps": 29.185,
+      "nights": 4
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-07-15",
+      "closed": "2026-07-16",
+      "regime": "rising-calm",
+      "grossBps": -835.3,
+      "spreadBps": 12.4003,
+      "nights": 1
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-07-22",
+      "closed": "2026-07-27",
+      "regime": "rising-calm",
+      "grossBps": 18.8,
+      "spreadBps": 22.7505,
+      "nights": 5
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-09-17",
+      "closed": "2026-09-29",
+      "regime": "falling-calm",
+      "grossBps": 1553.7,
+      "spreadBps": 3.7474,
+      "nights": 12
+    },
+    {
+      "symbol": "AMD",
+      "rule": "pullback",
+      "day": "2026-10-02",
+      "closed": "2026-10-09",
+      "regime": "falling-calm",
+      "grossBps": -142.2,
+      "spreadBps": 12.5687,
+      "nights": 7
+    },
+    {
+      "symbol": "AMD",
+      "rule": "inside-day",
+      "day": "2026-04-15",
+      "closed": "2026-04-22",
+      "regime": "rising-volatile",
+      "grossBps": 1421.4,
+      "spreadBps": 10.9761,
+      "nights": 7
+    },
+    {
+      "symbol": "AMD",
+      "rule": "inside-day",
+      "day": "2026-04-23",
+      "closed": "2026-04-30",
+      "regime": "rising-calm",
+      "grossBps": 1301,
+      "spreadBps": 28.7252,
+      "nights": 7
+    },
+    {
+      "symbol": "AMD",
+      "rule": "inside-day",
+      "day": "2026-05-07",
+      "closed": "2026-05-14",
+      "regime": "rising-calm",
+      "grossBps": 562,
+      "spreadBps": 8.1486,
+      "nights": 7
+    },
+    {
+      "symbol": "AMD",
+      "rule": "inside-day",
+      "day": "2026-06-12",
+      "closed": "2026-06-22",
+      "regime": "falling-calm",
+      "grossBps": 914.3,
+      "spreadBps": 8.2031,
+      "nights": 7
+    },
+    {
+      "symbol": "AMD",
+      "rule": "inside-day",
+      "day": "2026-09-25",
+      "closed": "2026-10-02",
+      "regime": "rising-calm",
+      "grossBps": 26.8,
+      "spreadBps": 18.2631,
+      "nights": 7
+    },
+    {
+      "symbol": "AVGO",
+      "rule": "breakout",
+      "day": "2026-04-10",
+      "closed": "2026-06-08",
+      "regime": "rising-volatile",
+      "grossBps": 1062.3,
+      "spreadBps": 6.0459,
+      "nights": 58
+    },
+    {
+      "symbol": "AVGO",
+      "rule": "breakout",
+      "day": "2026-08-05",
+      "closed": "2026-08-19",
+      "regime": "rising-calm",
+      "grossBps": -1196.8,
+      "spreadBps": 28.8416,
+      "nights": 14
+    },
+    {
+      "symbol": "AVGO",
+      "rule": "pullback",
+      "day": "2026-05-01",
+      "closed": "2026-05-08",
+      "regime": "rising-calm",
+      "grossBps": 106.3,
+      "spreadBps": 23.3224,
+      "nights": 7
+    },
+    {
+      "symbol": "AVGO",
+      "rule": "pullback",
+      "day": "2026-05-11",
+      "closed": "2026-05-13",
+      "regime": "rising-calm",
+      "grossBps": -286.3,
+      "spreadBps": 17.9907,
+      "nights": 2
+    },
+    {
+      "symbol": "AVGO",
+      "rule": "pullback",
+      "day": "2026-05-15",
+      "closed": "2026-05-18",
+      "regime": "rising-calm",
+      "grossBps": -254.1,
+      "spreadBps": 23.7782,
+      "nights": 3
+    },
+    {
+      "symbol": "AVGO",
+      "rule": "pullback",
+      "day": "2026-05-27",
+      "closed": "2026-06-05",
+      "regime": "rising-calm",
+      "grossBps": -414.1,
+      "spreadBps": 6.3489,
+      "nights": 9
+    },
+    {
+      "symbol": "AVGO",
+      "rule": "inside-day",
+      "day": "2026-05-01",
+      "closed": "2026-05-08",
+      "regime": "rising-calm",
+      "grossBps": 106.3,
+      "spreadBps": 23.3224,
+      "nights": 7
+    },
+    {
+      "symbol": "BA",
+      "rule": "breakout",
+      "day": "2026-04-10",
+      "closed": "2026-05-18",
+      "regime": "rising-volatile",
+      "grossBps": -3.2,
+      "spreadBps": 14.5197,
+      "nights": 38
+    },
+    {
+      "symbol": "BA",
+      "rule": "pullback",
+      "day": "2026-04-20",
+      "closed": "2026-04-22",
+      "regime": "rising-volatile",
+      "grossBps": 244.1,
+      "spreadBps": 21.1217,
+      "nights": 2
+    },
+    {
+      "symbol": "BA",
+      "rule": "pullback",
+      "day": "2026-05-21",
+      "closed": "2026-05-26",
+      "regime": "rising-calm",
+      "grossBps": 59.3,
+      "spreadBps": 27.2975,
+      "nights": 4
+    },
+    {
+      "symbol": "CAT",
+      "rule": "breakout",
+      "day": "2026-04-09",
+      "closed": "2026-05-19",
+      "regime": "rising-volatile",
+      "grossBps": 1112.4,
+      "spreadBps": 28.5714,
+      "nights": 40
+    },
+    {
+      "symbol": "CAT",
+      "rule": "breakout",
+      "day": "2026-06-26",
+      "closed": "2026-07-08",
+      "regime": "falling-calm",
+      "grossBps": -1044.3,
+      "spreadBps": 13.0687,
+      "nights": 9
+    },
+    {
+      "symbol": "CAT",
+      "rule": "pullback",
+      "day": "2026-02-25",
+      "closed": "2026-02-27",
+      "regime": "falling-calm",
+      "grossBps": -262.6,
+      "spreadBps": 23.308,
+      "nights": 2
+    },
+    {
+      "symbol": "CAT",
+      "rule": "pullback",
+      "day": "2026-03-11",
+      "closed": "2026-03-13",
+      "regime": "falling-calm",
+      "grossBps": -127.8,
+      "spreadBps": 25.2136,
+      "nights": 2
+    },
+    {
+      "symbol": "CAT",
+      "rule": "pullback",
+      "day": "2026-04-01",
+      "closed": "2026-04-16",
+      "regime": "falling-volatile",
+      "grossBps": 569.6,
+      "spreadBps": 14.916,
+      "nights": 12
+    },
+    {
+      "symbol": "CAT",
+      "rule": "inside-day",
+      "day": "2026-02-25",
+      "closed": "2026-02-27",
+      "regime": "falling-calm",
+      "grossBps": -262.6,
+      "spreadBps": 23.308,
+      "nights": 2
+    },
+    {
+      "symbol": "CAT",
+      "rule": "inside-day",
+      "day": "2026-04-24",
+      "closed": "2026-05-01",
+      "regime": "rising-volatile",
+      "grossBps": 706.3,
+      "spreadBps": 29.4598,
+      "nights": 7
+    },
+    {
+      "symbol": "LLY",
+      "rule": "breakout",
+      "day": "2026-05-22",
+      "closed": "2026-06-22",
+      "regime": "rising-calm",
+      "grossBps": 545.6,
+      "spreadBps": 17.6199,
+      "nights": 27
+    },
+    {
+      "symbol": "LLY",
+      "rule": "breakout",
+      "day": "2026-08-20",
+      "closed": "2026-09-01",
+      "regime": "rising-calm",
+      "grossBps": -694.9,
+      "spreadBps": 18.9828,
+      "nights": 12
+    },
+    {
+      "symbol": "LLY",
+      "rule": "pullback",
+      "day": "2026-02-24",
+      "closed": "2026-02-26",
+      "regime": "falling-calm",
+      "grossBps": -191.6,
+      "spreadBps": 27.7671,
+      "nights": 2
+    },
+    {
+      "symbol": "LLY",
+      "rule": "pullback",
+      "day": "2026-03-02",
+      "closed": "2026-03-03",
+      "regime": "falling-calm",
+      "grossBps": -385.4,
+      "spreadBps": 28.5383,
+      "nights": 1
+    },
+    {
+      "symbol": "LLY",
+      "rule": "pullback",
+      "day": "2026-07-06",
+      "closed": "2026-07-07",
+      "regime": "rising-calm",
+      "grossBps": 228.3,
+      "spreadBps": 19.0083,
+      "nights": 1
+    },
+    {
+      "symbol": "LLY",
+      "rule": "pullback",
+      "day": "2026-11-10",
+      "closed": "2026-11-17",
+      "regime": "falling-volatile",
+      "grossBps": 16.6,
+      "spreadBps": 16.6075,
+      "nights": 7
+    },
+    {
+      "symbol": "MU",
+      "rule": "breakout",
+      "day": "2026-03-17",
+      "closed": "2026-03-26",
+      "regime": "falling-calm",
+      "grossBps": -1811.1,
+      "spreadBps": 24.0616,
+      "nights": 9
+    },
+    {
+      "symbol": "MU",
+      "rule": "breakout",
+      "day": "2026-04-23",
+      "closed": "2026-07-06",
+      "regime": "rising-calm",
+      "grossBps": 10880,
+      "spreadBps": 9.115,
+      "nights": 66
+    },
+    {
+      "symbol": "MU",
+      "rule": "breakout",
+      "day": "2026-08-18",
+      "closed": "2026-10-13",
+      "regime": "rising-calm",
+      "grossBps": -238.6,
+      "spreadBps": 15.3424,
+      "nights": 55
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-02-26",
+      "closed": "2026-02-27",
+      "regime": "rising-calm",
+      "grossBps": -459.9,
+      "spreadBps": 4.4974,
+      "nights": 1
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-03-10",
+      "closed": "2026-03-20",
+      "regime": "falling-calm",
+      "grossBps": 1063.6,
+      "spreadBps": 14.9396,
+      "nights": 10
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-04-23",
+      "closed": "2026-05-07",
+      "regime": "rising-calm",
+      "grossBps": 3473.1,
+      "spreadBps": 9.115,
+      "nights": 14
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-05-21",
+      "closed": "2026-06-05",
+      "regime": "rising-calm",
+      "grossBps": 2831,
+      "spreadBps": 10.5906,
+      "nights": 14
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-06-12",
+      "closed": "2026-06-24",
+      "regime": "falling-calm",
+      "grossBps": 1171.7,
+      "spreadBps": 23.3688,
+      "nights": 8
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-06-26",
+      "closed": "2026-07-02",
+      "regime": "falling-calm",
+      "grossBps": -862.9,
+      "spreadBps": 10.1754,
+      "nights": 6
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-07-10",
+      "closed": "2026-07-14",
+      "regime": "rising-calm",
+      "grossBps": 231.7,
+      "spreadBps": 6.8372,
+      "nights": 4
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-07-15",
+      "closed": "2026-07-16",
+      "regime": "rising-calm",
+      "grossBps": -1116.8,
+      "spreadBps": 12.1876,
+      "nights": 1
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-07-22",
+      "closed": "2026-07-27",
+      "regime": "rising-calm",
+      "grossBps": -50.8,
+      "spreadBps": 28.7387,
+      "nights": 5
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-08-21",
+      "closed": "2026-08-25",
+      "regime": "rising-calm",
+      "grossBps": -616.4,
+      "spreadBps": 3.9396,
+      "nights": 4
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-09-03",
+      "closed": "2026-09-11",
+      "regime": "falling-calm",
+      "grossBps": 376.9,
+      "spreadBps": 4.5975,
+      "nights": 7
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-09-18",
+      "closed": "2026-09-29",
+      "regime": "falling-calm",
+      "grossBps": 955.9,
+      "spreadBps": 17.4767,
+      "nights": 11
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-10-02",
+      "closed": "2026-10-06",
+      "regime": "falling-calm",
+      "grossBps": -389.6,
+      "spreadBps": 13.1686,
+      "nights": 4
+    },
+    {
+      "symbol": "MU",
+      "rule": "pullback",
+      "day": "2026-10-08",
+      "closed": "2026-10-09",
+      "regime": "rising-calm",
+      "grossBps": -224.8,
+      "spreadBps": 8.5349,
+      "nights": 1
+    },
+    {
+      "symbol": "MU",
+      "rule": "inside-day",
+      "day": "2026-02-23",
+      "closed": "2026-02-27",
+      "regime": "rising-calm",
+      "grossBps": -472.1,
+      "spreadBps": 16.7615,
+      "nights": 4
+    },
+    {
+      "symbol": "MU",
+      "rule": "inside-day",
+      "day": "2026-04-23",
+      "closed": "2026-04-30",
+      "regime": "rising-calm",
+      "grossBps": 981,
+      "spreadBps": 9.115,
+      "nights": 7
+    },
+    {
+      "symbol": "MU",
+      "rule": "inside-day",
+      "day": "2026-06-01",
+      "closed": "2026-06-08",
+      "regime": "rising-calm",
+      "grossBps": -709.5,
+      "spreadBps": 3.3675,
+      "nights": 7
+    },
+    {
+      "symbol": "MU",
+      "rule": "inside-day",
+      "day": "2026-06-12",
+      "closed": "2026-06-23",
+      "regime": "falling-calm",
+      "grossBps": 1142.8,
+      "spreadBps": 23.3688,
+      "nights": 7
+    },
+    {
+      "symbol": "MU",
+      "rule": "inside-day",
+      "day": "2026-07-22",
+      "closed": "2026-07-27",
+      "regime": "rising-calm",
+      "grossBps": -50.8,
+      "spreadBps": 28.7387,
+      "nights": 5
+    },
+    {
+      "symbol": "MU",
+      "rule": "inside-day",
+      "day": "2026-09-01",
+      "closed": "2026-09-02",
+      "regime": "falling-calm",
+      "grossBps": -112.1,
+      "spreadBps": 10.724,
+      "nights": 1
+    },
+    {
+      "symbol": "MU",
+      "rule": "inside-day",
+      "day": "2026-10-02",
+      "closed": "2026-10-06",
+      "regime": "falling-calm",
+      "grossBps": -389.6,
+      "spreadBps": 13.1686,
+      "nights": 4
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "breakout",
+      "day": "2026-06-01",
+      "closed": "2026-06-23",
+      "regime": "rising-calm",
+      "grossBps": -2487.2,
+      "spreadBps": 4.3769,
+      "nights": 19
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "breakout",
+      "day": "2026-08-05",
+      "closed": "2026-10-19",
+      "regime": "rising-calm",
+      "grossBps": 1554.2,
+      "spreadBps": 18.5048,
+      "nights": 74
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-03-20",
+      "closed": "2026-03-23",
+      "regime": "falling-calm",
+      "grossBps": -39.8,
+      "spreadBps": 1.9249,
+      "nights": 3
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-03-24",
+      "closed": "2026-03-25",
+      "regime": "falling-calm",
+      "grossBps": -154.4,
+      "spreadBps": 13.1078,
+      "nights": 1
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-05-29",
+      "closed": "2026-06-04",
+      "regime": "rising-calm",
+      "grossBps": -188.1,
+      "spreadBps": 4.7342,
+      "nights": 6
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-07-15",
+      "closed": "2026-07-20",
+      "regime": "rising-calm",
+      "grossBps": -152.8,
+      "spreadBps": 18.604,
+      "nights": 5
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-07-21",
+      "closed": "2026-07-22",
+      "regime": "falling-calm",
+      "grossBps": -110,
+      "spreadBps": 23.8824,
+      "nights": 1
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-08-20",
+      "closed": "2026-08-26",
+      "regime": "rising-calm",
+      "grossBps": -305,
+      "spreadBps": 18.7457,
+      "nights": 6
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-08-27",
+      "closed": "2026-09-02",
+      "regime": "rising-calm",
+      "grossBps": -99,
+      "spreadBps": 13.4078,
+      "nights": 6
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-09-04",
+      "closed": "2026-09-08",
+      "regime": "rising-calm",
+      "grossBps": -360,
+      "spreadBps": 8.3259,
+      "nights": 3
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-09-15",
+      "closed": "2026-09-29",
+      "regime": "falling-calm",
+      "grossBps": 1012.2,
+      "spreadBps": 20.5315,
+      "nights": 14
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-10-02",
+      "closed": "2026-10-15",
+      "regime": "falling-calm",
+      "grossBps": 156.8,
+      "spreadBps": 8.2739,
+      "nights": 13
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "pullback",
+      "day": "2026-10-22",
+      "closed": "2026-10-29",
+      "regime": "rising-calm",
+      "grossBps": -144.4,
+      "spreadBps": 15.9085,
+      "nights": 7
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "inside-day",
+      "day": "2026-03-18",
+      "closed": "2026-03-19",
+      "regime": "falling-calm",
+      "grossBps": -263.2,
+      "spreadBps": 5.7885,
+      "nights": 1
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "inside-day",
+      "day": "2026-07-15",
+      "closed": "2026-07-22",
+      "regime": "rising-calm",
+      "grossBps": -143.9,
+      "spreadBps": 18.604,
+      "nights": 7
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "inside-day",
+      "day": "2026-08-24",
+      "closed": "2026-08-26",
+      "regime": "rising-calm",
+      "grossBps": -411.5,
+      "spreadBps": 3.9386,
+      "nights": 2
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "inside-day",
+      "day": "2026-09-15",
+      "closed": "2026-09-22",
+      "regime": "falling-calm",
+      "grossBps": 872.9,
+      "spreadBps": 20.5315,
+      "nights": 7
+    },
+    {
+      "symbol": "PLTR",
+      "rule": "inside-day",
+      "day": "2026-10-22",
+      "closed": "2026-10-23",
+      "regime": "rising-calm",
+      "grossBps": -295.3,
+      "spreadBps": 15.9085,
+      "nights": 1
+    }
+  ]
+}

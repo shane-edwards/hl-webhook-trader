@@ -3,11 +3,15 @@ import { prepareStockOrder, type StockSizing } from './leverage';
 import { freshStockAsk, previousStockSession, stockMarketClock } from './session';
 import { currentStockEntry, dailyStockEntry, stockEntryWindow, stockTradeDailyBars, type StockEntry } from './trade-signals';
 import { STOCK_INSTRUMENTS, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS, supportsStockTradeRule, type StockTradeRule, type StockTradeSymbol } from './trade-rules';
+import { stockEdgeEvidence, stockRegime, type EvidenceTrade, type StockMarketRegime } from './evidence-model';
+import edgeStudy from './edge-evidence.json';
 
 type SignalMatch = { symbol: StockTradeSymbol; rule: StockTradeRule; signal: StockEntry };
 type Quote = Awaited<ReturnType<EtoroClient['quotes']>>[number];
-type ScanOptions = { symbols?: readonly StockTradeSymbol[]; rules?: readonly StockTradeRule[]; automatic?: boolean };
+type ScanOptions = { symbols?: readonly StockTradeSymbol[]; rules?: readonly StockTradeRule[]; automatic?: boolean;
+  slippageBySymbol?: Partial<Record<StockTradeSymbol, { samples: number; slipBps: number | null }>> };
 type Cost = Awaited<ReturnType<EtoroClient['stockOrderCosts']>>[number];
+const evidenceRank = { Qualified: 0, Watch: 1, Skip: 2 };
 
 export function estimatedStockEntryCost(costs: Cost[], spreadBps: number, exposure: number) {
   const extra = costs.filter(cost => cost.currency.toUpperCase() === 'USD' && ['markup', 'transactionFee', 'sdrt'].includes(cost.costType))
@@ -54,17 +58,33 @@ export async function scanStockSetups(broker: EtoroClient, sizing: StockSizing, 
     }));
   }
   const ids = [...new Set(matches.map(match => STOCK_INSTRUMENTS[match.symbol]))];
+  let regime: StockMarketRegime | null = null;
   if (ids.length) {
-    const [quotes, eligibility] = await Promise.all([broker.quotes(ids), broker.stockOrderOptionsFor(ids)]);
+    const [quotes, eligibility, spy] = await Promise.all([broker.quotes(ids), broker.stockOrderOptionsFor(ids),
+      stockTradeDailyBars(broker, STOCK_INSTRUMENTS.SPY, 'inside-day', now).catch(() => [])]);
+    regime = spy.at(-1)?.day === prior ? stockRegime(spy) : null;
+    const assess = (candidate: SignalMatch, frictionBps: number, slipBps: number, spreadBps: number) => {
+      const edge = stockEdgeEvidence(edgeStudy.trades as EvidenceTrade[], candidate.symbol, candidate.rule, regime,
+        candidate.rule === 'earnings-rebound' ? clock.minutes < 605 : clock.minutes < 600, frictionBps, sizing.leverage, slipBps, spreadBps);
+      return sizing.leverage === 1 ? edge
+        : { ...edge, status: 'Watch' as const, reason: 'Use a leveraged replay to validate this stop and financing assumption' };
+    };
+    const compare = (a: { evidence: ReturnType<typeof assess> }, b: { evidence: ReturnType<typeof assess> }) =>
+      evidenceRank[a.evidence.status] - evidenceRank[b.evidence.status]
+        || (b.evidence.lowerBps ?? -Infinity) - (a.evidence.lowerBps ?? -Infinity);
     const byId = new Map(quotes.map(quote => [quote.instrumentId, quote]));
     const candidates = matches.flatMap(match => {
       const id = STOCK_INSTRUMENTS[match.symbol];
       const quote: Quote | undefined = byId.get(id);
       const ask = freshStockAsk(quote, Date.now());
       if (!ask || !quote?.bid || (ask - quote.bid) / ask > match.signal.maxSpread) { spreadSkipped++; return []; }
-      return [{ ...match, id, ask, bid: quote.bid, spreadBps: (ask - quote.bid) * 10_000 / ask }];
-    }).sort((a, b) => a.spreadBps - b.spreadBps || a.symbol.localeCompare(b.symbol) || a.rule.localeCompare(b.rule));
-    // Price candidates with the tightest quoted spreads first. Leave quota for actual order reviews.
+      const spreadBps = (ask - quote.bid) * 10_000 / ask;
+      const calibration = options.slippageBySymbol?.[match.symbol];
+      const slipBps = Math.max(3, calibration?.slipBps ?? 0);
+      return [{ ...match, id, ask, bid: quote.bid, spreadBps, slipBps, journalSamples: calibration?.samples ?? 0,
+        evidence: assess(match, spreadBps, slipBps, spreadBps) }];
+    }).sort((a, b) => compare(a, b) || a.spreadBps - b.spreadBps || a.symbol.localeCompare(b.symbol) || a.rule.localeCompare(b.rule));
+    // Price the strongest preliminary candidates first and leave quota for order reviews.
     const estimates = new Map<number, Promise<{ costs: Cost[] } | null>>();
     const execution = new Map<number, ReturnType<typeof prepareStockOrder>>();
     for (const candidate of candidates) {
@@ -85,13 +105,16 @@ export async function scanStockSetups(broker: EtoroClient, sizing: StockSizing, 
       if (!freshStockAsk(byId.get(candidate.id), readyAt) || readyAt >= candidate.signal.validUntil
           || !stockEntryWindow(candidate.rule, readyAt, options.automatic ?? false)) { spreadSkipped++; continue; }
       const exposure = sizing.amount * sizing.leverage;
+      const entryCost = estimatedStockEntryCost(estimate.costs, candidate.spreadBps, exposure);
+      const evidence = assess(candidate, 2 * entryCost * 10_000 / exposure - candidate.spreadBps, candidate.slipBps, candidate.spreadBps);
       rows.push({ ...candidate, quoteAt: byId.get(candidate.id)!.date, execution: execution.get(candidate.id)!,
-        costs: estimate.costs, entryCost: estimatedStockEntryCost(estimate.costs, candidate.spreadBps, exposure) });
+        costs: estimate.costs, entryCost, evidence });
     }
+    rows.sort((a, b) => compare(a, b) || a.entryCost - b.entryCost || a.symbol.localeCompare(b.symbol) || a.rule.localeCompare(b.rule));
   }
-  rows.sort((a, b) => a.entryCost - b.entryCost || a.symbol.localeCompare(b.symbol) || a.rule.localeCompare(b.rule));
   return { rows, day: clock.day, open: clock.open, planned: planned.length, evaluated, outsideWindow: planned.length - inWindow.length,
-    unavailable: [...unavailable].sort(), spreadSkipped, estimateSkipped, scannedAt: new Date().toISOString() };
+    unavailable: [...unavailable].sort(), spreadSkipped, estimateSkipped, scannedAt: new Date().toISOString(),
+    evidenceThrough: edgeStudy.through, regime };
 }
 
 export type StockSetupScan = Awaited<ReturnType<typeof scanStockSetups>>;

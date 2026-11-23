@@ -5,6 +5,7 @@ import { etoroFromConnection } from '@/lib/stocks/connection';
 import { EtoroError } from '@/lib/stocks/etoro';
 import { freshStockAsk, stockMarketClock } from '@/lib/stocks/session';
 import { reconcileStockOrder, submitStockOrder } from '@/lib/stocks/autopilot';
+import { journalQuote } from '@/lib/stocks/execution-journal';
 import { currentStockEntry, stockEntryWindow } from '@/lib/stocks/trade-signals';
 import { isStockTradeRule, isStockTradeSymbol, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
 import { approvedStockStop, prepareStockOrder, stockLeverageSchema, stockOrderFees, StockSizingError, stopMarginSchema } from '@/lib/stocks/leverage';
@@ -106,6 +107,7 @@ export async function POST(request: Request) {
       const saved = await orders().insert({
         user_id: user.id, environment: body.environment, connection_version: connection.data.updated_at,
         symbol: body.symbol, strategy: rule, request: order, reference_price: ask,
+        decision_quote: journalQuote(quote.bid, ask, quote.date), estimated_costs: costs,
         stop_margin_pct: order.settlementType === 'cfd' ? body.stopMarginPct : null,
         protection_state: order.settlementType === 'cfd' ? 'unverified' : null,
         signal_expires_at: signal ? new Date(signal.validUntil).toISOString() : null,
@@ -145,7 +147,7 @@ export async function POST(request: Request) {
     if (!ask || quote.instrumentId !== row.request.instrumentId || ask / Number(row.reference_price) > (row.strategy_exit_at ? 1.001 : 1.005)
       || (row.strategy_exit_at && (!quote.bid || (ask - quote.bid) / ask > 0.001))) return fail('The quote changed. Review the order again.', 409);
     if (!quote.bid || !approvedStockStop(row.request, { ask, bid: quote.bid }, row.stop_margin_pct)) return fail('The quote moved outside the reviewed stop. Review the order again.', 409);
-    const claimed = await update({ state: 'sending' }).eq('state', 'draft').select('id').maybeSingle();
+    const claimed = await update({ state: 'sending', submission_quote: journalQuote(quote.bid, ask, quote.date) }).eq('state', 'draft').select('id').maybeSingle();
     if (claimed.error?.code === '23505') return fail('This signal already has an order, or an order for the stock is pending.', 409);
     if (claimed.error || !claimed.data) return fail('Could not reserve the order for submission.', 409);
 

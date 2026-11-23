@@ -43,6 +43,10 @@ export function StockPortfolioFields({ settings, onChange }: { settings: StockPo
           value={settings[key] || ''} onChange={e => onChange({ ...settings, [key]: Number(e.target.value) })} />
       </label>)}
     </div>
+    <label className="flex items-center gap-2 text-sm">
+      <input type="checkbox" checked={!!settings.evidenceOnly} onChange={e => onChange({ ...settings, evidenceOnly: e.target.checked })} />
+      Require qualifying historical evidence for each entry
+    </label>
     <details className="text-xs text-muted-foreground">
       <summary className="cursor-pointer">How portfolio limits work</summary>
       <p className="mt-2">The daily limit measures equity from the first usable US session check, including cash movements. Reaching it blocks entries for the rest of the session. Existing exit rules continue. Exposure includes other direct eToro holdings. Tideframe waits while pending orders or copy positions prevent a reliable exposure check.</p>

@@ -46,6 +46,9 @@ export const cryptoActivity = [
 
 export const stockResearch = [
   { label: 'Backtest', href: stockHref('research'), pathname: '/stocks' },
+  { label: 'Portfolio replay', href: '/stocks/portfolio', pathname: '/stocks/portfolio' },
+  { label: 'Execution journal', href: '/stocks/journal', pathname: '/stocks/journal' },
+  { label: 'Intraday lab', href: '/stocks/lab', pathname: '/stocks/lab' },
   { label: 'Intraday', href: '/stocks/intraday', pathname: '/stocks/intraday' },
   { label: 'Opening volume', href: '/stocks/opening', pathname: '/stocks/opening' },
   { label: 'Earnings', href: '/stocks/factors', pathname: '/stocks/factors' },

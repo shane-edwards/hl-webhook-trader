@@ -20,6 +20,12 @@ type Eligibility = {
     allowStopLossTakeProfit: boolean; minStopLossPercentage: number | null; maxStopLossPercentage: number | null }[];
 };
 type OrderCost = { costType: string; value: number; currency: string };
+type OpeningData = { avgPrice?: number | null; units?: number | null; executionTime?: string | null; openTime?: string | null;
+  fees?: number | null; taxes?: number | null };
+export type EtoroOrderStatus = { orderId: number; requestTime?: string | null; status: { id: number; errorMessage?: string };
+  positionExecutions: { positionId: number; state?: string; stopLossRate?: number | null; openingData?: OpeningData | null }[] };
+export type EtoroCloseStatus = { orderID: number; statusID: number; proceeds: number; instrumentID: number;
+  positions?: { positionID: number; rate?: number | null; occurred?: string | null; units?: number | null }[] };
 type PendingStockOrder = { orderId?: number; amount?: number; frozenAmount?: number };
 
 export class EtoroError extends Error {
@@ -32,12 +38,12 @@ const instruments = new Map<string, { value: Instrument; expires: number }>();
 export class EtoroClient {
   constructor(private readonly credentials: EtoroCredentials) {}
 
-  private async request<T>(path: string, body?: object, requestId = randomUUID()): Promise<T> {
+  private async request<T>(path: string, body?: object, requestId = randomUUID(), timeoutMs = 6000): Promise<T> {
     const result = await fetch(`https://public-api.etoro.com/api${path}`, {
       method: body ? 'POST' : 'GET',
       headers: { 'x-api-key': this.credentials.apiKey, 'x-user-key': this.credentials.userKey, 'x-request-id': requestId, ...(body ? { 'Content-Type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined,
-      cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(6000),
+      cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(timeoutMs),
     });
     if (!result.ok) throw new EtoroError(result.status);
     return result.json();
@@ -86,11 +92,15 @@ export class EtoroClient {
   }
 
   stockOrderStatus(referenceId: string) {
-    return this.get<{ orderId: number; status: { id: number; errorMessage?: string }; positionExecutions: { positionId: number; state?: string; stopLossRate?: number | null }[] }>(`/v2/trading/info/${this.demoPath}orders:lookup?${new URLSearchParams({ referenceId })}`);
+    return this.get<EtoroOrderStatus>(`/v2/trading/info/${this.demoPath}orders:lookup?${new URLSearchParams({ referenceId })}`);
   }
 
   closeStock(positionId: number, instrumentId: number, requestId: ReturnType<typeof randomUUID>) {
-    return this.request<unknown>(`/v1/trading/execution/${this.demoPath}market-close-orders/positions/${positionId}`, { InstrumentId: instrumentId }, requestId);
+    return this.request<{ orderForClose?: { orderID: number } }>(`/v1/trading/execution/${this.demoPath}market-close-orders/positions/${positionId}`, { InstrumentId: instrumentId }, requestId);
+  }
+
+  stockCloseStatus(orderId: number) {
+    return this.get<EtoroCloseStatus>(`/v1/trading/info/${this.credentials.environment}/close-orders/${orderId}`);
   }
   async portfolio() {
     const { clientPortfolio: portfolio } = await this.get<{ clientPortfolio: { credit: number; positions: BrokerPosition[]; mirrors?: unknown[]; orders?: PendingStockOrder[]; ordersForOpen?: PendingStockOrder[] } }>(`/v1/trading/info/${this.credentials.environment}/pnl`);
@@ -110,10 +120,10 @@ export class EtoroClient {
     };
   }
 
-  async instrument(symbol: string) {
+  async instrument(symbol: string, timeoutMs = 6000) {
     const cached = instruments.get(symbol);
     if (cached && cached.expires > Date.now()) return cached.value;
-    const { results } = await this.get<{ results: Instrument[] }>(`/v2/market-data/instruments/search?query=${encodeURIComponent(symbol)}`);
+    const { results } = await this.request<{ results: Instrument[] }>(`/v2/market-data/instruments/search?query=${encodeURIComponent(symbol)}`, undefined, undefined, timeoutMs);
     const eligible = results.filter(i => i.type?.toLowerCase() === (symbol === 'SPY' ? 'etf' : 'stocks') && Number.isSafeInteger(i.instrumentId) && i.instrumentId > 0);
     // Some US tickers carry a country suffix when other exchanges share the base ticker.
     const suffixed = eligible.filter(i => i.symbol?.toUpperCase() === `${symbol}.US`);
@@ -135,11 +145,12 @@ export class EtoroClient {
     }));
   }
 
-  async candles(id: number, days: number, now = Date.now(), tradingDates = false, signalOnly = false): Promise<StockBar[]> {
+  async candles(id: number, days: number, now = Date.now(), tradingDates = false, signalOnly = false, timeoutMs = 6000): Promise<StockBar[]> {
     const from = new Date(now - days * 86_400_000).toISOString();
     const to = new Date(now).toISOString();
     const url = `/v1/data/instruments/${id}/candles?interval=1d&limit=2000&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-    const [bid, ask] = await Promise.all([this.get<{ results: Candle[] }>(`${url}&side=bid`), signalOnly ? null : this.get<{ results: Candle[] }>(`${url}&side=ask`)]);
+    const read = (side: 'bid' | 'ask') => this.request<{ results: Candle[] }>(`${url}&side=${side}`, undefined, undefined, timeoutMs);
+    const [bid, ask] = await Promise.all([read('bid'), signalOnly ? null : read('ask')]);
     const askByTime = new Map((ask ?? bid).results.map(bar => [Date.parse(bar.time), Number(bar.open)]));
     const today = nyDate.format(now);
     const bars: StockBar[] = [];
@@ -166,7 +177,7 @@ export class EtoroClient {
   }
 
   /** One fixed history window, including every page from each quote side. */
-  async intradayCandles(id: number, from: number, to: number, pace?: () => Promise<void>, interval: '5m' | '30m' = '5m', signalOnly = false): Promise<IntradayBar[]> {
+  async intradayCandles(id: number, from: number, to: number, pace?: () => Promise<void>, interval: '5m' | '30m' = '5m', signalOnly = false, timeoutMs = 6000): Promise<IntradayBar[]> {
     const maxDays = interval === '30m' ? 175 : 28;
     if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > maxDays * 86_400_000) throw new Error('Invalid intraday candle range');
     const sides = async (side: 'bid' | 'ask') => {
@@ -174,7 +185,7 @@ export class EtoroClient {
       const all: Candle[] = [];
       for (let page = 0; page < 8; page++) {
         await pace?.();
-        const { results, pagination } = await this.get<{ results: Candle[]; pagination: { hasNext: boolean; nextCursor?: string | null } }>(`/v1/data/instruments/${id}/candles?${query}`);
+        const { results, pagination } = await this.request<{ results: Candle[]; pagination: { hasNext: boolean; nextCursor?: string | null } }>(`/v1/data/instruments/${id}/candles?${query}`, undefined, undefined, timeoutMs);
         all.push(...results);
         if (!pagination.hasNext) return all;
         if (!pagination.nextCursor || query.get('cursor') === pagination.nextCursor) throw new Error('Invalid intraday history cursor');

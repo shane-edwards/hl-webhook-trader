@@ -74,7 +74,7 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
       CREATE ROLE authenticated;
       CREATE ROLE service_role;
     `);
-    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio']) {
+    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio', '016_stock_execution_research']) {
       await db.exec(readFileSync(`supabase/migrations/${path}.sql`, 'utf8'));
     }
     const user = '00000000-0000-4000-8000-000000000001';
@@ -92,6 +92,8 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
       SELECT reserve_stock_portfolio_order($1, 'demo', $2, $2, $3, '2099-01-01', $4, 'breakout', $5, 100, now() + interval '1 minute', null) AS id
     `, [user, version, day, symbol, JSON.stringify({ amount: 100, leverage: 1, instrumentId })])).rows[0].id;
     const old = () => db.query<{ id: string | null }>(`SELECT reserve_stock_autopilot_order($1, 'demo', $2, $2, $3, 1001, 100) AS id`, [user, version, day]);
+    assert.equal((await db.query<{ allowed: boolean }>("SELECT has_table_privilege('authenticated','stock_research_runs','select') AS allowed")).rows[0].allowed, false);
+    assert.equal((await db.query<{ allowed: boolean }>("SELECT has_table_privilege('service_role','stock_scan_journal','insert') AS allowed")).rows[0].allowed, true);
     assert.equal((await old()).rows[0].id, null);
     assert.ok(await reserve('AAPL', 1001));
     assert.equal(await reserve('MSFT', 1004), null);

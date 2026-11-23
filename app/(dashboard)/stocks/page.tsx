@@ -45,6 +45,7 @@ export default function StocksPage() {
   const mode = query.get('mode');
   const requestedMode = mode === 'real' || mode === 'demo' ? mode : undefined;
   const incomingSize = stockSizingQuery(query).data;
+  const journalSlip = query.has('slipBps') ? Number(query.get('slipBps')) : NaN;
   const incomingParams = incomingSize ? stockSizingParams(incomingSize) : {};
   const returnView = query.get('returnTo') === 'autopilot' ? 'autopilot' : 'trade';
   const [environment, setEnvironment] = useState<Environment | null>(null);
@@ -182,7 +183,8 @@ export default function StocksPage() {
             />
           )}
           {tab === 'research' && <div className="space-y-3">
-            <StockBacktest key={query.toString()} connected={!!environment} loading={loading} initialRule={requestedRule} initialSymbol={requestedSymbol} initialSizing={incomingSize} />
+            <StockBacktest key={query.toString()} connected={!!environment} loading={loading} initialRule={requestedRule} initialSymbol={requestedSymbol}
+              initialSizing={incomingSize} initialSlippage={Number.isFinite(journalSlip) && journalSlip >= 0 && journalSlip <= 100 ? Math.ceil(journalSlip * 10) / 10 : undefined} />
             <section className="surface p-4 lg:p-6 space-y-3">
               <h2 className="text-base font-semibold">{INSIDE_BREAKOUT.name}</h2>
               <p className="text-sm text-muted-foreground">{insideDayEvidence.stages[2].trades} holdout trades across {insideDayEvidence.symbols.length} eligible stocks. Average net return {pct((insideDayEvidence.stages[2].netBps ?? 0) / 10_000)} per trade, or {pct((insideDayEvidence.stages[2].stressBps ?? 0) / 10_000)} with higher costs.</p>

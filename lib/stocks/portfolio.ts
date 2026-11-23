@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { STOCK_INSTRUMENTS, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS, supportsStockTradeRule, type StockTradeSymbol } from './trade-rules';
+import { INSIDE_DAY_SYMBOLS, STOCK_INSTRUMENTS, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS, supportsStockTradeRule, type StockTradeSymbol } from './trade-rules';
 import type { EtoroClient } from './etoro';
 
 export const stockPortfolioSchema = z.object({
@@ -10,11 +10,15 @@ export const stockPortfolioSchema = z.object({
   maxPositions: z.number().int().min(1).max(10),
   dailyLoss: z.number().min(1).max(100_000),
   maxCostBps: z.number().min(1).max(200),
+  evidenceOnly: z.boolean().optional(),
 }).refine(settings => new Set(settings.symbols).size === settings.symbols.length
   && new Set(settings.strategies).size === settings.strategies.length && settings.maxGroup <= settings.maxExposure
   && settings.strategies.every(rule => settings.symbols.some(symbol => supportsStockTradeRule(rule, symbol))));
 
 export type StockPortfolio = z.infer<typeof stockPortfolioSchema>;
+export const DEFAULT_STOCK_PORTFOLIO: StockPortfolio = {
+  symbols: [...INSIDE_DAY_SYMBOLS], strategies: ['inside-day'], maxExposure: 5000, maxGroup: 2000, maxPositions: 3, dailyLoss: 100, maxCostBps: 60,
+};
 type Book = Awaited<ReturnType<EtoroClient['portfolio']>>;
 
 const groups: Record<StockTradeSymbol, string> = {
@@ -24,6 +28,20 @@ const groups: Record<StockTradeSymbol, string> = {
   CAT: 'Industrials', LLY: 'Healthcare', MU: 'Semiconductors', PLTR: 'Technology',
 };
 const groupByInstrument = new Map(Object.entries(STOCK_INSTRUMENTS).map(([ticker, id]) => [id, groups[ticker as StockTradeSymbol]]));
+
+export function stockGroupExposure(group: Map<string, number>, instrumentId: number) {
+  const key = groupByInstrument.get(instrumentId) ?? 'Other';
+  const broad = (group.get('Other') ?? 0) + (group.get('Broad market') ?? 0);
+  const focused = key === 'Broad market' || key === 'Other'
+    ? Math.max(0, ...[...group].filter(([name]) => !['Other', 'Broad market'].includes(name)).map(([, amount]) => amount))
+    : group.get(key) ?? 0;
+  return focused + broad;
+}
+
+export function addStockGroupExposure(group: Map<string, number>, instrumentId: number, value: number) {
+  const key = groupByInstrument.get(instrumentId) ?? 'Other';
+  group.set(key, (group.get(key) ?? 0) + value);
+}
 
 export function stockPortfolioRisk(book: Book) {
   if (book.mirrors || book.pending || !Number.isFinite(book.credit)) return null;
@@ -40,8 +58,7 @@ export function stockPortfolioRisk(book: Book) {
     equity += amount + pnl;
     gross += exposure;
     positions.add(instrumentId);
-    const key = groupByInstrument.get(instrumentId) ?? 'Other';
-    group.set(key, (group.get(key) ?? 0) + exposure);
+    addStockGroupExposure(group, instrumentId, exposure);
   }
   // SPY and unclassified positions may overlap any group.
   const overlappingExposure = (group.get('Other') ?? 0) + (group.get('Broad market') ?? 0);
@@ -52,9 +69,6 @@ export function stockPortfolioEntry(settings: StockPortfolio, risk: NonNullable<
   if (risk.positions.has(instrumentId)) return 'Ticker already held';
   if (risk.positions.size >= settings.maxPositions) return 'Position limit reached';
   if (risk.gross + exposure > settings.maxExposure) return 'Gross exposure limit';
-  const group = groupByInstrument.get(instrumentId) ?? 'Other';
-  const groupExposure = group === 'Broad market' ? Math.max(0, ...[...risk.group].filter(([key]) => !['Other', 'Broad market'].includes(key)).map(([, value]) => value))
-    : risk.group.get(group) ?? 0;
-  if (groupExposure + risk.overlappingExposure + exposure > settings.maxGroup) return 'Concentration limit';
+  if (stockGroupExposure(risk.group, instrumentId) + exposure > settings.maxGroup) return 'Concentration limit';
   return null;
 }

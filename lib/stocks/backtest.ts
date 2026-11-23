@@ -13,7 +13,7 @@ const date = (time: number) => new Date(time).toISOString().slice(0, 10);
 const dayAnchor = (day: string) => Date.parse(`${day}T15:00:00Z`);
 
 type EarningsWindow = { day: string; open: number; previousOpen: number };
-type EarningsTrade = { day: string; ask: number; bid: number; path?: IntradayBar[] };
+export type EarningsTrade = { day: string; ask: number; bid: number; path?: IntradayBar[] };
 
 function openingTime(day: string) {
   const anchor = dayAnchor(day);
@@ -64,9 +64,9 @@ function simulateEarnings(trades: EarningsTrade[], cost: StockReplayCost) {
   return { return: cash / CAPITAL - 1, drawdown, wins, trades: rows.length, rows, stops, skipped: skips, financing: 0 };
 }
 
-async function backtestEarnings(broker: EtoroClient, instrumentId: number, symbol: StockTradeSymbol, cost: StockReplayCost, now: number) {
+export async function loadEarningsReplay(broker: EtoroClient, instrumentId: number, symbol: StockTradeSymbol, now: number, days: number, requireStopPath: boolean) {
   // The exchange calendar is verified from 2025. Exclude the current New York date.
-  const from = date(Math.max(Date.parse('2025-01-01'), now - 540 * DAY));
+  const from = date(Math.max(Date.parse('2025-01-01'), now - days * DAY));
   const to = date(dayAnchor(stockMarketClock(now).day) - DAY);
   const filings = await recentEarnings(symbol);
   const windows = earningsReplayWindows(filings, from, to);
@@ -92,8 +92,7 @@ async function backtestEarnings(broker: EtoroClient, instrumentId: number, symbo
       if (!prices.some(bar => bar.t === entryAt) || !prices.some(bar => bar.t === signal.exitAt)) return { missing: true };
       const trade = earningsReplayFill(signal, prices, window);
       const path = prices.filter(bar => bar.t >= entryAt && bar.t < signal.exitAt!);
-      if ((cost.leverage ?? 1) > 1 && path.some((bar, index) => bar.t !== entryAt + index * 5 * MINUTE)) return { missing: true };
-      if ((cost.leverage ?? 1) > 1 && path.length !== (signal.exitAt - entryAt) / (5 * MINUTE)) return { missing: true };
+      if (requireStopPath && (path.length !== (signal.exitAt - entryAt) / (5 * MINUTE) || path.some((bar, index) => bar.t !== entryAt + index * 5 * MINUTE))) return { missing: true };
       return { trade: trade ? { ...trade, path } : null };
     }));
     for (const row of batch) {
@@ -101,7 +100,11 @@ async function backtestEarnings(broker: EtoroClient, instrumentId: number, symbo
       if (row.trade) trades.push(row.trade);
     }
   }
+  return { from, to, windows: windows.length, missing, trades };
+}
 
+async function backtestEarnings(broker: EtoroClient, instrumentId: number, symbol: StockTradeSymbol, cost: StockReplayCost, now: number) {
+  const { from, to, windows, missing, trades } = await loadEarningsReplay(broker, instrumentId, symbol, now, 540, (cost.leverage ?? 1) > 1);
   const startDay = Date.parse(from);
   const holdoutFrom = date(startDay + Math.floor((Date.parse(to) - startDay) / DAY * 0.7) * DAY);
   const full = simulateEarnings(trades, cost);
@@ -117,7 +120,7 @@ async function backtestEarnings(broker: EtoroClient, instrumentId: number, symbo
   return {
     kind: 'earnings' as const, from, to, holdoutFrom, return: full.return, hold: null, drawdown: full.drawdown,
     trades: full.trades, wins: full.wins, earlyReturn: earlier.return, holdoutReturn: later.return, holdoutHold: null,
-    holdoutTrades: later.trades, stressReturn: stress.return, series, windows: windows.length, missing, rows: full.rows,
+    holdoutTrades: later.trades, stressReturn: stress.return, series, windows, missing, rows: full.rows,
     stops: full.stops, skipped: full.skipped, financing: full.financing,
   };
 }

@@ -14,12 +14,12 @@ import { formatCurrency } from '@/lib/utils';
 const selectClass = 'mt-1 block w-full rounded-md border border-border bg-background px-3 h-10 text-sm';
 const pct = (value: number) => `${(100 * value).toFixed(2)}%`;
 
-export function StockBacktest({ connected, loading, initialRule = 'breakout', initialSymbol = 'AAPL', initialSizing }: {
-  connected: boolean; loading: boolean; initialRule?: StockTradeRule; initialSymbol?: StockTradeSymbol; initialSizing?: StockSizing;
+export function StockBacktest({ connected, loading, initialRule = 'breakout', initialSymbol = 'AAPL', initialSizing, initialSlippage }: {
+  connected: boolean; loading: boolean; initialRule?: StockTradeRule; initialSymbol?: StockTradeSymbol; initialSizing?: StockSizing; initialSlippage?: number;
 }) {
   const [rule, setRule] = useState(initialRule);
   const [preferredTicker, setTicker] = useState(initialSymbol);
-  const [slipBps, setSlipBps] = useState('3');
+  const [slipBps, setSlipBps] = useState(String(initialSlippage ?? 3));
   const [commission, setCommission] = useState('1');
   const [amount, setAmount] = useState(String(initialSizing?.amount ?? 1000));
   const [leverage, setLeverage] = useState<StockLeverage>(initialSizing?.leverage ?? 1);

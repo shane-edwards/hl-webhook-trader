@@ -8,13 +8,14 @@ import { STOCK_INSTRUMENTS, type StockTradeRule, type StockTradeSymbol } from '.
 import { prepareStockOrder, stockOrderFees, StockSizingError, type StockLeverage } from './leverage';
 import { stockPortfolioEntry, stockPortfolioRisk, stockPortfolioSchema, type StockPortfolio } from './portfolio';
 import { estimatedStockEntryCost, scanStockSetups } from './setups';
+import { journalQuote, readStockCloseExecution, stockCalibrations, stockJournalFill, type StockJournalClose, type StockJournalCost, type StockJournalOrder, type StockJournalQuote } from './execution-journal';
 
 export type StockEnvironment = 'demo' | 'real';
 export type StockAutoConfig = {
   user_id: string; symbol: StockTradeSymbol; strategy: StockTradeRule; amount: number; active_environment: StockEnvironment | null; updated_at: string;
   leverage: StockLeverage; stop_margin_pct: number | null; portfolio?: StockPortfolio | null;
 };
-type AutoOrder = { id: string; environment: StockEnvironment; connection_version: string; state: string; position_ids: number[]; request: StockOrder; strategy: StockTradeRule; signal_day: string | null; strategy_exit_at: string | null; updated_at: string; close_requests: Record<string, string>; protection_state: string | null };
+type AutoOrder = { id: string; environment: StockEnvironment; connection_version: string; state: string; position_ids: number[]; request: StockOrder; strategy: StockTradeRule; signal_day: string | null; strategy_exit_at: string | null; updated_at: string; close_requests: Record<string, string>; protection_state: string | null; close_execution?: Record<string, StockJournalClose> };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any, any, any>;
 
@@ -22,17 +23,28 @@ export async function reconcileStockOrder(broker: EtoroClient, id: string, reque
   const order = await broker.stockOrderStatus(id);
   const ids = (order.positionExecutions ?? []).map(p => p.positionId).filter(id => Number.isSafeInteger(id) && id > 0);
   const code = order.status?.id;
-  const state = [3, 5, 10].includes(code) && ids.length ? 'filled'
-    : [4, 6, 7, 8, 9, 10].includes(code) && !ids.length ? 'rejected' : 'submitted';
+  const state = [3, 5, 9, 10].includes(code) && ids.length ? 'filled'
+    : [4, 7, 8, 9, 10].includes(code) && !ids.length ? 'rejected' : 'submitted';
   const protection = request?.settlementType === 'cfd' && state === 'filled'
     ? order.positionExecutions.some(p => p.state?.toLowerCase() !== 'closed'
       && (typeof p.stopLossRate !== 'number' || p.stopLossRate < request.stopLossRate - 0.005)) ? 'exit_required' : 'protected'
     : undefined;
-  return { state, broker_order_id: order.orderId, position_ids: ids, ...(protection ? { protection_state: protection } : {}), message: order.status?.errorMessage ?? null };
+  const fill = stockJournalFill(order);
+  const message = order.status?.errorMessage ?? null;
+  return { state, broker_order_id: order.orderId, broker_state: code ?? null, position_ids: ids, ...(protection ? { protection_state: protection } : {}),
+    ...(fill ? { fill_metrics: fill } : {}), broker_message: message, message };
 }
 
-export async function submitStockOrder(db: Db, broker: EtoroClient, userId: string, id: ReturnType<typeof randomUUID>, request: StockOrder) {
+type AutoExecution = { decision: StockJournalQuote; submission: StockJournalQuote; costs: StockJournalCost[] };
+export async function submitStockOrder(db: Db, broker: EtoroClient, userId: string, id: ReturnType<typeof randomUUID>, request: StockOrder, execution?: AutoExecution) {
   const update = (patch: object) => db.from('etoro_stock_orders').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', userId).eq('id', id).eq('state', 'sending');
+  if (execution) {
+    const saved = await update({ decision_quote: execution.decision, submission_quote: execution.submission, estimated_costs: execution.costs }).select('id').maybeSingle();
+    if (saved.error || !saved.data) {
+      await update({ state: 'rejected', broker_message: 'The Tideframe execution journal could not save the quote before submission.' });
+      throw new Error('Could not save the execution quote');
+    }
+  }
   try {
     const response = await broker.openStock(request, id);
     if (!Number.isSafeInteger(response.orderId) || response.orderId <= 0) throw new Error('Missing broker order ID');
@@ -41,7 +53,8 @@ export async function submitStockOrder(db: Db, broker: EtoroClient, userId: stri
     return response.orderId;
   } catch (error) {
     const rejected = error instanceof EtoroError && [400, 401, 403, 404, 422, 429].includes(error.status);
-    await update({ state: rejected ? 'rejected' : 'review' });
+    await update({ state: rejected ? 'rejected' : 'review',
+      broker_message: error instanceof EtoroError ? `eToro HTTP ${error.status}` : 'No confirmed response from eToro' });
     throw error;
   }
 }
@@ -107,7 +120,8 @@ export async function scanStockAutopilot(db: Db, userId: string, config?: StockA
     });
     if (reserved.error) throw new Error('Could not reserve the strategy order');
     if (reserved.data) {
-      await submitStockOrder(db, broker, userId, reserved.data, request);
+      const baseline = journalQuote(quote.bid, ask, quote.date);
+      await submitStockOrder(db, broker, userId, reserved.data, request, { decision: baseline, submission: baseline, costs: estimate });
       messages.push(`${config.symbol} buy submitted to eToro ${environment}`);
     }
   }
@@ -170,10 +184,17 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
     const symbols = settings.symbols.filter(symbol => !used.has(symbol) && !stockPortfolioEntry(settings, risk, STOCK_INSTRUMENTS[symbol], exposure));
     if (!symbols.length) return 'All selected stocks already attempted an entry or reached a portfolio limit';
     const sizing = { amount, leverage: config.leverage, stopMarginPct: config.stop_margin_pct };
-    const scan = await scanStockSetups(broker, sizing, { symbols, rules: settings.strategies, automatic: true }, now);
-    const candidate = scan.rows.find(candidate => candidate.entryCost * 10_000 / exposure <= settings.maxCostBps
+    const fills = await db.from('etoro_stock_orders').select('symbol, request, state, submission_quote, fill_metrics, broker_state').eq('user_id', account)
+      .eq('environment', environment).eq('state', 'filled').not('fill_metrics', 'is', null).order('created_at', { ascending: false }).limit(300);
+    const slippageBySymbol = stockCalibrations((fills.data ?? []) as StockJournalOrder[], symbols, sizing.leverage);
+    const scan = await scanStockSetups(broker, sizing, { symbols, rules: settings.strategies, automatic: true, slippageBySymbol }, now);
+    const candidate = scan.rows.find(candidate => candidate.evidence.status !== 'Skip' && (!settings.evidenceOnly || candidate.evidence.status === 'Qualified')
+      && candidate.entryCost * 10_000 / exposure <= settings.maxCostBps
       && book.availableCash >= amount + candidate.entryCost);
     if (!candidate) {
+      if (scan.rows.length && scan.rows.every(row => row.evidence.status === 'Skip' || (settings.evidenceOnly && row.evidence.status === 'Watch'))) {
+        return 'Skipped entries with weak or insufficient historical evidence';
+      }
       if (scan.rows.length) return 'Skipped entries that exceeded cost or buying power limits';
       if (scan.unavailable.length || scan.estimateSkipped || scan.spreadSkipped) return 'No eligible setup with complete data, an executable quote and a broker estimate';
       return 'No selected strategy has a qualifying entry';
@@ -191,6 +212,9 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
         || (ask - quote.bid) / ask > candidate.signal.maxSpread) return 'The best setup expired or its spread widened';
     const cost = estimatedStockEntryCost(candidate.costs, (ask - quote.bid) * 10_000 / ask, exposure);
     if (cost * 10_000 / exposure > settings.maxCostBps || freshBook.availableCash < amount + cost) return 'The best setup exceeded the refreshed cost or buying-power limit';
+    if (candidate.evidence.status === 'Qualified' && candidate.evidence.lowerBps! <= 2 * (cost - candidate.entryCost) * 10_000 / exposure) {
+      return 'The refreshed quote no longer clears the historical evidence check';
+    }
     const order = candidate.execution;
     if (order.settlementType === 'cfd' && (order.stopLossRate >= quote.bid
         || (1 - order.stopLossRate / ask) * order.leverage * 100 > sizing.stopMarginPct! + 1e-8)) {
@@ -204,7 +228,10 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
     });
     if (reserved.error) throw reserved.error;
     if (!reserved.data) return 'Entry reservation was blocked by a newer setting, order, or session limit';
-    await submitStockOrder(db, broker, account, reserved.data, order);
+    await submitStockOrder(db, broker, account, reserved.data, order, {
+      decision: { bid: candidate.bid, ask: candidate.ask, at: candidate.quoteAt, observedAt: scan.scannedAt },
+      submission: journalQuote(quote.bid, ask, quote.date), costs: candidate.costs,
+    });
     return `${candidate.symbol} buy submitted to eToro ${environment}`;
   } finally {
     await db.from('stock_autopilot').update({ scan_until: null }).eq('user_id', account).eq('scan_until', scanUntil);
@@ -229,11 +256,15 @@ async function manageStockOrder(db: Db, broker: EtoroClient, userId: string, row
 
   const book = await (sharedBook ?? broker.portfolio());
   const positions = book.positions.filter(position => row.position_ids.includes(position.id) && position.instrumentId === row.request.instrumentId && position.side === 'Long');
+  const closeExecution = { ...row.close_execution };
   if (!positions.length) {
     if (connectionVersion !== row.connection_version) return 'The key changed and the tracked position is missing. Check the original eToro account.';
     // A newly filled order can reach order history before the portfolio feed.
     if (now - Date.parse(row.updated_at) < 10 * 60_000) return 'Waiting for the filled position to appear in the portfolio';
-    const saved = await update({ closed_at: new Date(now).toISOString() });
+    await Promise.all(Object.entries(closeExecution).map(async ([id, closing]) => {
+      closeExecution[id] = await readStockCloseExecution(broker, row.request.instrumentId, id, closing).catch(() => closing);
+    }));
+    const saved = await update({ closed_at: new Date(now).toISOString(), close_execution: closeExecution });
     if (saved.error) throw new Error('Could not finalize stock exits');
     return 'Managed position closed';
   }
@@ -263,7 +294,13 @@ async function manageStockOrder(db: Db, broker: EtoroClient, userId: string, row
     if (claim.error || !claim.data) return 'Another scan is handling the exit';
     version = next;
     try {
-      await broker.closeStock(position.id, row.request.instrumentId, reference);
+      const receipt = await broker.closeStock(position.id, row.request.instrumentId, reference);
+      const orderId = receipt.orderForClose?.orderID;
+      if (orderId && Number.isSafeInteger(orderId)) {
+        const observed = quote?.ask && quote.bid ? journalQuote(quote.bid, quote.ask, quote.date) : null;
+        closeExecution[position.id] = { orderId, quote: observed };
+        await db.from('etoro_stock_orders').update({ close_execution: closeExecution }).eq('user_id', userId).eq('id', row.id).eq('updated_at', version);
+      }
     } catch (error) {
       // Preserve the durable request reference. A network error can happen after eToro accepted the order.
       if (!(error instanceof EtoroError) || error.status >= 500) return 'Exit submission unconfirmed. Check the position in eToro.';

@@ -6,11 +6,13 @@ import { stockBacktest } from '@/lib/stocks/backtest';
 import { Credentials, etoroFromConnection } from '@/lib/stocks/connection';
 import { discoverStocks } from '@/lib/stocks/discovery';
 import { regularStockSessions, replayStockIntraday, STOCK_INTRADAY_RULES, summarizeIntraday } from '@/lib/stocks/intraday';
-import { isStockTradeRule, isStockTradeSymbol, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
+import { isStockTradeRule, isStockTradeSymbol, STOCK_TRADE_SYMBOLS, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
 import { stockReplaySchema } from '@/lib/stocks/replay';
 import { stockSizingQuery } from '@/lib/stocks/leverage';
 import { scanStockSetups } from '@/lib/stocks/setups';
 import { stockMarketClock } from '@/lib/stocks/session';
+import { loadPortfolioReplayMarket } from '@/lib/stocks/portfolio-replay-data';
+import { stockCalibrations, type StockJournalOrder } from '@/lib/stocks/execution-journal';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -78,6 +80,16 @@ export async function GET(request: Request) {
   try {
     const broker = etoroFromConnection(data);
     if (view === 'portfolio') return NextResponse.json(await broker.portfolio());
+    if (view === 'portfolio-input') {
+      const symbol = query.get('symbol'), rules = query.getAll('rule');
+      const from = query.get('from') ?? '', to = query.get('to') ?? '';
+      const day = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+      if (!isStockTradeSymbol(symbol) || rules.length > 4 || !rules.every(isStockTradeRule) || !day(from) || !day(to) || from < '2025-01-01'
+          || to >= stockMarketClock(Date.now()).day || to <= from || Date.parse(to) - Date.parse(from) > 126 * 86_400_000) {
+        return fail('Choose supported stocks, strategies and up to 126 calendar days of completed history.', 400);
+      }
+      return NextResponse.json(await loadPortfolioReplayMarket(broker, symbol, rules, from, to, query.get('leveraged') === 'true'));
+    }
     if (view === 'setups') {
       const sizing = stockSizingQuery(query);
       if (!sizing.success) return fail('Choose an amount and valid leverage and stop.', 400);
@@ -89,7 +101,10 @@ export async function GET(request: Request) {
         if (error) return fail('Could not start the setup scan.', 503);
         if (!claim) return fail('Try scanning again in one minute.', 429);
       }
-      return NextResponse.json(await scanStockSetups(broker, sizing.data, {}, now));
+      const fills = await db.from('etoro_stock_orders').select('symbol, request, state, submission_quote, fill_metrics, broker_state').eq('user_id', user.id)
+        .eq('environment', data.environment).eq('state', 'filled').not('fill_metrics', 'is', null).order('created_at', { ascending: false }).limit(300);
+      const slippageBySymbol = stockCalibrations((fills.data ?? []) as StockJournalOrder[], STOCK_TRADE_SYMBOLS, sizing.data.leverage);
+      return NextResponse.json(await scanStockSetups(broker, sizing.data, { slippageBySymbol }, now));
     }
     if (view === 'intraday') {
       const symbol = query.get('symbol');

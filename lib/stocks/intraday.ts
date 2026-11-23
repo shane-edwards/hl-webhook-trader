@@ -9,7 +9,8 @@ export const STOCK_INTRADAY_RULES = [
 ] as const;
 export type IntradayRule = typeof STOCK_INTRADAY_RULES[number]['id'];
 export type StockSession = { day: string; bars: IntradayBar[] };
-type Trade = { day: string; minutes: number; netBps: number; stressBps: number };
+export type IntradayTrade = { day: string; minutes: number; netBps: number; stressBps: number };
+export type IntradayCost = { slipBps: number; fee: number; stressSlipBps: number; stressFee: number };
 const sessionClock = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const notional = 10_000;
 // Listed NYSE early closes for the study and recent-replay calendar range.
@@ -41,15 +42,17 @@ function tradeReturn(buy: number, sell: number, slipBps: number, fee: number) {
   return (units * sell * (1 - slippage) - fee) / notional * 10_000 - 10_000;
 }
 
-export function replayStockIntraday(sessions: StockSession[], rule: IntradayRule, from: string, to: string): Trade[] {
-  const trades: Trade[] = [];
+export function replayStockIntraday(sessions: StockSession[], rule: IntradayRule | 'vwap-unfiltered', from: string, to: string,
+  cost: IntradayCost = { slipBps: 2, fee: 1, stressSlipBps: 5, stressFee: 2 }): IntradayTrade[] {
+  const trades: IntradayTrade[] = [];
+  const vwapRule = rule === 'vwap' || rule === 'vwap-unfiltered';
   for (let dayIndex = 0; dayIndex < sessions.length; dayIndex++) {
     const { day, bars } = sessions[dayIndex];
     if (day < from || day >= to) continue;
     const first = bars[0];
     const record = (i: number, price: number, minutes: number) => {
       const buy = bars[i].askOpen;
-      trades.push({ day, minutes, netBps: tradeReturn(buy, price, 2, 1), stressBps: tradeReturn(buy, price, 5, 2) });
+      trades.push({ day, minutes, netBps: tradeReturn(buy, price, cost.slipBps, cost.fee), stressBps: tradeReturn(buy, price, cost.stressSlipBps, cost.stressFee) });
     };
     if (rule === 'close') {
       const previous = sessions[dayIndex - 1];
@@ -85,21 +88,21 @@ export function replayStockIntraday(sessions: StockSession[], rule: IntradayRule
     }
     let weighted = 0, sumVolume = 0;
     let vwap = Number.NaN;
-    for (let i = 0; i < (rule === 'vwap' ? 30 : 12); i++) {
+    for (let i = 0; i < (vwapRule ? 30 : 12); i++) {
       const b = bars[i];
       const priorVwap = vwap;
       const volume = Number.isFinite(b.volume) && b.volume > 0 ? b.volume : 0;
       weighted += (b.bidHigh + b.bidLow + b.bidClose) / 3 * volume;
       sumVolume += volume;
       vwap = sumVolume > 0 ? weighted / sumVolume : NaN;
-      const recent = rule === 'vwap' && i >= 6 ? bars.slice(i - 6, i) : [];
+      const recent = vwapRule && i >= 6 ? bars.slice(i - 6, i) : [];
       const reclaimed = recent.length === 6 && recent.every(x => Number.isFinite(x.volume) && x.volume > 0) &&
-        volume >= 1.5 * recent.reduce((sum, x) => sum + x.volume, 0) / 6 && b.bidClose > first.bidOpen &&
+        (rule === 'vwap-unfiltered' || volume >= 1.5 * recent.reduce((sum, x) => sum + x.volume, 0) / 6) && b.bidClose > first.bidOpen &&
         bars[i - 1].bidClose <= priorVwap && b.bidClose > vwap;
       const breakout = i > 0 && bars[i - 1].bidClose <= first.bidHigh && b.bidClose > first.bidHigh;
-      if (!(rule === 'vwap' ? reclaimed : breakout)) continue;
+      if (!(vwapRule ? reclaimed : breakout)) continue;
       const fill = i + 1;
-      const stop = rule === 'vwap' ? b.bidLow : first.bidLow;
+      const stop = vwapRule ? b.bidLow : first.bidLow;
       const risk = bars[fill].askOpen - stop;
       if (bars[fill].bidOpen <= stop || risk <= 0) continue;
       const target = bars[fill].askOpen + 1.5 * risk;
@@ -121,9 +124,9 @@ export function replayStockIntraday(sessions: StockSession[], rule: IntradayRule
   return trades;
 }
 
-export function summarizeIntraday(byMarket: Trade[][]) {
+export function summarizeIntraday(byMarket: IntradayTrade[][]) {
   const trades = byMarket.flat();
-  const total = (xs: Trade[], key: 'netBps' | 'stressBps' | 'minutes') => xs.reduce((sum, t) => sum + t[key], 0);
+  const total = (xs: IntradayTrade[], key: 'netBps' | 'stressBps' | 'minutes') => xs.reduce((sum, t) => sum + t[key], 0);
   // Pool by session day. Simultaneous stock trades are correlated.
   const daily = new Map<string, number>();
   for (const t of trades) daily.set(t.day, (daily.get(t.day) ?? 0) + t.netBps);

@@ -69,7 +69,7 @@ export function StockSetups({ connections }: { connections: ('demo' | 'real')[] 
       </p>
       {!scan.result.open ? <p className="text-sm">The US regular session is closed. Scan when it opens at 9:30 a.m. ET.</p>
         : scan.result.rows.length === 0 ? <p className="text-sm">No setup met the entry, quote and cost checks.</p>
-        : <p className="text-sm text-muted-foreground">Ranked by estimated entry friction. Overnight and weekend financing appear separately below.</p>}
+        : <p className="text-sm text-muted-foreground">Ranked by historical evidence, then trading cost. Market regime {scan.result.regime?.replace('-', ', ') ?? 'unavailable'} · Research through {scan.result.evidenceThrough}.</p>}
       <div className="grid gap-3 md:grid-cols-2">{scan.result.rows.map(row => {
         const rule = STOCK_TRADE_RULES.find(rule => rule.id === row.rule)!;
         const params = { symbol: row.symbol, rule: row.rule, ...scan.sizing };
@@ -77,6 +77,13 @@ export function StockSetups({ connections }: { connections: ('demo' | 'real')[] 
         return <article key={`${row.symbol}:${row.rule}`} className="rounded-lg border border-border p-4 space-y-2">
           <h3 className="font-semibold">{row.symbol} · {rule.name}{row.rule === 'earnings-rebound' && ' (Experimental)'}</h3>
           <p className="text-sm">{row.signal.description ?? rule.description}</p>
+          <p className={`text-sm ${row.evidence.status === 'Qualified' ? 'text-profit' : row.evidence.status === 'Skip' ? 'text-loss' : 'text-muted-foreground'}`}>
+            {row.evidence.status} · {row.evidence.reason}
+          </p>
+          {row.evidence.netBps != null && <p className="text-xs text-muted-foreground">
+            Estimated net {row.evidence.netBps.toFixed(1)} bps · {row.evidence.samples} comparable trades across {row.evidence.days} sessions · {row.evidence.symbolSamples} for {row.symbol}
+            {row.journalSamples >= 10 && ` · ${row.slipBps.toFixed(1)} bps slippage from broker fills`}
+          </p>}
           {row.rule === 'inside-day' && <p className="text-xs text-muted-foreground">{insideDayEvidence.stages[2].trades} historical holdout trades across {insideDayEvidence.symbols.length} stocks. Average under higher costs was {insideDayEvidence.stages[2].stressBps.toFixed(1)} bps per trade.</p>}
           <dl className="grid grid-cols-2 gap-2 text-sm">
             <div><dt className="text-xs text-muted-foreground">Indicative entry ask</dt><dd>{formatCurrency(row.ask)}</dd></div>
@@ -86,8 +93,8 @@ export function StockSetups({ connections }: { connections: ('demo' | 'real')[] 
           {financing.map(fee => <p key={fee.costType} className="text-xs text-muted-foreground">{fee.costType === 'overnightFee' ? 'Overnight' : 'Weekend'} financing {fee.value.toFixed(2)} {fee.currency}</p>)}
           <p className="text-xs text-muted-foreground">Quote {time.format(new Date(row.quoteAt!))} ET · Entry check expires {time.format(new Date(row.signal.validUntil))} ET</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" asChild><Link href={stockHref('trade', { ...params, mode: 'demo' })}>Review Paper</Link></Button>
-            <Button size="sm" variant="outline" asChild><Link href={stockHref('trade', { ...params, mode: 'real' })}>Review Live</Link></Button>
+            {row.evidence.status !== 'Skip' && <Button size="sm" asChild><Link href={stockHref('trade', { ...params, mode: 'demo' })}>Review Paper</Link></Button>}
+            {row.evidence.status !== 'Skip' && <Button size="sm" variant="outline" asChild><Link href={stockHref('trade', { ...params, mode: 'real' })}>Review Live</Link></Button>}
             <Button size="sm" variant="ghost" asChild><Link href={stockHref('research', params)}>Backtest</Link></Button>
           </div>
         </article>;

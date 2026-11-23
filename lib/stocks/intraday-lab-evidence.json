@@ -1,0 +1,347 @@
+{
+  "from": "2026-07-04",
+  "validationFrom": "2026-08-08",
+  "holdoutFrom": "2026-09-26",
+  "to": "2026-11-21",
+  "version": "volume-controls-v1",
+  "options": {
+    "slipBps": 3,
+    "fee": 1
+  },
+  "markets": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMD",
+    "AMZN",
+    "TSLA",
+    "AMAT",
+    "INTC",
+    "ORCL",
+    "CRM",
+    "GS",
+    "HD"
+  ],
+  "reports": [
+    {
+      "rule": "orb-rvol",
+      "control": "orb",
+      "label": "Relative-volume opening breakout",
+      "baseline": "Opening breakout without volume filter",
+      "validation": {
+        "trades": 10,
+        "activeDays": 8,
+        "positiveMarkets": 2,
+        "netBps": -2.6431127154606657,
+        "stressBps": -10.639664663229814,
+        "averageMinutes": 54,
+        "tByDay": -0.09542010583892978,
+        "sessions": 34,
+        "baselineTrades": 113,
+        "excess": 8.003863385230614,
+        "lower": -2.6997553002872596,
+        "marketResults": [
+          {
+            "symbol": "AAPL",
+            "trades": 1,
+            "sessions": 33,
+            "excess": -6.44149234629968
+          },
+          {
+            "symbol": "MSFT",
+            "trades": 1,
+            "sessions": 34,
+            "excess": 11.443096054132987
+          },
+          {
+            "symbol": "NVDA",
+            "trades": 3,
+            "sessions": 33,
+            "excess": 12.421377665380616
+          },
+          {
+            "symbol": "AMD",
+            "trades": 3,
+            "sessions": 33,
+            "excess": 6.289128551344137
+          },
+          {
+            "symbol": "AMZN",
+            "trades": 0,
+            "sessions": 33,
+            "excess": 22.498425209982695
+          },
+          {
+            "symbol": "TSLA",
+            "trades": 2,
+            "sessions": 33,
+            "excess": 0.12581354155763896
+          }
+        ]
+      },
+      "dateHoldout": {
+        "trades": 29,
+        "activeDays": 17,
+        "positiveMarkets": 3,
+        "netBps": -20.17475768783992,
+        "stressBps": -28.159041513340746,
+        "averageMinutes": 53.62068965517241,
+        "tByDay": -0.7378560616680221,
+        "sessions": 40,
+        "baselineTrades": 128,
+        "excess": 9.90578166382001,
+        "lower": -1.143046165991727,
+        "marketResults": [
+          {
+            "symbol": "AAPL",
+            "trades": 2,
+            "sessions": 40,
+            "excess": 8.60566919536068
+          },
+          {
+            "symbol": "MSFT",
+            "trades": 4,
+            "sessions": 40,
+            "excess": 3.9567744041672994
+          },
+          {
+            "symbol": "NVDA",
+            "trades": 8,
+            "sessions": 40,
+            "excess": 21.892519058627112
+          },
+          {
+            "symbol": "AMD",
+            "trades": 8,
+            "sessions": 40,
+            "excess": 27.844817885315706
+          },
+          {
+            "symbol": "AMZN",
+            "trades": 3,
+            "sessions": 40,
+            "excess": 8.856997788088757
+          },
+          {
+            "symbol": "TSLA",
+            "trades": 4,
+            "sessions": 40,
+            "excess": -11.722088348639499
+          }
+        ]
+      },
+      "tickerHoldout": {
+        "trades": 14,
+        "activeDays": 13,
+        "positiveMarkets": 1,
+        "netBps": -32.17601531130419,
+        "stressBps": -40.151901014659025,
+        "averageMinutes": 58.57142857142857,
+        "tByDay": -1.7070811951165512,
+        "sessions": 40,
+        "baselineTrades": 119,
+        "excess": 15.427805258199086,
+        "lower": 0.7081755829784235,
+        "marketResults": [
+          {
+            "symbol": "AMAT",
+            "trades": 1,
+            "sessions": 40,
+            "excess": 24.113114237682293
+          },
+          {
+            "symbol": "INTC",
+            "trades": 0,
+            "sessions": 40,
+            "excess": 34.583363495223466
+          },
+          {
+            "symbol": "ORCL",
+            "trades": 4,
+            "sessions": 40,
+            "excess": 0.7823198444935315
+          },
+          {
+            "symbol": "CRM",
+            "trades": 2,
+            "sessions": 40,
+            "excess": 11.791294957618584
+          },
+          {
+            "symbol": "GS",
+            "trades": 1,
+            "sessions": 40,
+            "excess": 19.49139528087476
+          },
+          {
+            "symbol": "HD",
+            "trades": 6,
+            "sessions": 40,
+            "excess": 1.8053437333018791
+          }
+        ]
+      },
+      "status": "Insufficient sample"
+    },
+    {
+      "rule": "vwap",
+      "control": "vwap-unfiltered",
+      "label": "VWAP reclaim with volume",
+      "baseline": "VWAP reclaim without volume filter",
+      "validation": {
+        "trades": 9,
+        "activeDays": 8,
+        "positiveMarkets": 2,
+        "netBps": -9.935322349464615,
+        "stressBps": -17.92677142642363,
+        "averageMinutes": 53.888888888888886,
+        "tByDay": -0.7838008277281782,
+        "sessions": 34,
+        "baselineTrades": 79,
+        "excess": 4.4862685783590255,
+        "lower": -0.08697825778949397,
+        "marketResults": [
+          {
+            "symbol": "AAPL",
+            "trades": 1,
+            "sessions": 33,
+            "excess": 4.150157072578264
+          },
+          {
+            "symbol": "MSFT",
+            "trades": 2,
+            "sessions": 34,
+            "excess": -0.3794744938797842
+          },
+          {
+            "symbol": "NVDA",
+            "trades": 0,
+            "sessions": 33,
+            "excess": 5.408773111589626
+          },
+          {
+            "symbol": "AMD",
+            "trades": 1,
+            "sessions": 33,
+            "excess": 10.365451707454419
+          },
+          {
+            "symbol": "AMZN",
+            "trades": 2,
+            "sessions": 33,
+            "excess": 5.255702458860579
+          },
+          {
+            "symbol": "TSLA",
+            "trades": 3,
+            "sessions": 33,
+            "excess": 7.366079538248772
+          }
+        ]
+      },
+      "dateHoldout": {
+        "trades": 1,
+        "activeDays": 1,
+        "positiveMarkets": 1,
+        "netBps": 23.233242788688585,
+        "stressBps": 15.218583339101315,
+        "averageMinutes": 10,
+        "tByDay": null,
+        "sessions": 40,
+        "baselineTrades": 79,
+        "excess": 7.281560176517276,
+        "lower": 2.746095143475209,
+        "marketResults": [
+          {
+            "symbol": "AAPL",
+            "trades": 1,
+            "sessions": 40,
+            "excess": 2.385737296980369
+          },
+          {
+            "symbol": "MSFT",
+            "trades": 0,
+            "sessions": 40,
+            "excess": -0.05324503043639197
+          },
+          {
+            "symbol": "NVDA",
+            "trades": 0,
+            "sessions": 40,
+            "excess": 8.960999492272048
+          },
+          {
+            "symbol": "AMD",
+            "trades": 0,
+            "sessions": 40,
+            "excess": 23.830561504383287
+          },
+          {
+            "symbol": "AMZN",
+            "trades": 0,
+            "sessions": 40,
+            "excess": 1.2743745093019698
+          },
+          {
+            "symbol": "TSLA",
+            "trades": 0,
+            "sessions": 40,
+            "excess": 7.290933286602376
+          }
+        ]
+      },
+      "tickerHoldout": {
+        "trades": 19,
+        "activeDays": 16,
+        "positiveMarkets": 5,
+        "netBps": 8.72125884172898,
+        "stressBps": 0.7167544456868583,
+        "averageMinutes": 30.526315789473685,
+        "tByDay": 0.5359039679096738,
+        "sessions": 40,
+        "baselineTrades": 87,
+        "excess": 7.933794283430977,
+        "lower": 3.088958529989063,
+        "marketResults": [
+          {
+            "symbol": "AMAT",
+            "trades": 5,
+            "sessions": 40,
+            "excess": 0.7922059265329153
+          },
+          {
+            "symbol": "INTC",
+            "trades": 2,
+            "sessions": 40,
+            "excess": 21.48002066451022
+          },
+          {
+            "symbol": "ORCL",
+            "trades": 1,
+            "sessions": 40,
+            "excess": -1.272301466495719
+          },
+          {
+            "symbol": "CRM",
+            "trades": 7,
+            "sessions": 40,
+            "excess": 12.217658186583003
+          },
+          {
+            "symbol": "GS",
+            "trades": 2,
+            "sessions": 40,
+            "excess": 7.935502657642473
+          },
+          {
+            "symbol": "HD",
+            "trades": 2,
+            "sessions": 40,
+            "excess": 6.449679731812966
+          }
+        ]
+      },
+      "status": "Insufficient sample"
+    }
+  ]
+}

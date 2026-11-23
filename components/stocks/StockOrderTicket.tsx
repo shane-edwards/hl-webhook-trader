@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { EARNINGS_REBOUND, INSIDE_DAY_SYMBOLS, STOCK_INSTRUMENTS, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS, isStockTradeRule, supportsStockTradeRule, type StockTradeSymbol } from '@/lib/stocks/trade-rules';
+import { EARNINGS_REBOUND, STOCK_INSTRUMENTS, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS, isStockTradeRule, supportsStockTradeRule, type StockTradeSymbol } from '@/lib/stocks/trade-rules';
 import { stockSizingParams, stockSizingSchema, type StockLeverage, type StockOrderOption, type StockSizing } from '@/lib/stocks/leverage';
-import { stockPortfolioSchema, type StockPortfolio } from '@/lib/stocks/portfolio';
+import { DEFAULT_STOCK_PORTFOLIO, stockPortfolioSchema, type StockPortfolio } from '@/lib/stocks/portfolio';
 import type { EtoroClient } from '@/lib/stocks/etoro';
 import { StockPortfolioFields } from './StockPortfolioFields';
 import { formatCurrency } from '@/lib/utils';
@@ -78,10 +78,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
     ? STOCK_TRADE_SYMBOLS.find(ticker => supportsStockTradeRule(initialRule, ticker))! : savedSymbol;
   const ticketSymbol = selectedSymbol ?? initialSymbol ?? defaultSymbol;
   const usePortfolio = flow === 'auto' && (portfolioMode ?? (!initialSymbol && !!saved?.portfolio));
-  const portfolio = portfolioDraft ?? saved?.portfolio ?? {
-    symbols: [...INSIDE_DAY_SYMBOLS], strategies: ['inside-day'],
-    maxExposure: 5000, maxGroup: 2000, maxPositions: 3, dailyLoss: 100, maxCostBps: 60,
-  } satisfies StockPortfolio;
+  const portfolio = portfolioDraft ?? saved?.portfolio ?? DEFAULT_STOCK_PORTFOLIO;
   const portfolioSymbol = portfolio.symbols.find(ticker => portfolio.strategies.some(rule => supportsStockTradeRule(rule, ticker)));
   const symbol = usePortfolio && portfolioSymbol ? portfolioSymbol : ticketSymbol;
   const choices = STOCK_TRADE_RULES.filter(rule => supportsStockTradeRule(rule.id, symbol));
@@ -197,6 +194,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
       {flow === 'auto' && <Segmented aria-label="Autopilot scope" value={usePortfolio ? 'portfolio' : 'single'}
         options={[{ value: 'single', label: 'One strategy' }, { value: 'portfolio', label: 'Portfolio' }]} disabled={!!busy} onChange={value => setPortfolioMode(value === 'portfolio')} />}
       {activeRule && !usePortfolio && <Link className="inline-block text-sm text-primary hover:underline" href={stockHref('research', { symbol, rule: activeRule.id, ...handoff })}>Backtest this strategy</Link>}
+      {usePortfolio && <Link className="block text-sm text-primary hover:underline" href="/stocks/portfolio">Replay the portfolio</Link>}
       {connected ? <>
         <form onSubmit={preview} className="grid sm:grid-cols-2 lg:grid-cols-3 items-end gap-3">
           {usePortfolio ? <StockPortfolioFields settings={portfolio} onChange={setPortfolioDraft} /> : <>
@@ -232,6 +230,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
         {flow === 'manual' && strategy && !earnings && <p className="text-xs text-muted-foreground">Manage manual exits in eToro.</p>}
         <div className="border-t pt-3 space-y-2">
           <h3 className="text-sm font-semibold">eToro positions and pending orders</h3>
+          <Link className="text-xs text-primary hover:underline" href={`/stocks/journal?mode=${environment}`}>Execution journal</Link>
           {currentBook?.value ? <>
             <p className="text-xs text-muted-foreground">{formatCurrency(currentBook.value.availableCash)} available · {currentBook.value.positions.length} direct {currentBook.value.positions.length === 1 ? 'position' : 'positions'} · {currentBook.value.pending} pending {currentBook.value.pending === 1 ? 'order' : 'orders'}{currentBook.value.mirrors > 0 && ` · ${currentBook.value.mirrors} copy portfolios`}</p>
             {currentBook.value.positions.map(position => <div key={position.id} className="flex flex-wrap justify-between gap-2 text-sm">
