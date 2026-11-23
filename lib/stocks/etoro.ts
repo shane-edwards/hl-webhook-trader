@@ -4,7 +4,8 @@ import { STOCKS, type StockBar, type StockSymbol } from './research';
 export type EtoroCredentials = { apiKey: string; userKey: string; environment: 'demo' | 'real' };
 type Instrument = { instrumentId: number; symbol: string; displayName: string; type: string };
 type Rate = { instrumentId: number; bid: number | null; ask: number | null; date: string | null; quoteType?: 'realtime' | 'delayed' | null };
-type Candle = { time: string; open: string; high: string; low: string; close: string };
+type Candle = { time: string; open: string; high: string; low: string; close: string; volume?: string };
+export type IntradayBar = { t: number; bidOpen: number; bidHigh: number; bidLow: number; bidClose: number; askOpen: number; volume: number };
 type BrokerPosition = {
   positionID: number; instrumentID: number; isBuy: boolean; units: number; amount: number;
   leverage: number; openRate: number; openDateTime: string; unrealizedPnL?: { pnL?: number } | null;
@@ -78,6 +79,38 @@ export class EtoroClient {
       bars.push(b);
     }
     return bars;
+  }
+
+  /** One fixed 5-minute history window, including every page from each quote side. */
+  async intradayCandles(id: number, from: number, to: number, pace?: () => Promise<void>): Promise<IntradayBar[]> {
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > 28 * 86_400_000) throw new Error('Invalid intraday candle range');
+    const sides = async (side: 'bid' | 'ask') => {
+      const query = new URLSearchParams({ interval: '5m', limit: '2000', from: new Date(from).toISOString(), to: new Date(to).toISOString(), side });
+      const all: Candle[] = [];
+      for (let page = 0; page < 8; page++) {
+        await pace?.();
+        const { results, pagination } = await this.get<{ results: Candle[]; pagination: { hasNext: boolean; nextCursor?: string | null } }>(`/v1/data/instruments/${id}/candles?${query}`);
+        all.push(...results);
+        if (!pagination.hasNext) return all;
+        if (!pagination.nextCursor || query.get('cursor') === pagination.nextCursor) throw new Error('Invalid intraday history cursor');
+        query.set('cursor', pagination.nextCursor);
+      }
+      throw new Error('Intraday history did not finish paging');
+    };
+    const [bid, ask] = await Promise.all([sides('bid'), sides('ask')]);
+    const asks = new Map(ask.map(b => [Date.parse(b.time), Number(b.open)]));
+    const seen = new Set<number>();
+    return bid.flatMap(b => {
+      const t = Date.parse(b.time);
+      if (!Number.isFinite(t) || t < from || t >= to) return [];
+      if (seen.has(t)) throw new Error('Duplicate intraday candle');
+      seen.add(t);
+      const bar = { t, bidOpen: Number(b.open), bidHigh: Number(b.high), bidLow: Number(b.low), bidClose: Number(b.close), askOpen: asks.get(t) ?? NaN, volume: Number(b.volume ?? NaN) };
+      const prices = [bar.bidOpen, bar.bidHigh, bar.bidLow, bar.bidClose, bar.askOpen];
+      // An incomplete quote pair becomes a gap. Session validation decides whether it is usable.
+      return prices.every(p => Number.isFinite(p) && p > 0) && bar.askOpen >= bar.bidOpen &&
+        bar.bidHigh >= Math.max(bar.bidOpen, bar.bidClose) && bar.bidLow <= Math.min(bar.bidOpen, bar.bidClose) ? [bar] : [];
+    }).sort((a, b) => a.t - b.t);
   }
 }
 

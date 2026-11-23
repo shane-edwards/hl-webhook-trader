@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -135,6 +136,10 @@ export default function StocksPage() {
             </section>
           </TabsContent>
           <TabsContent value="simulation" className="space-y-3">
+            <section className="surface p-4 flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="font-semibold">Trade within the session</h2><p className="text-sm text-muted-foreground">Compare five-minute strategies using eToro’s opening and closing quotes.</p></div>
+              <Button asChild variant="outline"><Link href="/stocks/intraday">Intraday research</Link></Button>
+            </section>
             <section className="surface p-4 lg:p-6 space-y-4">
               <h2 className="text-lg font-semibold">Native US stock simulation</h2>
               <form className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3" onSubmit={e => {

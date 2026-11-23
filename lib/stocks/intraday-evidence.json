@@ -1,0 +1,890 @@
+{
+  "from": "2025-05-01",
+  "to": "2026-11-21",
+  "coverage": [
+    {
+      "symbol": "AAPL",
+      "complete": 387,
+      "incomplete": 3,
+      "first": "2025-05-01",
+      "last": "2026-11-20"
+    },
+    {
+      "symbol": "MSFT",
+      "complete": 388,
+      "incomplete": 2,
+      "first": "2025-05-01",
+      "last": "2026-11-20"
+    },
+    {
+      "symbol": "NVDA",
+      "complete": 387,
+      "incomplete": 3,
+      "first": "2025-05-01",
+      "last": "2026-11-20"
+    },
+    {
+      "symbol": "AMZN",
+      "complete": 387,
+      "incomplete": 3,
+      "first": "2025-05-01",
+      "last": "2026-11-20"
+    },
+    {
+      "symbol": "TSLA",
+      "complete": 386,
+      "incomplete": 4,
+      "first": "2025-05-01",
+      "last": "2026-11-20"
+    },
+    {
+      "symbol": "SPY",
+      "complete": 389,
+      "incomplete": 1,
+      "first": "2025-05-01",
+      "last": "2026-11-20"
+    }
+  ],
+  "results": [
+    {
+      "id": "orb",
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "trades": 533,
+          "activeDays": 156,
+          "positiveMarkets": 0,
+          "netBps": -33.69957820654143,
+          "stressBps": -41.67439728792573,
+          "averageMinutes": 51.54784240150094,
+          "tByDay": -9.069328908279445,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "trades": 79,
+              "activeDays": 79,
+              "positiveMarkets": 0,
+              "netBps": -39.56439355768941,
+              "stressBps": -47.53510861649096,
+              "averageMinutes": 55.88607594936709,
+              "tByDay": -6.355827102469813
+            },
+            {
+              "symbol": "MSFT",
+              "trades": 85,
+              "activeDays": 85,
+              "positiveMarkets": 0,
+              "netBps": -36.129644108874345,
+              "stressBps": -44.10276270273338,
+              "averageMinutes": 51.8235294117647,
+              "tByDay": -8.167472226468497
+            },
+            {
+              "symbol": "NVDA",
+              "trades": 87,
+              "activeDays": 87,
+              "positiveMarkets": 0,
+              "netBps": -34.55810202246817,
+              "stressBps": -42.532320334532855,
+              "averageMinutes": 54.59770114942529,
+              "tByDay": -3.9219668222262416
+            },
+            {
+              "symbol": "AMZN",
+              "trades": 81,
+              "activeDays": 81,
+              "positiveMarkets": 0,
+              "netBps": -36.69048448346996,
+              "stressBps": -44.663210617989265,
+              "averageMinutes": 53.95061728395062,
+              "tByDay": -6.399501253292167
+            },
+            {
+              "symbol": "TSLA",
+              "trades": 86,
+              "activeDays": 86,
+              "positiveMarkets": 0,
+              "netBps": -19.76583189684061,
+              "stressBps": -27.75040139764892,
+              "averageMinutes": 53.02325581395349,
+              "tByDay": -1.4529371730967362
+            },
+            {
+              "symbol": "SPY",
+              "trades": 115,
+              "activeDays": 115,
+              "positiveMarkets": 0,
+              "netBps": -35.53845810026717,
+              "stressBps": -43.51199038843488,
+              "averageMinutes": 43.26086956521739,
+              "tByDay": -16.28760793691656
+            }
+          ]
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "trades": 429,
+          "activeDays": 120,
+          "positiveMarkets": 0,
+          "netBps": -13.373415025522691,
+          "stressBps": -21.362457748696226,
+          "averageMinutes": 48.70629370629371,
+          "tByDay": -3.145866425410381,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "trades": 67,
+              "activeDays": 67,
+              "positiveMarkets": 0,
+              "netBps": -13.489135451818855,
+              "stressBps": -21.478097197294662,
+              "averageMinutes": 54.1044776119403,
+              "tByDay": -2.0530309411362575
+            },
+            {
+              "symbol": "MSFT",
+              "trades": 67,
+              "activeDays": 67,
+              "positiveMarkets": 0,
+              "netBps": -14.03500715754039,
+              "stressBps": -22.02358691830368,
+              "averageMinutes": 50.59701492537314,
+              "tByDay": -1.4594226193715298
+            },
+            {
+              "symbol": "NVDA",
+              "trades": 73,
+              "activeDays": 73,
+              "positiveMarkets": 0,
+              "netBps": -28.109519457321728,
+              "stressBps": -36.08825029482627,
+              "averageMinutes": 49.863013698630134,
+              "tByDay": -2.771643352540654
+            },
+            {
+              "symbol": "AMZN",
+              "trades": 70,
+              "activeDays": 70,
+              "positiveMarkets": 0,
+              "netBps": -2.8289319146765983,
+              "stressBps": -10.8253533521354,
+              "averageMinutes": 51.714285714285715,
+              "tByDay": -0.30335616742057253
+            },
+            {
+              "symbol": "TSLA",
+              "trades": 64,
+              "activeDays": 64,
+              "positiveMarkets": 0,
+              "netBps": -5.211546902731925,
+              "stressBps": -13.206301057398065,
+              "averageMinutes": 49.84375,
+              "tByDay": -0.373120111209118
+            },
+            {
+              "symbol": "SPY",
+              "trades": 88,
+              "activeDays": 88,
+              "positiveMarkets": 0,
+              "netBps": -14.880890169721294,
+              "stressBps": -22.868878006821827,
+              "averageMinutes": 38.97727272727273,
+              "tByDay": -4.836874898648605
+            }
+          ]
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "trades": 333,
+          "activeDays": 99,
+          "positiveMarkets": 2,
+          "netBps": -2.394156581493843,
+          "stressBps": -10.390882261742485,
+          "averageMinutes": 49.234234234234236,
+          "tByDay": -0.5350575829174705,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "trades": 49,
+              "activeDays": 49,
+              "positiveMarkets": 1,
+              "netBps": 10.384071255089946,
+              "stressBps": 2.37840375272594,
+              "averageMinutes": 53.87755102040816,
+              "tByDay": 1.0581968752930244
+            },
+            {
+              "symbol": "MSFT",
+              "trades": 59,
+              "activeDays": 59,
+              "positiveMarkets": 0,
+              "netBps": -1.679930857078481,
+              "stressBps": -9.677156331152712,
+              "averageMinutes": 51.440677966101696,
+              "tByDay": -0.17961900018967106
+            },
+            {
+              "symbol": "NVDA",
+              "trades": 57,
+              "activeDays": 57,
+              "positiveMarkets": 0,
+              "netBps": -24.208493620707532,
+              "stressBps": -32.18995427955713,
+              "averageMinutes": 50.08771929824562,
+              "tByDay": -1.9651739674939803
+            },
+            {
+              "symbol": "AMZN",
+              "trades": 54,
+              "activeDays": 54,
+              "positiveMarkets": 0,
+              "netBps": -20.207518984337725,
+              "stressBps": -28.191779405716396,
+              "averageMinutes": 51.388888888888886,
+              "tByDay": -2.009433159137194
+            },
+            {
+              "symbol": "TSLA",
+              "trades": 52,
+              "activeDays": 52,
+              "positiveMarkets": 1,
+              "netBps": 31.429129846113028,
+              "stressBps": 23.408735640427356,
+              "averageMinutes": 54.80769230769231,
+              "tByDay": 2.2252286169260738
+            },
+            {
+              "symbol": "SPY",
+              "trades": 62,
+              "activeDays": 62,
+              "positiveMarkets": 0,
+              "netBps": -5.970682306976414,
+              "stressBps": -13.964905241364338,
+              "averageMinutes": 36.12903225806452,
+              "tByDay": -2.200308082515693
+            }
+          ]
+        }
+      ],
+      "paperCandidate": false
+    },
+    {
+      "id": "orb-rvol",
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "trades": 62,
+          "activeDays": 43,
+          "positiveMarkets": 1,
+          "netBps": -23.254217131399006,
+          "stressBps": -31.236345564428706,
+          "averageMinutes": 56.693548387096776,
+          "tByDay": -1.5819721660977575,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "trades": 12,
+              "activeDays": 12,
+              "positiveMarkets": 0,
+              "netBps": -31.91974465538745,
+              "stressBps": -39.89580921112156,
+              "averageMinutes": 60,
+              "tByDay": -1.3748182923080259
+            },
+            {
+              "symbol": "MSFT",
+              "trades": 7,
+              "activeDays": 7,
+              "positiveMarkets": 0,
+              "netBps": -15.889914751791887,
+              "stressBps": -23.87719650363189,
+              "averageMinutes": 56.42857142857143,
+              "tByDay": -1.051726224692959
+            },
+            {
+              "symbol": "NVDA",
+              "trades": 11,
+              "activeDays": 11,
+              "positiveMarkets": 0,
+              "netBps": -30.144602385234148,
+              "stressBps": -38.121909132499326,
+              "averageMinutes": 56.81818181818182,
+              "tByDay": -1.0558954869586474
+            },
+            {
+              "symbol": "AMZN",
+              "trades": 8,
+              "activeDays": 8,
+              "positiveMarkets": 0,
+              "netBps": -35.178406606041335,
+              "stressBps": -43.15219084748969,
+              "averageMinutes": 60,
+              "tByDay": -2.372534219049891
+            },
+            {
+              "symbol": "TSLA",
+              "trades": 12,
+              "activeDays": 12,
+              "positiveMarkets": 1,
+              "netBps": 8.068112828609324,
+              "stressBps": 0.06406596476760267,
+              "averageMinutes": 53.75,
+              "tByDay": 0.13922848330507132
+            },
+            {
+              "symbol": "SPY",
+              "trades": 12,
+              "activeDays": 12,
+              "positiveMarkets": 0,
+              "netBps": -35.94121648974593,
+              "stressBps": -43.91446693962492,
+              "averageMinutes": 54.166666666666664,
+              "tByDay": -4.755450406087101
+            }
+          ]
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "trades": 44,
+          "activeDays": 34,
+          "positiveMarkets": 1,
+          "netBps": -16.2055110703967,
+          "stressBps": -24.192571977361695,
+          "averageMinutes": 50.22727272727273,
+          "tByDay": -1.3454062296912277,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "trades": 7,
+              "activeDays": 7,
+              "positiveMarkets": 0,
+              "netBps": -11.509224644091123,
+              "stressBps": -19.4995718720051,
+              "averageMinutes": 47.142857142857146,
+              "tByDay": -0.43116768762617413
+            },
+            {
+              "symbol": "MSFT",
+              "trades": 8,
+              "activeDays": 8,
+              "positiveMarkets": 0,
+              "netBps": -19.033564271101568,
+              "stressBps": -27.01864619091839,
+              "averageMinutes": 53.75,
+              "tByDay": -0.7978800969364737
+            },
+            {
+              "symbol": "NVDA",
+              "trades": 6,
+              "activeDays": 6,
+              "positiveMarkets": 1,
+              "netBps": 28.503103020851388,
+              "stressBps": 20.484756361329044,
+              "averageMinutes": 50.833333333333336,
+              "tByDay": 0.8333378958616614
+            },
+            {
+              "symbol": "AMZN",
+              "trades": 13,
+              "activeDays": 13,
+              "positiveMarkets": 0,
+              "netBps": -7.4928051881260425,
+              "stressBps": -15.485962986392433,
+              "averageMinutes": 57.69230769230769,
+              "tByDay": -0.42590303609892816
+            },
+            {
+              "symbol": "TSLA",
+              "trades": 3,
+              "activeDays": 3,
+              "positiveMarkets": 0,
+              "netBps": -139.18571026082464,
+              "stressBps": -147.08671329819117,
+              "averageMinutes": 51.666666666666664,
+              "tByDay": -1.4057975521982662
+            },
+            {
+              "symbol": "SPY",
+              "trades": 7,
+              "activeDays": 7,
+              "positiveMarkets": 0,
+              "netBps": -19.466345759571464,
+              "stressBps": -27.45112483183298,
+              "averageMinutes": 34.285714285714285,
+              "tByDay": -1.4337911395835663
+            }
+          ]
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "trades": 49,
+          "activeDays": 32,
+          "positiveMarkets": 3,
+          "netBps": -0.7845384187871137,
+          "stressBps": -8.782390461741224,
+          "averageMinutes": 51.224489795918366,
+          "tByDay": -0.05852005372407419,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "trades": 4,
+              "activeDays": 4,
+              "positiveMarkets": 0,
+              "netBps": -16.762584900008278,
+              "stressBps": -24.749255983347666,
+              "averageMinutes": 48.75,
+              "tByDay": -0.27532214466167027
+            },
+            {
+              "symbol": "MSFT",
+              "trades": 9,
+              "activeDays": 9,
+              "positiveMarkets": 0,
+              "netBps": -15.052174127471922,
+              "stressBps": -23.04004210517471,
+              "averageMinutes": 50,
+              "tByDay": -0.5580764722293381
+            },
+            {
+              "symbol": "NVDA",
+              "trades": 13,
+              "activeDays": 13,
+              "positiveMarkets": 0,
+              "netBps": -20.624619484146585,
+              "stressBps": -28.60858803105587,
+              "averageMinutes": 58.84615384615385,
+              "tByDay": -0.5589488133772096
+            },
+            {
+              "symbol": "AMZN",
+              "trades": 8,
+              "activeDays": 8,
+              "positiveMarkets": 1,
+              "netBps": 2.2773656828483126,
+              "stressBps": -5.722628989127088,
+              "averageMinutes": 60,
+              "tByDay": 0.06406007569286962
+            },
+            {
+              "symbol": "TSLA",
+              "trades": 6,
+              "activeDays": 6,
+              "positiveMarkets": 1,
+              "netBps": 68.87492249300219,
+              "stressBps": 60.82832484024372,
+              "averageMinutes": 53.333333333333336,
+              "tByDay": 1.8345642187170954
+            },
+            {
+              "symbol": "SPY",
+              "trades": 9,
+              "activeDays": 9,
+              "positiveMarkets": 1,
+              "netBps": 0.08101301109086813,
+              "stressBps": -7.917444718897362,
+              "averageMinutes": 33.333333333333336,
+              "tByDay": 0.008836307229580107
+            }
+          ]
+        }
+      ],
+      "paperCandidate": false
+    },
+    {
+      "id": "vwap",
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "trades": 19,
+          "activeDays": 16,
+          "positiveMarkets": 4,
+          "netBps": -15.895887188687324,
+          "stressBps": -23.88316476119546,
+          "averageMinutes": 43.1578947368421,
+          "tByDay": -0.9941339017976364,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "trades": 2,
+              "activeDays": 2,
+              "positiveMarkets": 1,
+              "netBps": 6.523941966725033,
+              "stressBps": -1.4790243324778203,
+              "averageMinutes": 60,
+              "tByDay": 0.2348813359414853
+            },
+            {
+              "symbol": "MSFT",
+              "trades": 1,
+              "activeDays": 1,
+              "positiveMarkets": 1,
+              "netBps": 44.349734928648104,
+              "stressBps": 36.320299269504176,
+              "averageMinutes": 60,
+              "tByDay": null
+            },
+            {
+              "symbol": "NVDA",
+              "trades": 1,
+              "activeDays": 1,
+              "positiveMarkets": 1,
+              "netBps": 7.322349300022324,
+              "stressBps": -0.6811757007799315,
+              "averageMinutes": 60,
+              "tByDay": null
+            },
+            {
+              "symbol": "AMZN",
+              "trades": 5,
+              "activeDays": 5,
+              "positiveMarkets": 1,
+              "netBps": 1.0319435630543012,
+              "stressBps": -6.967179599728115,
+              "averageMinutes": 43,
+              "tByDay": 0.026752722265737203
+            },
+            {
+              "symbol": "TSLA",
+              "trades": 3,
+              "activeDays": 3,
+              "positiveMarkets": 0,
+              "netBps": -41.81186194904634,
+              "stressBps": -49.78100429660602,
+              "averageMinutes": 53.333333333333336,
+              "tByDay": -0.9767901516434591
+            },
+            {
+              "symbol": "SPY",
+              "trades": 7,
+              "activeDays": 7,
+              "positiveMarkets": 0,
+              "netBps": -35.20942238790173,
+              "stressBps": -43.18318492543195,
+              "averageMinutes": 29.285714285714285,
+              "tByDay": -4.199574745186085
+            }
+          ]
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "trades": 16,
+          "activeDays": 15,
+          "positiveMarkets": 2,
+          "netBps": -22.554035060851675,
+          "stressBps": -30.536653460378034,
+          "averageMinutes": 28.75,
+          "tByDay": -1.6845600156675944,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "trades": 1,
+              "activeDays": 1,
+              "positiveMarkets": 0,
+              "netBps": -101.01649271437418,
+              "stressBps": -108.94420542994885,
+              "averageMinutes": 25,
+              "tByDay": null
+            },
+            {
+              "symbol": "MSFT",
+              "trades": 3,
+              "activeDays": 3,
+              "positiveMarkets": 1,
+              "netBps": 11.558579379838193,
+              "stressBps": 3.552089991774968,
+              "averageMinutes": 50,
+              "tByDay": 0.5802848011062085
+            },
+            {
+              "symbol": "NVDA",
+              "trades": 1,
+              "activeDays": 1,
+              "positiveMarkets": 0,
+              "netBps": -55.57625120741068,
+              "stressBps": -63.53576164654987,
+              "averageMinutes": 5,
+              "tByDay": null
+            },
+            {
+              "symbol": "AMZN",
+              "trades": 3,
+              "activeDays": 3,
+              "positiveMarkets": 1,
+              "netBps": 8.144193419642761,
+              "stressBps": 0.14009331687460266,
+              "averageMinutes": 10,
+              "tByDay": 0.3149392051852171
+            },
+            {
+              "symbol": "TSLA",
+              "trades": 2,
+              "activeDays": 2,
+              "positiveMarkets": 0,
+              "netBps": -79.78387961502176,
+              "stressBps": -87.72645027896124,
+              "averageMinutes": 7.5,
+              "tByDay": -3.100088611901476
+            },
+            {
+              "symbol": "SPY",
+              "trades": 6,
+              "activeDays": 6,
+              "positiveMarkets": 0,
+              "netBps": -17.302062703373547,
+              "stressBps": -25.288356276262675,
+              "averageMinutes": 39.166666666666664,
+              "tByDay": -1.6440950972454462
+            }
+          ]
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "trades": 23,
+          "activeDays": 21,
+          "positiveMarkets": 2,
+          "netBps": -15.550177164348497,
+          "stressBps": -23.53769665440363,
+          "averageMinutes": 39.78260869565217,
+          "tByDay": -1.6370415071808282,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "trades": 3,
+              "activeDays": 3,
+              "positiveMarkets": 1,
+              "netBps": 5.717353887189044,
+              "stressBps": -2.2850479857703854,
+              "averageMinutes": 43.333333333333336,
+              "tByDay": 0.5857464169627826
+            },
+            {
+              "symbol": "MSFT",
+              "trades": 3,
+              "activeDays": 3,
+              "positiveMarkets": 1,
+              "netBps": 8.415637034931327,
+              "stressBps": 0.41134698403341946,
+              "averageMinutes": 45,
+              "tByDay": 0.5150933378983124
+            },
+            {
+              "symbol": "NVDA",
+              "trades": 2,
+              "activeDays": 2,
+              "positiveMarkets": 0,
+              "netBps": -35.401256024621034,
+              "stressBps": -43.37488432270311,
+              "averageMinutes": 40,
+              "tByDay": -0.5048284621045916
+            },
+            {
+              "symbol": "AMZN",
+              "trades": 3,
+              "activeDays": 3,
+              "positiveMarkets": 0,
+              "netBps": -6.641761269995186,
+              "stressBps": -14.635514603371726,
+              "averageMinutes": 56.666666666666664,
+              "tByDay": -0.28997302091671184
+            },
+            {
+              "symbol": "TSLA",
+              "trades": 5,
+              "activeDays": 5,
+              "positiveMarkets": 0,
+              "netBps": -50.755469505431755,
+              "stressBps": -58.718353383595606,
+              "averageMinutes": 51,
+              "tByDay": -2.045404335821899
+            },
+            {
+              "symbol": "SPY",
+              "trades": 7,
+              "activeDays": 7,
+              "positiveMarkets": 0,
+              "netBps": -7.935414879998591,
+              "stressBps": -15.928262953224735,
+              "averageMinutes": 20.714285714285715,
+              "tByDay": -1.0129045929734755
+            }
+          ]
+        }
+      ],
+      "paperCandidate": false
+    },
+    {
+      "id": "close",
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "trades": 100,
+          "activeDays": 100,
+          "positiveMarkets": 0,
+          "netBps": -37.23800023743972,
+          "stressBps": -45.21034323679051,
+          "averageMinutes": 30,
+          "tByDay": -18.60268110308727,
+          "markets": [
+            {
+              "symbol": "SPY",
+              "trades": 100,
+              "activeDays": 100,
+              "positiveMarkets": 0,
+              "netBps": -37.23800023743972,
+              "stressBps": -45.21034323679051,
+              "averageMinutes": 30,
+              "tByDay": -18.60268110308727
+            }
+          ]
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "trades": 61,
+          "activeDays": 61,
+          "positiveMarkets": 0,
+          "netBps": -11.824194409514213,
+          "stressBps": -19.81432123099497,
+          "averageMinutes": 30,
+          "tByDay": -4.005675561038476,
+          "markets": [
+            {
+              "symbol": "SPY",
+              "trades": 61,
+              "activeDays": 61,
+              "positiveMarkets": 0,
+              "netBps": -11.824194409514213,
+              "stressBps": -19.81432123099497,
+              "averageMinutes": 30,
+              "tByDay": -4.005675561038476
+            }
+          ]
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "trades": 57,
+          "activeDays": 57,
+          "positiveMarkets": 0,
+          "netBps": -10.300778794909524,
+          "stressBps": -18.29197165712851,
+          "averageMinutes": 30,
+          "tByDay": -5.053621873730469,
+          "markets": [
+            {
+              "symbol": "SPY",
+              "trades": 57,
+              "activeDays": 57,
+              "positiveMarkets": 0,
+              "netBps": -10.300778794909524,
+              "stressBps": -18.29197165712851,
+              "averageMinutes": 30,
+              "tByDay": -5.053621873730469
+            }
+          ]
+        }
+      ],
+      "paperCandidate": false
+    },
+    {
+      "id": "noise",
+      "stages": [
+        {
+          "label": "2025 screen",
+          "from": "2025-05-01",
+          "to": "2026-01-01",
+          "trades": 71,
+          "activeDays": 49,
+          "positiveMarkets": 0,
+          "netBps": -37.392115505805506,
+          "stressBps": -45.36435065989519,
+          "averageMinutes": 119.15492957746478,
+          "tByDay": -7.895703345058866,
+          "markets": [
+            {
+              "symbol": "SPY",
+              "trades": 71,
+              "activeDays": 49,
+              "positiveMarkets": 0,
+              "netBps": -37.392115505805506,
+              "stressBps": -45.36435065989519,
+              "averageMinutes": 119.15492957746478,
+              "tByDay": -7.895703345058866
+            }
+          ]
+        },
+        {
+          "label": "2026 H1 validation",
+          "from": "2026-01-01",
+          "to": "2026-07-01",
+          "trades": 67,
+          "activeDays": 46,
+          "positiveMarkets": 0,
+          "netBps": -14.085249942509787,
+          "stressBps": -22.073794544873188,
+          "averageMinutes": 115.5223880597015,
+          "tByDay": -3.506024779179102,
+          "markets": [
+            {
+              "symbol": "SPY",
+              "trades": 67,
+              "activeDays": 46,
+              "positiveMarkets": 0,
+              "netBps": -14.085249942509787,
+              "stressBps": -22.073794544873188,
+              "averageMinutes": 115.5223880597015,
+              "tByDay": -3.506024779179102
+            }
+          ]
+        },
+        {
+          "label": "2026 H2 holdout",
+          "from": "2026-07-01",
+          "to": "2026-11-21",
+          "trades": 45,
+          "activeDays": 33,
+          "positiveMarkets": 0,
+          "netBps": -7.686689002956256,
+          "stressBps": -15.679711127120552,
+          "averageMinutes": 122.66666666666667,
+          "tByDay": -1.6859364337647034,
+          "markets": [
+            {
+              "symbol": "SPY",
+              "trades": 45,
+              "activeDays": 33,
+              "positiveMarkets": 0,
+              "netBps": -7.686689002956256,
+              "stressBps": -15.679711127120552,
+              "averageMinutes": 122.66666666666667,
+              "tByDay": -1.6859364337647034
+            }
+          ]
+        }
+      ],
+      "paperCandidate": false
+    }
+  ]
+}

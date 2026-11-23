@@ -5,6 +5,7 @@ import { EtoroClient, EtoroError, isStockSymbol } from '@/lib/stocks/etoro';
 import { STOCK_RULES, researchStock } from '@/lib/stocks/research';
 import { Credentials, etoroFromConnection } from '@/lib/stocks/connection';
 import { discoverStocks } from '@/lib/stocks/discovery';
+import { regularStockSessions, replayStockIntraday, STOCK_INTRADAY_RULES, summarizeIntraday } from '@/lib/stocks/intraday';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,28 @@ export async function GET(request: Request) {
   try {
     const broker = etoroFromConnection(data);
     if (view === 'portfolio') return NextResponse.json(await broker.portfolio());
+    if (view === 'intraday') {
+      const symbol = query.get('symbol');
+      if (!isStockSymbol(symbol)) return fail('Choose a supported US stock.', 400);
+      const instrument = await broker.instrument(symbol);
+      if (!instrument) return fail('eToro did not return a unique match for this ticker.', 404);
+      const to = Math.floor(Date.now() / 300_000) * 300_000;
+      const middle = to - 28 * 86_400_000;
+      const from = middle - 28 * 86_400_000;
+      // Reserve the first 28 days for the relative-volume warm-up. If holidays
+      // leave less than 20 sessions, the rule self-suppresses until it is ready.
+      const history = await broker.intradayCandles(instrument.instrumentId, from, middle);
+      const recent = await broker.intradayCandles(instrument.instrumentId, middle, to);
+      const coverage = regularStockSessions([...history, ...recent]);
+      const start = new Date(middle).toISOString().slice(0, 10);
+      const end = new Date(to + 86_400_000).toISOString().slice(0, 10);
+      const sessions = coverage.sessions.filter(s => s.day >= start);
+      if (sessions.length < 10) return fail('Fewer than ten complete paired five-minute sessions are available.', 422);
+      const results = STOCK_INTRADAY_RULES.filter(rule => !('spyOnly' in rule) || symbol === 'SPY').map(rule => ({
+        id: rule.id, ...summarizeIntraday([replayStockIntraday(coverage.sessions, rule.id, start, end)]),
+      }));
+      return NextResponse.json({ symbol, from: sessions[0].day, to: sessions.at(-1)!.day, sessions: sessions.length, results });
+    }
     if (view === 'research') {
       const symbol = query.get('symbol'), rule = STOCK_RULES.find(r => r.id === query.get('rule'));
       const slipBps = Number(query.get('slipBps') ?? 3), commission = Number(query.get('commission') ?? 1);

@@ -10,6 +10,8 @@ Open **US Stocks → eToro account** and connect an eToro Demo or Real key pair 
 
 **Simulate** tests two native technical strategies with no TradingView input. Signals are evaluated on completed daily candles and filled on the next session's opening bid or ask with configurable extra slippage and commission. The final 30% starts flat, is reported separately and is replayed with doubled additional costs. Results use the broker's price series and exclude dividends. The stock strategies are research-only. Crypto Autopilot and the market scanner already run natively on Hyperliquid and retain their own execution controls.
 
+**Intraday research** compares five fixed opening, VWAP, and SPY momentum rules on five-minute eToro candles. It separates the regular New York session from extended hours, reports historical results across three chronological periods, and replays recent data on demand. See [the research protocol](backtest/STOCK-INTRADAY.md).
+
 ## Features
 
 - **TradingView Integration** — Receive webhook signals and execute perp orders automatically
