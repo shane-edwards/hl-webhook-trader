@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Header } from '@/components/layout/Header';
 import { ChartTooltip, Stat } from '@/components/ui/stat';
@@ -111,7 +112,7 @@ export default function LabPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <Header />
+      <Header actions={<Button asChild variant="outline" size="sm"><Link href="/lab/scalping">Scalping research</Link></Button>} />
 
       <div className="p-4 lg:p-8 space-y-4 lg:space-y-6 flex-1 w-full max-w-[1400px] mx-auto">
         <div className="surface px-4 py-3 flex gap-3 text-xs text-muted-foreground leading-relaxed">

@@ -1,0 +1,975 @@
+{
+  "generatedAt": "2026-11-23T01:00:00.000Z",
+  "results": [
+    {
+      "id": "vwap",
+      "interval": "5m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 3201,
+          "grossBps": 1.7896301405079291,
+          "netBps": -13.097242330497748,
+          "stressBps": -19.0972204606909,
+          "costBps": 14.886872471005711,
+          "positiveMarkets": 0,
+          "activeDays": 365,
+          "positiveDays": 89
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 3171,
+          "grossBps": 3.737639925032371,
+          "netBps": -11.113131813611409,
+          "stressBps": -17.112808973481133,
+          "costBps": 14.850771738643745,
+          "positiveMarkets": 0,
+          "activeDays": 365,
+          "positiveDays": 108
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 3164,
+          "grossBps": -0.2252925252035618,
+          "netBps": -15.194314784654134,
+          "stressBps": -21.19406497513858,
+          "costBps": 14.969022259450524,
+          "positiveMarkets": 0,
+          "activeDays": 304,
+          "positiveDays": 45
+        }
+      ],
+      "recent": {
+        "from": "2026-11-05T20:25:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 227,
+        "grossBps": -4.152358850126046,
+        "netBps": -19.324724008609078,
+        "stressBps": -25.32509831977712,
+        "costBps": 15.172365158483043,
+        "positiveMarkets": 0,
+        "activeDays": 18,
+        "positiveDays": 1,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 79,
+            "grossBps": 0.8192069086443563,
+            "netBps": -14.333612086761308,
+            "stressBps": -20.334066878227752,
+            "costBps": 15.152818995405669,
+            "positiveMarkets": 0,
+            "activeDays": 17,
+            "positiveDays": 3
+          },
+          {
+            "coin": "ETH",
+            "trades": 83,
+            "grossBps": -10.87714104834815,
+            "netBps": -26.12079227419963,
+            "stressBps": -32.121889552508144,
+            "costBps": 15.243651225851488,
+            "positiveMarkets": 0,
+            "activeDays": 18,
+            "positiveDays": 3
+          },
+          {
+            "coin": "SOL",
+            "trades": 65,
+            "grossBps": -1.6076938115172477,
+            "netBps": -16.7127882514085,
+            "stressBps": -22.712141574634447,
+            "costBps": 15.105094439891259,
+            "positiveMarkets": 0,
+            "activeDays": 17,
+            "positiveDays": 3
+          }
+        ]
+      },
+      "paperCandidate": false
+    },
+    {
+      "id": "sweep",
+      "interval": "5m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 11864,
+          "grossBps": -0.3245699807153873,
+          "netBps": -15.321929595170191,
+          "stressBps": -21.321759812469825,
+          "costBps": 14.997359614454803,
+          "positiveMarkets": 0,
+          "activeDays": 366,
+          "positiveDays": 31
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 11146,
+          "grossBps": -0.506662253046995,
+          "netBps": -15.49549997829302,
+          "stressBps": -21.4952958057752,
+          "costBps": 14.98883772524601,
+          "positiveMarkets": 0,
+          "activeDays": 365,
+          "positiveDays": 38
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 9575,
+          "grossBps": -0.13371681353072504,
+          "netBps": -15.122330265187445,
+          "stressBps": -21.122176221347804,
+          "costBps": 14.988613451656727,
+          "positiveMarkets": 0,
+          "activeDays": 304,
+          "positiveDays": 15
+        }
+      ],
+      "recent": {
+        "from": "2026-11-05T20:25:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 415,
+        "grossBps": -2.352111937811133,
+        "netBps": -17.341318709947263,
+        "stressBps": -23.33988004677499,
+        "costBps": 14.989206772136125,
+        "positiveMarkets": 0,
+        "activeDays": 19,
+        "positiveDays": 1,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 151,
+            "grossBps": -2.8739723486505357,
+            "netBps": -17.909811559306625,
+            "stressBps": -23.90910385015681,
+            "costBps": 15.035839210656079,
+            "positiveMarkets": 0,
+            "activeDays": 18,
+            "positiveDays": 1
+          },
+          {
+            "coin": "ETH",
+            "trades": 122,
+            "grossBps": -7.918101437171725,
+            "netBps": -23.005732138286294,
+            "stressBps": -29.002686279216842,
+            "costBps": 15.087630701114577,
+            "positiveMarkets": 0,
+            "activeDays": 18,
+            "positiveDays": 2
+          },
+          {
+            "coin": "SOL",
+            "trades": 142,
+            "grossBps": 2.984871449222275,
+            "netBps": -11.870185903534404,
+            "stressBps": -17.869350788545635,
+            "costBps": 14.855057352756676,
+            "positiveMarkets": 0,
+            "activeDays": 19,
+            "positiveDays": 6
+          }
+        ]
+      },
+      "paperCandidate": false
+    },
+    {
+      "id": "opening",
+      "interval": "5m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 651,
+          "grossBps": -3.480885074739914,
+          "netBps": -18.632544595717473,
+          "stressBps": -24.632825484474992,
+          "costBps": 15.151659520977555,
+          "positiveMarkets": 0,
+          "activeDays": 308,
+          "positiveDays": 85
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 621,
+          "grossBps": -5.111009892989544,
+          "netBps": -20.252735410799637,
+          "stressBps": -26.252359785280444,
+          "costBps": 15.141725517810086,
+          "positiveMarkets": 0,
+          "activeDays": 317,
+          "positiveDays": 90
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 515,
+          "grossBps": -1.4657601725827663,
+          "netBps": -16.54250275177347,
+          "stressBps": -22.542135305578213,
+          "costBps": 15.07674257919072,
+          "positiveMarkets": 0,
+          "activeDays": 247,
+          "positiveDays": 67
+        }
+      ],
+      "recent": {
+        "from": "2026-11-05T20:25:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 23,
+        "grossBps": -9.518498885018225,
+        "netBps": -24.993485856809826,
+        "stressBps": -30.991507667074337,
+        "costBps": 15.474986971791598,
+        "positiveMarkets": 0,
+        "activeDays": 15,
+        "positiveDays": 3,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 6,
+            "grossBps": -31.349859253296994,
+            "netBps": -47.68679147204116,
+            "stressBps": -53.687927962170875,
+            "costBps": 16.336932218744153,
+            "positiveMarkets": 0,
+            "activeDays": 6,
+            "positiveDays": 0
+          },
+          {
+            "coin": "ETH",
+            "trades": 9,
+            "grossBps": -11.063399674614807,
+            "netBps": -26.83877668799361,
+            "stressBps": -32.83717857437297,
+            "costBps": 15.775377013378801,
+            "positiveMarkets": 0,
+            "activeDays": 9,
+            "positiveDays": 1
+          },
+          {
+            "coin": "SOL",
+            "trades": 8,
+            "grossBps": 8.593034779487002,
+            "netBps": -5.897554460304574,
+            "stressBps": -11.892812675041014,
+            "costBps": 14.490589239791575,
+            "positiveMarkets": 0,
+            "activeDays": 8,
+            "positiveDays": 5
+          }
+        ]
+      },
+      "paperCandidate": false
+    },
+    {
+      "id": "squeeze",
+      "interval": "5m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 3594,
+          "grossBps": 1.087314774192885,
+          "netBps": -13.847144830865522,
+          "stressBps": -19.84727982461399,
+          "costBps": 14.934459605058422,
+          "positiveMarkets": 0,
+          "activeDays": 366,
+          "positiveDays": 76
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 3261,
+          "grossBps": -0.8064480224106894,
+          "netBps": -15.779711346993194,
+          "stressBps": -21.77956715219976,
+          "costBps": 14.973263324582529,
+          "positiveMarkets": 0,
+          "activeDays": 365,
+          "positiveDays": 66
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 2805,
+          "grossBps": 0.641205844132013,
+          "netBps": -14.332896875679763,
+          "stressBps": -20.333762384556767,
+          "costBps": 14.974102719811768,
+          "positiveMarkets": 0,
+          "activeDays": 304,
+          "positiveDays": 49
+        }
+      ],
+      "recent": {
+        "from": "2026-11-05T20:25:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 147,
+        "grossBps": -3.1984806669053754,
+        "netBps": -18.39250662225453,
+        "stressBps": -24.391235196712557,
+        "costBps": 15.19402595534915,
+        "positiveMarkets": 0,
+        "activeDays": 19,
+        "positiveDays": 4,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 51,
+            "grossBps": -7.235063570506453,
+            "netBps": -22.527775350802912,
+            "stressBps": -28.527000405247406,
+            "costBps": 15.29271178029645,
+            "positiveMarkets": 0,
+            "activeDays": 19,
+            "positiveDays": 2
+          },
+          {
+            "coin": "ETH",
+            "trades": 58,
+            "grossBps": -5.65600298806504,
+            "netBps": -20.86021636303611,
+            "stressBps": -26.859401339154022,
+            "costBps": 15.204213374971065,
+            "positiveMarkets": 0,
+            "activeDays": 17,
+            "positiveDays": 4
+          },
+          {
+            "coin": "SOL",
+            "trades": 38,
+            "grossBps": 5.969993614960833,
+            "netBps": -9.076036355904582,
+            "stressBps": -15.073401988899805,
+            "costBps": 15.046029970865412,
+            "positiveMarkets": 0,
+            "activeDays": 14,
+            "positiveDays": 4
+          }
+        ]
+      },
+      "paperCandidate": false
+    },
+    {
+      "id": "bands",
+      "interval": "5m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 11755,
+          "grossBps": 0.30905968348063395,
+          "netBps": -14.674868074414793,
+          "stressBps": -20.674627128753425,
+          "costBps": 14.983927757895405,
+          "positiveMarkets": 0,
+          "activeDays": 366,
+          "positiveDays": 41
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 11276,
+          "grossBps": -0.970675383040987,
+          "netBps": -15.965831561974888,
+          "stressBps": -21.965609568334987,
+          "costBps": 14.995156178933888,
+          "positiveMarkets": 0,
+          "activeDays": 365,
+          "positiveDays": 35
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 9581,
+          "grossBps": -0.032423230384168555,
+          "netBps": -15.031557793358205,
+          "stressBps": -21.03143631816615,
+          "costBps": 14.999134562974039,
+          "positiveMarkets": 0,
+          "activeDays": 304,
+          "positiveDays": 20
+        }
+      ],
+      "recent": {
+        "from": "2026-11-05T20:25:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 449,
+        "grossBps": -1.863148281118492,
+        "netBps": -16.900103317225284,
+        "stressBps": -22.897817464388975,
+        "costBps": 15.036955036106788,
+        "positiveMarkets": 0,
+        "activeDays": 19,
+        "positiveDays": 2,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 170,
+            "grossBps": -4.850019130978885,
+            "netBps": -19.955745389451263,
+            "stressBps": -25.954148328814863,
+            "costBps": 15.105726258472364,
+            "positiveMarkets": 0,
+            "activeDays": 18,
+            "positiveDays": 1
+          },
+          {
+            "coin": "ETH",
+            "trades": 139,
+            "grossBps": -4.603250392513988,
+            "netBps": -19.60843956473082,
+            "stressBps": -25.60551437812995,
+            "costBps": 15.005189172216832,
+            "positiveMarkets": 0,
+            "activeDays": 19,
+            "positiveDays": 2
+          },
+          {
+            "coin": "SOL",
+            "trades": 140,
+            "grossBps": 4.484296275740381,
+            "netBps": -10.500689812356132,
+            "stressBps": -16.498202336086162,
+            "costBps": 14.984986088096505,
+            "positiveMarkets": 0,
+            "activeDays": 18,
+            "positiveDays": 7
+          }
+        ]
+      },
+      "paperCandidate": false
+    },
+    {
+      "id": "vwap",
+      "interval": "15m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 2226,
+          "grossBps": 2.841512297249299,
+          "netBps": -11.730447909413126,
+          "stressBps": -17.72991080689775,
+          "costBps": 14.571960206662418,
+          "positiveMarkets": 0,
+          "activeDays": 362,
+          "positiveDays": 117
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 2322,
+          "grossBps": 3.4889782889746406,
+          "netBps": -11.129261878571029,
+          "stressBps": -17.127939920050196,
+          "costBps": 14.618240167545686,
+          "positiveMarkets": 0,
+          "activeDays": 364,
+          "positiveDays": 114
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 2153,
+          "grossBps": 1.545058124221926,
+          "netBps": -13.056116025563037,
+          "stressBps": -19.05623711219717,
+          "costBps": 14.60117414978497,
+          "positiveMarkets": 0,
+          "activeDays": 303,
+          "positiveDays": 93
+        }
+      ],
+      "recent": {
+        "from": "2026-11-01T00:00:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 191,
+        "grossBps": -2.7507575985826898,
+        "netBps": -17.39964544915534,
+        "stressBps": -23.39945206763447,
+        "costBps": 14.64888785057266,
+        "positiveMarkets": 0,
+        "activeDays": 23,
+        "positiveDays": 4,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 74,
+            "grossBps": 5.630301243475114,
+            "netBps": -8.89533134679557,
+            "stressBps": -14.894868324644301,
+            "costBps": 14.525632590270687,
+            "positiveMarkets": 0,
+            "activeDays": 22,
+            "positiveDays": 9
+          },
+          {
+            "coin": "ETH",
+            "trades": 64,
+            "grossBps": -8.394387076559857,
+            "netBps": -23.036026045351107,
+            "stressBps": -29.036688543776574,
+            "costBps": 14.641638968791254,
+            "positiveMarkets": 0,
+            "activeDays": 22,
+            "positiveDays": 4
+          },
+          {
+            "coin": "SOL",
+            "trades": 53,
+            "grossBps": -7.637664536728709,
+            "netBps": -22.467398004213738,
+            "stressBps": -28.46654758665674,
+            "costBps": 14.829733467485026,
+            "positiveMarkets": 0,
+            "activeDays": 20,
+            "positiveDays": 5
+          }
+        ]
+      },
+      "paperCandidate": false
+    },
+    {
+      "id": "sweep",
+      "interval": "15m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 5323,
+          "grossBps": -1.2882962549265025,
+          "netBps": -15.978878286194792,
+          "stressBps": -21.978506891945884,
+          "costBps": 14.69058203126832,
+          "positiveMarkets": 0,
+          "activeDays": 366,
+          "positiveDays": 68
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 4889,
+          "grossBps": -0.6781237666790667,
+          "netBps": -15.337212922035851,
+          "stressBps": -21.33701659150325,
+          "costBps": 14.659089155356781,
+          "positiveMarkets": 0,
+          "activeDays": 365,
+          "positiveDays": 85
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 4303,
+          "grossBps": -0.3297300309676386,
+          "netBps": -15.004315599970496,
+          "stressBps": -21.004126036458317,
+          "costBps": 14.674585569002888,
+          "positiveMarkets": 0,
+          "activeDays": 304,
+          "positiveDays": 57
+        }
+      ],
+      "recent": {
+        "from": "2026-11-01T00:00:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 291,
+        "grossBps": -5.836041667251574,
+        "netBps": -20.463936342206875,
+        "stressBps": -26.46290069658744,
+        "costBps": 14.627894674955302,
+        "positiveMarkets": 0,
+        "activeDays": 23,
+        "positiveDays": 2,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 112,
+            "grossBps": -0.08871012919009656,
+            "netBps": -14.652213221729737,
+            "stressBps": -20.65311800142129,
+            "costBps": 14.563503092539637,
+            "positiveMarkets": 0,
+            "activeDays": 22,
+            "positiveDays": 4
+          },
+          {
+            "coin": "ETH",
+            "trades": 80,
+            "grossBps": -6.861608680284166,
+            "netBps": -21.444353479738588,
+            "stressBps": -27.442726684159318,
+            "costBps": 14.582744799454428,
+            "positiveMarkets": 0,
+            "activeDays": 22,
+            "positiveDays": 5
+          },
+          {
+            "coin": "SOL",
+            "trades": 99,
+            "grossBps": -11.509332285638227,
+            "netBps": -26.246558751205875,
+            "stressBps": -32.243805573889034,
+            "costBps": 14.73722646556766,
+            "positiveMarkets": 0,
+            "activeDays": 23,
+            "positiveDays": 6
+          }
+        ]
+      },
+      "paperCandidate": false
+    },
+    {
+      "id": "opening",
+      "interval": "15m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 424,
+          "grossBps": -5.615171577897119,
+          "netBps": -20.5013832391429,
+          "stressBps": -26.500723083350625,
+          "costBps": 14.886211661245786,
+          "positiveMarkets": 0,
+          "activeDays": 223,
+          "positiveDays": 67
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 425,
+          "grossBps": -5.535903399813773,
+          "netBps": -20.282087018717874,
+          "stressBps": -26.283405519094917,
+          "costBps": 14.74618361890408,
+          "positiveMarkets": 0,
+          "activeDays": 238,
+          "positiveDays": 70
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 352,
+          "grossBps": -1.208398007335417,
+          "netBps": -15.91854855807601,
+          "stressBps": -21.91935934078352,
+          "costBps": 14.710150550740595,
+          "positiveMarkets": 0,
+          "activeDays": 179,
+          "positiveDays": 50
+        }
+      ],
+      "recent": {
+        "from": "2026-11-01T00:00:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 18,
+        "grossBps": -9.669703470014765,
+        "netBps": -24.779484564751897,
+        "stressBps": -30.776971026804883,
+        "costBps": 15.109781094737137,
+        "positiveMarkets": 0,
+        "activeDays": 12,
+        "positiveDays": 2,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 6,
+            "grossBps": -30.295990373804447,
+            "netBps": -45.7837359051361,
+            "stressBps": -51.77947458964457,
+            "costBps": 15.487745531331655,
+            "positiveMarkets": 0,
+            "activeDays": 6,
+            "positiveDays": 1
+          },
+          {
+            "coin": "ETH",
+            "trades": 5,
+            "grossBps": -3.6837034464749485,
+            "netBps": -18.89313525513436,
+            "stressBps": -24.893797398283475,
+            "costBps": 15.209431808659412,
+            "positiveMarkets": 0,
+            "activeDays": 5,
+            "positiveDays": 1
+          },
+          {
+            "coin": "SOL",
+            "trades": 7,
+            "grossBps": 3.734256716419388,
+            "netBps": -10.980375779863676,
+            "stressBps": -16.977091993314733,
+            "costBps": 14.71463249628307,
+            "positiveMarkets": 0,
+            "activeDays": 7,
+            "positiveDays": 1
+          }
+        ]
+      },
+      "paperCandidate": false
+    },
+    {
+      "id": "squeeze",
+      "interval": "15m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 1550,
+          "grossBps": -0.8091178347063717,
+          "netBps": -15.402272118951345,
+          "stressBps": -21.402645349837975,
+          "costBps": 14.593154284245008,
+          "positiveMarkets": 0,
+          "activeDays": 361,
+          "positiveDays": 113
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 1356,
+          "grossBps": 1.8409301074402402,
+          "netBps": -12.71535485842591,
+          "stressBps": -18.714911328356585,
+          "costBps": 14.556284965866135,
+          "positiveMarkets": 0,
+          "activeDays": 353,
+          "positiveDays": 135
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 1153,
+          "grossBps": 1.0054361775947664,
+          "netBps": -13.5784876885171,
+          "stressBps": -19.578342290269156,
+          "costBps": 14.583923866111867,
+          "positiveMarkets": 0,
+          "activeDays": 293,
+          "positiveDays": 89
+        }
+      ],
+      "recent": {
+        "from": "2026-11-01T00:00:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 101,
+        "grossBps": 6.406517715602095,
+        "netBps": -8.13768878994679,
+        "stressBps": -14.136556309674216,
+        "costBps": 14.544206505548885,
+        "positiveMarkets": 0,
+        "activeDays": 23,
+        "positiveDays": 9,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 32,
+            "grossBps": -0.6203519675496802,
+            "netBps": -15.163297163361852,
+            "stressBps": -21.16695626008479,
+            "costBps": 14.542945195812175,
+            "positiveMarkets": 0,
+            "activeDays": 17,
+            "positiveDays": 6
+          },
+          {
+            "coin": "ETH",
+            "trades": 38,
+            "grossBps": 9.1540248125648,
+            "netBps": -5.476649681141701,
+            "stressBps": -11.475259637482356,
+            "costBps": 14.6306744937065,
+            "positiveMarkets": 0,
+            "activeDays": 20,
+            "positiveDays": 9
+          },
+          {
+            "coin": "SOL",
+            "trades": 31,
+            "grossBps": 10.29214868903029,
+            "netBps": -4.14736679592458,
+            "stressBps": -10.14160389451786,
+            "costBps": 14.43951548495487,
+            "positiveMarkets": 0,
+            "activeDays": 19,
+            "positiveDays": 8
+          }
+        ]
+      },
+      "paperCandidate": false
+    },
+    {
+      "id": "bands",
+      "interval": "15m",
+      "slices": [
+        {
+          "label": "2024 screen",
+          "from": "2024-01-01",
+          "to": "2025-01-01",
+          "coverage": 1,
+          "trades": 4575,
+          "grossBps": -1.190240854805165,
+          "netBps": -15.858448717241446,
+          "stressBps": -21.858100162740087,
+          "costBps": 14.6682078624363,
+          "positiveMarkets": 0,
+          "activeDays": 366,
+          "positiveDays": 85
+        },
+        {
+          "label": "2025 validation",
+          "from": "2025-01-01",
+          "to": "2026-01-01",
+          "coverage": 1,
+          "trades": 4269,
+          "grossBps": -1.7006053391153313,
+          "netBps": -16.37793621544438,
+          "stressBps": -22.377659576180477,
+          "costBps": 14.67733087632904,
+          "positiveMarkets": 0,
+          "activeDays": 365,
+          "positiveDays": 80
+        },
+        {
+          "label": "2026 holdout",
+          "from": "2026-01-01",
+          "to": "2026-11-01",
+          "coverage": 1,
+          "trades": 3645,
+          "grossBps": -0.033343946087452246,
+          "netBps": -14.692765937897084,
+          "stressBps": -20.692446739512597,
+          "costBps": 14.659421991809666,
+          "positiveMarkets": 0,
+          "activeDays": 304,
+          "positiveDays": 65
+        }
+      ],
+      "recent": {
+        "from": "2026-11-01T00:00:00.000Z",
+        "to": "2026-11-23T01:00:00.000Z",
+        "coverage": 1,
+        "trades": 289,
+        "grossBps": -5.206578949806084,
+        "netBps": -19.808573750410417,
+        "stressBps": -25.80790373266484,
+        "costBps": 14.601994800604333,
+        "positiveMarkets": 0,
+        "activeDays": 23,
+        "positiveDays": 5,
+        "markets": [
+          {
+            "coin": "BTC",
+            "trades": 109,
+            "grossBps": 2.539094720610008,
+            "netBps": -11.881318385083382,
+            "stressBps": -17.880785263515758,
+            "costBps": 14.42041310569338,
+            "positiveMarkets": 0,
+            "activeDays": 22,
+            "positiveDays": 7
+          },
+          {
+            "coin": "ETH",
+            "trades": 86,
+            "grossBps": -14.62351992956724,
+            "netBps": -29.34137133781113,
+            "stressBps": -35.340758468146355,
+            "costBps": 14.717851408243899,
+            "positiveMarkets": 0,
+            "activeDays": 23,
+            "positiveDays": 3
+          },
+          {
+            "coin": "SOL",
+            "trades": 94,
+            "grossBps": -5.572765181890072,
+            "netBps": -20.279321008965578,
+            "stressBps": -26.27843996549289,
+            "costBps": 14.706555827075508,
+            "positiveMarkets": 0,
+            "activeDays": 23,
+            "positiveDays": 9
+          }
+        ]
+      },
+      "paperCandidate": false
+    }
+  ]
+}

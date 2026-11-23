@@ -14,6 +14,7 @@
     "backtest:intraday": "tsx backtest/intraday.ts",
     "backtest:autopilot": "tsx backtest/autopilot.ts",
     "backtest:scalp": "tsx backtest/scalp-search.ts",
+    "backtest:scalp-study": "tsx backtest/scalp-study.ts",
     "backtest:universe": "tsx backtest/universe.ts",
     "backtest:popular": "tsx backtest/popular.ts",
     "backtest:suggestions": "tsx backtest/suggestions.ts",
