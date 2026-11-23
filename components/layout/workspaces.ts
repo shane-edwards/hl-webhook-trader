@@ -1,4 +1,4 @@
-export const STOCK_SECTIONS = ['discover', 'trade', 'autopilot', 'research', 'account'] as const;
+export const STOCK_SECTIONS = ['discover', 'setups', 'trade', 'autopilot', 'research', 'account'] as const;
 export type StockSection = typeof STOCK_SECTIONS[number];
 
 export function stockSection(value: string | null): StockSection {
@@ -27,6 +27,7 @@ export const cryptoSections = [
 
 export const stockSections = [
   { id: 'discover', label: 'Discover', title: 'Discover stocks' },
+  { id: 'setups', label: 'Setups', title: 'Stock entry scanner' },
   { id: 'trade', label: 'Trade', title: 'Trade stocks' },
   { id: 'autopilot', label: 'Autopilot', title: 'Stock Autopilot' },
   { id: 'research', label: 'Research', title: 'Stock research' },

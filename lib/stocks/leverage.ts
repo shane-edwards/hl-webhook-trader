@@ -6,6 +6,23 @@ export type StockLeverage = z.infer<typeof stockLeverageSchema>;
 export const stopMarginSchema = z.number().positive().max(50);
 export type StockOrderOption = { leverage: StockLeverage; minimum: number; stopMargin: { min: number; max: number } | null };
 export type StockSizing = { amount: number; leverage: StockLeverage; stopMarginPct?: number | null };
+export const stockSizingSchema = z.object({
+  amount: z.number().min(1).max(10_000),
+  leverage: stockLeverageSchema,
+  stopMarginPct: stopMarginSchema.optional(),
+}).refine(sizing => sizing.leverage === 1 || sizing.stopMarginPct != null);
+
+export function stockSizingParams(sizing: StockSizing) {
+  return { amount: String(sizing.amount), leverage: String(sizing.leverage),
+    ...(sizing.leverage > 1 && sizing.stopMarginPct != null ? { stopMarginPct: String(sizing.stopMarginPct) } : {}) };
+}
+
+export function stockSizingQuery(query: { get(name: string): string | null }) {
+  return stockSizingSchema.safeParse({
+    amount: Number(query.get('amount')), leverage: Number(query.get('leverage') ?? 1),
+    stopMarginPct: query.get('stopMarginPct') ? Number(query.get('stopMarginPct')) : undefined,
+  });
+}
 
 export class StockSizingError extends Error {}
 

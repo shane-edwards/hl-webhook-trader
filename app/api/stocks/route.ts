@@ -7,6 +7,10 @@ import { Credentials, etoroFromConnection } from '@/lib/stocks/connection';
 import { discoverStocks } from '@/lib/stocks/discovery';
 import { regularStockSessions, replayStockIntraday, STOCK_INTRADAY_RULES, summarizeIntraday } from '@/lib/stocks/intraday';
 import { isStockTradeRule, isStockTradeSymbol, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
+import { stockReplaySchema } from '@/lib/stocks/replay';
+import { stockSizingQuery } from '@/lib/stocks/leverage';
+import { scanStockSetups } from '@/lib/stocks/setups';
+import { stockMarketClock } from '@/lib/stocks/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,7 +39,7 @@ export async function POST(request: Request) {
     const { apiKey, userKey, environment } = parsed.data;
     const { error } = await createServiceClient().from('etoro_connections').upsert({
       user_id: user.id, environment, credentials_encrypted: encrypt(JSON.stringify({ apiKey, userKey })), updated_at: new Date().toISOString(),
-      discovery: null, scan_attempted_at: null,
+      discovery: null, scan_attempted_at: null, setup_scan_attempted_at: null,
     }, { onConflict: 'user_id,environment' });
     if (error) return fail('Could not save the eToro connection.', 503);
     return NextResponse.json({ environment });
@@ -65,7 +69,7 @@ export async function GET(request: Request) {
   const db = createServiceClient();
   const query = new URL(request.url).searchParams;
   const view = query.get('view');
-  const { data: connections, error } = await db.from('etoro_connections').select('environment, credentials_encrypted, discovery, scan_attempted_at, updated_at').eq('user_id', user.id).order('environment', { ascending: false });
+  const { data: connections, error } = await db.from('etoro_connections').select('environment, credentials_encrypted, discovery, scan_attempted_at, setup_scan_attempted_at, updated_at').eq('user_id', user.id).order('environment', { ascending: false });
   if (error) return fail('eToro connection storage is unavailable.', 503);
   const data = query.get('environment') ? connections.find(row => row.environment === query.get('environment')) : connections[0];
   if (!view) return NextResponse.json({ environment: data?.environment ?? null, connections: connections.map(row => row.environment), discovery: data?.discovery ?? null });
@@ -74,6 +78,19 @@ export async function GET(request: Request) {
   try {
     const broker = etoroFromConnection(data);
     if (view === 'portfolio') return NextResponse.json(await broker.portfolio());
+    if (view === 'setups') {
+      const sizing = stockSizingQuery(query);
+      if (!sizing.success) return fail('Choose an amount and valid leverage and stop.', 400);
+      const now = Date.now();
+      if (stockMarketClock(now).open) {
+        const { data: claim, error } = await db.from('etoro_connections').update({ setup_scan_attempted_at: new Date(now).toISOString() })
+          .eq('user_id', user.id).eq('environment', data.environment).eq('updated_at', data.updated_at)
+          .or(`setup_scan_attempted_at.is.null,setup_scan_attempted_at.lt.${new Date(now - 60_000).toISOString()}`).select('user_id').maybeSingle();
+        if (error) return fail('Could not start the setup scan.', 503);
+        if (!claim) return fail('Try scanning again in one minute.', 429);
+      }
+      return NextResponse.json(await scanStockSetups(broker, sizing.data, {}, now));
+    }
     if (view === 'intraday') {
       const symbol = query.get('symbol');
       if (!isStockSymbol(symbol)) return fail('Choose a supported US stock.', 400);
@@ -98,13 +115,19 @@ export async function GET(request: Request) {
     }
     if (view === 'research') {
       const symbol = query.get('symbol'), rule = query.get('rule');
-      const slipBps = Number(query.get('slipBps') ?? 3), commission = Number(query.get('commission') ?? 1);
-      if (!isStockTradeSymbol(symbol) || !isStockTradeRule(rule) || !supportsStockTradeRule(rule, symbol) || !Number.isFinite(slipBps) || slipBps < 0 || slipBps > 100 || !Number.isFinite(commission) || commission < 0 || commission > 30) {
+      const optionalNumber = (key: string) => query.has(key) ? Number(query.get(key)) : undefined;
+      const cost = stockReplaySchema.safeParse({
+        slipBps: optionalNumber('slipBps') ?? 3, commission: optionalNumber('commission') ?? 1,
+        amount: optionalNumber('amount'), leverage: optionalNumber('leverage'), stopMarginPct: optionalNumber('stopMarginPct'),
+        cfdFeeBps: optionalNumber('cfdFeeBps'), annualFinancingPct: optionalNumber('annualFinancingPct'),
+      });
+      if (!isStockTradeSymbol(symbol) || !isStockTradeRule(rule) || !supportsStockTradeRule(rule, symbol) || !cost.success) {
         return fail('Choose a supported stock and strategy, with valid cost assumptions.', 400);
       }
       const instrument = await broker.instrument(symbol);
       if (!instrument) return fail('eToro did not return a unique match for this ticker.', 404);
-      const result = await stockBacktest(broker, symbol, instrument.instrumentId, rule, { slipBps, commission });
+      const assumptions = { ...cost.data };
+      const result = await stockBacktest(broker, symbol, instrument.instrumentId, rule, assumptions);
       return result ? NextResponse.json({ symbol, rule, result }) : fail('eToro has insufficient paired session history for this stock and strategy.', 422);
     }
     if (view !== 'discover') return fail('Unknown stocks view.', 400);

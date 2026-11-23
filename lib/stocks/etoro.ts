@@ -27,6 +27,7 @@ export class EtoroError extends Error {
 }
 
 const nyDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+const instruments = new Map<string, { value: Instrument; expires: number }>();
 
 export class EtoroClient {
   constructor(private readonly credentials: EtoroCredentials) {}
@@ -47,8 +48,15 @@ export class EtoroClient {
   private get demoPath() { return this.credentials.environment === 'demo' ? 'demo/' : ''; }
 
   async stockOrderOptions(instrumentId: number): Promise<StockOrderOption[]> {
-    const result = await this.request<{ eligibilities: Eligibility[] }>(`/v2/trading/info/${this.demoPath}eligibility`, { instrumentIds: [instrumentId], currency: 'USD' });
-    const instrument = result.eligibilities.find(row => row.instrumentId === instrumentId);
+    return (await this.stockOrderOptionsFor([instrumentId])).get(instrumentId) ?? [];
+  }
+
+  async stockOrderOptionsFor(instrumentIds: number[]) {
+    const result = await this.request<{ eligibilities: Eligibility[] }>(`/v2/trading/info/${this.demoPath}eligibility`, { instrumentIds, currency: 'USD' });
+    return new Map(result.eligibilities.map(instrument => [instrument.instrumentId, this.orderOptions(instrument)]));
+  }
+
+  private orderOptions(instrument: Eligibility): StockOrderOption[] {
     const quantityType = instrument?.allowedOrderQuantityType?.toLowerCase();
     if (!instrument?.allowOpenPosition || ['unitsonly', 'onlyunits', 'units'].includes(quantityType ?? '')) return [];
     const options: StockOrderOption[] = [];
@@ -103,12 +111,16 @@ export class EtoroClient {
   }
 
   async instrument(symbol: string) {
+    const cached = instruments.get(symbol);
+    if (cached && cached.expires > Date.now()) return cached.value;
     const { results } = await this.get<{ results: Instrument[] }>(`/v2/market-data/instruments/search?query=${encodeURIComponent(symbol)}`);
     const eligible = results.filter(i => i.type?.toLowerCase() === (symbol === 'SPY' ? 'etf' : 'stocks') && Number.isSafeInteger(i.instrumentId) && i.instrumentId > 0);
     // Some US tickers carry a country suffix when other exchanges share the base ticker.
     const suffixed = eligible.filter(i => i.symbol?.toUpperCase() === `${symbol}.US`);
     const matches = suffixed.length ? suffixed : eligible.filter(i => i.symbol?.toUpperCase() === symbol);
-    return matches.length === 1 ? matches[0] : null;
+    if (matches.length !== 1) return null;
+    instruments.set(symbol, { value: matches[0], expires: Date.now() + 86_400_000 });
+    return matches[0];
   }
 
   async quotes(ids: number[]) {
@@ -123,16 +135,16 @@ export class EtoroClient {
     }));
   }
 
-  async candles(id: number, days: number, now = Date.now(), tradingDates = false): Promise<StockBar[]> {
+  async candles(id: number, days: number, now = Date.now(), tradingDates = false, signalOnly = false): Promise<StockBar[]> {
     const from = new Date(now - days * 86_400_000).toISOString();
     const to = new Date(now).toISOString();
     const url = `/v1/data/instruments/${id}/candles?interval=1d&limit=2000&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-    const [bid, ask] = await Promise.all([this.get<{ results: Candle[] }>(`${url}&side=bid`), this.get<{ results: Candle[] }>(`${url}&side=ask`)]);
-    const askByTime = new Map(ask.results.map(bar => [Date.parse(bar.time), Number(bar.open)]));
+    const [bid, ask] = await Promise.all([this.get<{ results: Candle[] }>(`${url}&side=bid`), signalOnly ? null : this.get<{ results: Candle[] }>(`${url}&side=ask`)]);
+    const askByTime = new Map((ask ?? bid).results.map(bar => [Date.parse(bar.time), Number(bar.open)]));
     const today = nyDate.format(now);
     const bars: StockBar[] = [];
     const dates = new Set<string>();
-    for (const raw of [...bid.results].sort((a, b) => Date.parse(a.time) - Date.parse(b.time))) {
+    for (const raw of [...bid.results].sort((a, b) => Date.parse(b.time) - Date.parse(a.time))) {
       const time = Date.parse(raw.time);
       if (!Number.isFinite(time) || time >= now) continue;
       // API daily buckets can be UTC midnight. Skip the entire latest UTC or New York date.
@@ -140,6 +152,9 @@ export class EtoroClient {
       const candleDate = new Date(time);
       const day = new Date(time + (tradingDates && candleDate.getUTCHours() >= 20 ? 86_400_000 : 0)).toISOString().slice(0, 10);
       if (day >= today) continue;
+      // Some older series contain both the previous evening's bucket and a midnight
+      // bucket for the same session. Prefer the explicit midnight session stamp.
+      if (tradingDates && day < '2025-01-01' && candleDate.getUTCHours() >= 20 && dates.has(day)) continue;
       const b = { day, bidOpen: Number(raw.open), askOpen: askByTime.get(time) ?? NaN, bidClose: Number(raw.close), high: Number(raw.high), low: Number(raw.low) };
       if (![b.bidOpen, b.askOpen, b.bidClose, b.high, b.low].every(n => Number.isFinite(n) && n > 0) || b.askOpen < b.bidOpen || b.high < Math.max(b.bidOpen, b.bidClose) || b.low > Math.min(b.bidOpen, b.bidClose) || dates.has(day)) {
         throw new Error('Incomplete or invalid paired eToro candles');
@@ -147,11 +162,11 @@ export class EtoroClient {
       dates.add(day);
       bars.push(b);
     }
-    return bars;
+    return bars.reverse();
   }
 
   /** One fixed history window, including every page from each quote side. */
-  async intradayCandles(id: number, from: number, to: number, pace?: () => Promise<void>, interval: '5m' | '30m' = '5m'): Promise<IntradayBar[]> {
+  async intradayCandles(id: number, from: number, to: number, pace?: () => Promise<void>, interval: '5m' | '30m' = '5m', signalOnly = false): Promise<IntradayBar[]> {
     const maxDays = interval === '30m' ? 175 : 28;
     if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > maxDays * 86_400_000) throw new Error('Invalid intraday candle range');
     const sides = async (side: 'bid' | 'ask') => {
@@ -167,8 +182,8 @@ export class EtoroClient {
       }
       throw new Error('Intraday history did not finish paging');
     };
-    const [bid, ask] = await Promise.all([sides('bid'), sides('ask')]);
-    const asks = new Map(ask.map(b => [Date.parse(b.time), Number(b.open)]));
+    const [bid, ask] = await Promise.all([sides('bid'), signalOnly ? null : sides('ask')]);
+    const asks = new Map((ask ?? bid).map(b => [Date.parse(b.time), Number(b.open)]));
     const seen = new Set<number>();
     return bid.flatMap(b => {
       const t = Date.parse(b.time);

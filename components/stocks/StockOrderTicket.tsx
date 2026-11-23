@@ -7,8 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { EARNINGS_REBOUND, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS, isStockTradeRule, supportsStockTradeRule, type StockTradeSymbol } from '@/lib/stocks/trade-rules';
-import type { StockLeverage, StockOrderOption } from '@/lib/stocks/leverage';
+import { EARNINGS_REBOUND, INSIDE_DAY_SYMBOLS, STOCK_INSTRUMENTS, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS, isStockTradeRule, supportsStockTradeRule, type StockTradeSymbol } from '@/lib/stocks/trade-rules';
+import { stockSizingParams, stockSizingSchema, type StockLeverage, type StockOrderOption, type StockSizing } from '@/lib/stocks/leverage';
+import { stockPortfolioSchema, type StockPortfolio } from '@/lib/stocks/portfolio';
+import type { EtoroClient } from '@/lib/stocks/etoro';
+import { StockPortfolioFields } from './StockPortfolioFields';
 import { formatCurrency } from '@/lib/utils';
 
 export type StockEnvironment = 'demo' | 'real';
@@ -16,7 +19,9 @@ type Order = { id: string; symbol: string; state: string; broker_order_id: numbe
 type Cost = { costType: string; value: number; currency: string };
 type Review = { review: Order; amount: number; ask: number; name: string; signal?: string; costs: Cost[];
   leverage: StockLeverage; exposure: number; stopPrice: number | null; estimatedStopLoss: number | null };
-type AutoConfig = { symbol: StockTradeSymbol; strategy: string; amount: number; active_environment: StockEnvironment | null; last_run_at: string | null; last_message: string | null; leverage?: StockLeverage; stop_margin_pct?: number | null };
+type AutoConfig = { symbol: StockTradeSymbol; strategy: string; amount: number; active_environment: StockEnvironment | null; last_run_at: string | null; last_message: string | null; leverage?: StockLeverage; stop_margin_pct?: number | null; portfolio?: StockPortfolio | null };
+type Book = Awaited<ReturnType<EtoroClient['portfolio']>>;
+const tickerById = new Map(Object.entries(STOCK_INSTRUMENTS).map(([ticker, id]) => [id, ticker]));
 const selectClass = 'mt-1 block w-full rounded-md border border-border bg-background px-2 h-10';
 const statusLabel: Record<string, string> = { sending: 'Awaiting eToro', submitted: 'Submitted', filled: 'Filled', rejected: 'Rejected', review: 'Check with eToro' };
 const costLabel: Record<string, string> = { markup: 'Markup', marketSpread: 'Market spread', transactionFee: 'Transaction fee', overnightFee: 'Overnight fee', overWeekendFee: 'Weekend fee', sdrt: 'Stamp duty' };
@@ -42,9 +47,10 @@ async function autopilot(body?: object) {
   return data.settings as AutoConfig | null;
 }
 
-export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo', initialSymbol, initialRule, onConnect }: {
+export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo', initialSymbol, initialRule, initialSizing, onConnect }: {
   flow: 'manual' | 'auto'; connections: StockEnvironment[]; initialEnvironment?: StockEnvironment;
-  initialSymbol?: StockTradeSymbol; initialRule?: string; onConnect: (mode: StockEnvironment, symbol: StockTradeSymbol, strategy: string) => void;
+  initialSymbol?: StockTradeSymbol; initialRule?: string; initialSizing?: StockSizing;
+  onConnect: (mode: StockEnvironment, symbol: StockTradeSymbol, strategy: string, size: Record<string, string>) => void;
 }) {
   const [environment, setEnvironment] = useState(initialEnvironment);
   const [selectedSymbol, setSymbol] = useState<StockTradeSymbol | null>(null);
@@ -62,35 +68,54 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
   const [auto, setAuto] = useState<AutoConfig | null>(null);
   const [confirmAuto, setConfirmAuto] = useState(false);
   const [autoCosts, setAutoCosts] = useState<Cost[] | null>(null);
+  const [book, setBook] = useState<{ mode: StockEnvironment; value: Book | null } | null>(null);
+  const [portfolioMode, setPortfolioMode] = useState<boolean | null>(null);
+  const [portfolioDraft, setPortfolioDraft] = useState<StockPortfolio | null>(null);
   const connected = connections.includes(environment);
   const saved = flow === 'auto' ? auto : null;
   const savedSymbol = saved?.symbol ?? 'AAPL';
   const defaultSymbol = isStockTradeRule(initialRule) && !supportsStockTradeRule(initialRule, savedSymbol)
     ? STOCK_TRADE_SYMBOLS.find(ticker => supportsStockTradeRule(initialRule, ticker))! : savedSymbol;
-  const symbol = selectedSymbol ?? initialSymbol ?? defaultSymbol;
+  const ticketSymbol = selectedSymbol ?? initialSymbol ?? defaultSymbol;
+  const usePortfolio = flow === 'auto' && (portfolioMode ?? (!initialSymbol && !!saved?.portfolio));
+  const portfolio = portfolioDraft ?? saved?.portfolio ?? {
+    symbols: [...INSIDE_DAY_SYMBOLS], strategies: ['inside-day'],
+    maxExposure: 5000, maxGroup: 2000, maxPositions: 3, dailyLoss: 100, maxCostBps: 60,
+  } satisfies StockPortfolio;
+  const portfolioSymbol = portfolio.symbols.find(ticker => portfolio.strategies.some(rule => supportsStockTradeRule(rule, ticker)));
+  const symbol = usePortfolio && portfolioSymbol ? portfolioSymbol : ticketSymbol;
   const choices = STOCK_TRADE_RULES.filter(rule => supportsStockTradeRule(rule.id, symbol));
-  const wanted = selectedStrategy ?? initialRule ?? saved?.strategy;
+  const wanted = usePortfolio ? portfolio.strategies.find(rule => supportsStockTradeRule(rule, symbol))
+    : selectedStrategy ?? initialRule ?? saved?.strategy;
   const activeRule = choices.find(rule => rule.id === wanted) ?? (flow === 'auto' ? choices[0] : undefined);
   const strategy = activeRule?.id ?? '';
   const earnings = strategy === EARNINGS_REBOUND.id;
-  const amount = selectedAmount ?? (saved ? String(saved.amount) : '');
-  const leverage = selectedLeverage ?? saved?.leverage ?? 1;
+  const amount = selectedAmount ?? (initialSizing ? String(initialSizing.amount) : saved ? String(saved.amount) : '');
+  const leverage = selectedLeverage ?? initialSizing?.leverage ?? saved?.leverage ?? 1;
   const eligibilityKey = `${environment}:${symbol}`;
   const currentEligibility = eligibility?.key === eligibilityKey ? eligibility : null;
   const options = currentEligibility?.options ?? [];
   const leverageOption = options.find(option => option.leverage === leverage);
   const stopRange = leverageOption?.stopMargin;
   const leveraged = leverage > 1;
-  const stop = selectedStop ?? (saved?.stop_margin_pct != null
+  const stop = selectedStop ?? (initialSizing?.stopMarginPct != null ? String(initialSizing.stopMarginPct) : saved?.stop_margin_pct != null
     ? String(saved.stop_margin_pct) : String(stopRange ? Math.max(stopRange.min, Math.min(10, stopRange.max)) : 10));
   const validLeverage = !leveraged || (!!stopRange && Number(stop) > 0 && Number(stop) >= stopRange.min && Number(stop) <= stopRange.max);
   const sizing = { leverage, ...(leveraged ? { stopMarginPct: Number(stop) } : {}) };
+  const configuredSize = stockSizingSchema.safeParse({ amount: Number(amount), ...sizing });
+  const handoff = configuredSize.success ? stockSizingParams(configuredSize.data) : {};
+  const currentBook = book?.mode === environment ? book : null;
   const refresh = useCallback(async (signal?: AbortSignal) => {
     if (!connected) return;
-    const result = await request<{ marketOpen: boolean; orders: Order[] }>(`?environment=${environment}`);
-    if (signal?.aborted) return;
-    setMarketOpen(result.marketOpen);
-    setOrders(result.orders);
+    await Promise.all([
+      request<{ marketOpen: boolean; orders: Order[] }>(`?environment=${environment}`).then(result => {
+        if (signal?.aborted) return;
+        setMarketOpen(result.marketOpen);
+        setOrders(result.orders);
+      }),
+      fetch(`/api/stocks?view=portfolio&environment=${environment}`, { signal }).then(async response => response.ok ? await response.json() as Book : null)
+        .catch(() => null).then(value => { if (!signal?.aborted) setBook({ mode: environment, value }); }),
+    ]);
   }, [environment, connected]);
 
   useEffect(() => {
@@ -122,6 +147,13 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
   function preview(event: FormEvent) {
     event.preventDefault();
     if (flow === 'auto') {
+      if (usePortfolio) {
+        if (!stockPortfolioSchema.safeParse(portfolio).success) { setError('Choose compatible stocks and strategies, with valid portfolio limits.'); return; }
+        if (portfolio.maxGroup < Number(amount) * leverage || portfolio.maxExposure < Number(amount) * leverage) {
+          setError('The gross exposure and group limits must cover at least one position.'); return;
+        }
+        setError(''); setAutoCosts(null); setConfirmAuto(true); return;
+      }
       if (!leveraged) { setConfirmAuto(true); return; }
       void perform('estimate', async () => {
         const estimate = await request<{ costs: Cost[] }>('', { action: 'estimate', environment, symbol, amount: Number(amount), ...sizing }).catch(() => null);
@@ -139,12 +171,12 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
     <section className="surface p-4 lg:p-6 space-y-4" aria-label={flow === 'auto' ? 'Autopilot setup' : 'Stock order ticket'}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold">{flow === 'auto' ? 'Choose a strategy' : 'Review a buy'}</h2>
+          <h2 className="text-base font-semibold">{flow === 'auto' ? 'Set up Autopilot' : 'Review a buy'}</h2>
           <p className="text-xs text-muted-foreground mt-1">{environment === 'demo' ? 'Paper uses virtual funds in eToro Demo.' : 'Live uses real money in eToro.'}</p>
         </div>
         <Segmented aria-label="Stock trading mode" value={environment} options={[{ value: 'demo', label: 'Paper' }, { value: 'real', label: 'Live' }]} disabled={!!busy || !!review} onChange={mode => {
           if (mode === environment) return;
-          setEnvironment(mode); setOrders([]); setMarketOpen(null); setError(''); setMessage('');
+          setEnvironment(mode); setOrders([]); setBook(null); setMarketOpen(null); setError(''); setMessage('');
         }} />
       </div>
       {error && <p role="alert" className="text-sm text-loss">{error}</p>}
@@ -152,27 +184,33 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
       {flow === 'auto' && auto?.active_environment && <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
         <div>
           <p className="text-xs text-profit">{auto.active_environment === 'demo' ? 'Paper' : 'Live'} Autopilot running</p>
-          <p className="text-sm">{auto.symbol} · {STOCK_TRADE_RULES.find(rule => rule.id === auto.strategy)?.name} · {formatCurrency(auto.amount)}{auto.leverage && auto.leverage > 1 ? ` margin · ${auto.leverage}× CFD` : ''}</p>
+          <p className="text-sm">{auto.portfolio ? `${auto.portfolio.symbols.length} stocks · ${auto.portfolio.strategies.length} strategies`
+            : `${auto.symbol} · ${STOCK_TRADE_RULES.find(rule => rule.id === auto.strategy)?.name}`} · {formatCurrency(auto.amount)} per trade{auto.leverage && auto.leverage > 1 ? ` · ${auto.leverage}× CFD` : ''}</p>
         </div>
         <Button variant="outline" size="sm" disabled={!!busy} onClick={() => perform('pause', async () => {
           setAuto(await autopilot({ action: 'pause' }));
           setMessage('New entries paused. Existing strategy positions keep their exit rules.');
         })}>Pause entries</Button>
       </div>}
-      {flow === 'auto' && auto?.last_message && <p className="text-sm text-muted-foreground">{auto.last_message}</p>}
-      {activeRule && <Link className="inline-block text-sm text-primary hover:underline" href={stockHref('research', { symbol, rule: activeRule.id })}>Backtest this strategy</Link>}
+      {flow === 'auto' && !auto?.active_environment && <p className="text-sm text-muted-foreground">Autopilot paused</p>}
+      {flow === 'auto' && auto?.last_message && <p className="text-sm text-muted-foreground">{auto.last_message}{auto.last_run_at && ` · ${nyTime.format(new Date(auto.last_run_at))} ET`}</p>}
+      {flow === 'auto' && <Segmented aria-label="Autopilot scope" value={usePortfolio ? 'portfolio' : 'single'}
+        options={[{ value: 'single', label: 'One strategy' }, { value: 'portfolio', label: 'Portfolio' }]} disabled={!!busy} onChange={value => setPortfolioMode(value === 'portfolio')} />}
+      {activeRule && !usePortfolio && <Link className="inline-block text-sm text-primary hover:underline" href={stockHref('research', { symbol, rule: activeRule.id, ...handoff })}>Backtest this strategy</Link>}
       {connected ? <>
         <form onSubmit={preview} className="grid sm:grid-cols-2 lg:grid-cols-3 items-end gap-3">
-          <label className="text-sm">Stock<select className={selectClass} value={symbol} onChange={e => setSymbol(e.target.value as StockTradeSymbol)}>{[...STOCK_TRADE_SYMBOLS].sort().map(s => <option key={s}>{s}</option>)}</select></label>
-          <label className="text-sm min-w-0">Strategy<select className={selectClass} value={strategy} onChange={e => setStrategy(e.target.value)}>
+          {usePortfolio ? <StockPortfolioFields settings={portfolio} onChange={setPortfolioDraft} /> : <>
+          <label className="text-sm">Stock<select aria-label="Stock" className={selectClass} value={symbol} onChange={e => setSymbol(e.target.value as StockTradeSymbol)}>{[...STOCK_TRADE_SYMBOLS].sort().map(s => <option key={s}>{s}</option>)}</select></label>
+          <label className="text-sm min-w-0">Strategy<select aria-label="Strategy" className={selectClass} value={strategy} onChange={e => setStrategy(e.target.value)}>
             {flow === 'manual' && <option value="">Manual buy</option>}
             <optgroup label="Daily setups">{choices.filter(rule => rule.id !== EARNINGS_REBOUND.id).map(rule => <option key={rule.id} value={rule.id}>{rule.name}</option>)}</optgroup>
             {choices.some(rule => rule.id === EARNINGS_REBOUND.id) && (
               <optgroup label="Experimental intraday"><option value={EARNINGS_REBOUND.id}>{EARNINGS_REBOUND.name}</option></optgroup>
             )}
           </select></label>
+          </>}
           <label className="text-sm">{leveraged ? 'Margin (USD)' : 'Amount (USD)'}<Input className="mt-1" type="number" min={Math.max(flow === 'auto' ? 1 : 0.01, leverageOption?.minimum ?? 0)} max={flow === 'auto' ? '10000' : '100000'} step="0.01" inputMode="decimal" value={amount} required onChange={e => setAmount(e.target.value)} /></label>
-          <label className="text-sm">Leverage<select className={selectClass} value={leverage} disabled={!!busy} onChange={e => {
+          <label className="text-sm">Leverage<select aria-label="Leverage" className={selectClass} value={leverage} disabled={!!busy} onChange={e => {
             setLeverage(Number(e.target.value) as StockLeverage);
             setStop(null);
           }}>
@@ -187,12 +225,21 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
         {leveraged && currentEligibility && !leverageOption && <p className="text-xs text-loss">Choose leverage available for this stock and account.</p>}
         {leveraged && stopRange && <p className="text-xs text-muted-foreground">
           {Number(amount) > 0 ? `${formatCurrency(Number(amount) * leverage)} exposure · ${formatCurrency(Number(amount) * Number(stop) / 100)} estimated loss at the stop, before fees. ` : ''}
-          Cash-stock backtest results do not include CFD costs.
         </p>}
         {marketOpen === false && <p className="text-sm text-muted-foreground">The regular US market session is closed.</p>}
-        {activeRule && <p className="text-xs text-muted-foreground">{earnings ? 'Experimental. Entries from 10:00 to 10:05 a.m. ET. Tideframe attempts the exit at 3:50 p.m. ET.' : activeRule.description}</p>}
-        {!earnings && (flow === 'auto' || strategy === 'inside-day') && <p className="text-xs text-muted-foreground">Entry window is 9:30–10:00 a.m. ET.</p>}
+        {activeRule && !usePortfolio && <p className="text-xs text-muted-foreground">{earnings ? 'Experimental. Entries from 10:00 to 10:05 a.m. ET. Tideframe attempts the exit at 3:50 p.m. ET.' : activeRule.description}</p>}
+        {!usePortfolio && !earnings && (flow === 'auto' || strategy === 'inside-day') && <p className="text-xs text-muted-foreground">Entry window is 9:30–10:00 a.m. ET.</p>}
         {flow === 'manual' && strategy && !earnings && <p className="text-xs text-muted-foreground">Manage manual exits in eToro.</p>}
+        <div className="border-t pt-3 space-y-2">
+          <h3 className="text-sm font-semibold">eToro positions and pending orders</h3>
+          {currentBook?.value ? <>
+            <p className="text-xs text-muted-foreground">{formatCurrency(currentBook.value.availableCash)} available · {currentBook.value.positions.length} direct {currentBook.value.positions.length === 1 ? 'position' : 'positions'} · {currentBook.value.pending} pending {currentBook.value.pending === 1 ? 'order' : 'orders'}{currentBook.value.mirrors > 0 && ` · ${currentBook.value.mirrors} copy portfolios`}</p>
+            {currentBook.value.positions.map(position => <div key={position.id} className="flex flex-wrap justify-between gap-2 text-sm">
+              <span>{tickerById.get(position.instrumentId) ?? `Instrument ${position.instrumentId}`} · {position.side} · {position.leverage}× · {formatCurrency(position.amount)} allocated</span>
+              <span className="tabular-nums">{position.pnl == null ? 'P&L unavailable' : `${formatCurrency(position.pnl)} P&L`}</span>
+            </div>)}
+          </> : <p className="text-xs text-muted-foreground">{currentBook ? 'eToro portfolio is temporarily unavailable.' : 'Checking eToro portfolio…'}</p>}
+        </div>
         {orders.length > 0 && <div className="border-t pt-3 space-y-2">
           <h3 className="text-sm font-semibold">Recent orders</h3>
           {orders.map(order => <div key={order.id} className="flex items-center flex-wrap justify-between gap-2 text-sm">
@@ -207,7 +254,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
             })}>Refresh status</Button>}
           </div>)}
         </div>}
-      </> : <Button onClick={() => onConnect(environment, symbol, strategy)}>Connect eToro {environment === 'demo' ? 'Demo' : 'Real'}</Button>}
+      </> : <Button onClick={() => onConnect(environment, symbol, strategy, handoff)}>Connect eToro {environment === 'demo' ? 'Demo' : 'Real'}</Button>}
 
       <Dialog open={!!review} onOpenChange={open => { if (!open && !busy) setReview(null); }}>
         <DialogContent>
@@ -248,20 +295,21 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
           <DialogHeader>
             <DialogTitle>Start {environment === 'demo' ? 'Paper' : 'Live'} stock Autopilot?</DialogTitle>
             <DialogDescription>
-              {activeRule?.name} can open {symbol} positions in eToro with {environment === 'demo' ? 'virtual funds' : 'real money'}.
+              {usePortfolio ? `${portfolio.strategies.length} strategies can trade across ${portfolio.symbols.length} stocks` : `${activeRule?.name} can open ${symbol} positions`} in eToro with {environment === 'demo' ? 'virtual funds' : 'real money'}.
               {leveraged ? ` ${leverage}× CFD · ${formatCurrency(Number(amount))} margin · ${formatCurrency(Number(amount) * leverage)} exposure.` : ` ${formatCurrency(Number(amount))} per cash position.`}
-              {earnings ? ' This experimental setup has a limited historical sample.' : ''}
+              {(usePortfolio ? portfolio.strategies.includes(EARNINGS_REBOUND.id) : earnings) ? ' The experimental earnings setup has a limited historical sample.' : ''}
             </DialogDescription>
           </DialogHeader>
+          {usePortfolio && <p className="text-sm">Up to {portfolio.maxPositions} instruments · {formatCurrency(portfolio.maxExposure)} gross · {formatCurrency(portfolio.maxGroup)} per group · {formatCurrency(portfolio.dailyLoss)} daily equity loss · {portfolio.maxCostBps} bps entry cost limit</p>}
           {leveraged && <div className="space-y-2 text-sm">
             <p>Stop at {stop}% of margin · {formatCurrency(Number(amount) * Number(stop) / 100)} estimated loss before fees. Gaps and slippage can increase the loss.</p>
-            <p className="text-muted-foreground">{autoCosts ? 'Indicative costs from eToro’s latest quote. Tideframe checks again at entry.' : 'A cost estimate is unavailable. Tideframe requires one before submitting an entry.'}</p>
+            <p className="text-muted-foreground">{autoCosts ? 'Indicative costs from eToro’s latest quote. Tideframe checks again at entry.' : 'Tideframe checks the eToro cost estimate before each entry.'}</p>
             {autoCosts && <CostBreakdown costs={autoCosts} />}
           </div>}
           <DialogFooter>
             <Button variant="outline" disabled={!!busy} onClick={() => setConfirmAuto(false)}>Cancel</Button>
             <Button disabled={!!busy} onClick={() => perform('start', async () => {
-              try { setAuto(await autopilot({ action: 'start', symbol, strategy, amount: Number(amount), environment, confirmed: true, ...sizing })); }
+              try { setAuto(await autopilot({ action: 'start', symbol, strategy, amount: Number(amount), environment, confirmed: true, ...sizing, ...(usePortfolio ? { portfolio } : {}) })); }
               finally { setConfirmAuto(false); }
             })}>{busy === 'start' ? 'Starting…' : 'Confirm start'}</Button>
           </DialogFooter>

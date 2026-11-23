@@ -1,4 +1,6 @@
 import { sma } from '@/lib/strategy/trend';
+import { replayEntry, replayExit, replayNights, replayStop, stockReplayCosts, STOCK_REPLAY_CAPITAL as START, type StockReplayCost } from './replay';
+export type { StockReplayCost } from './replay';
 
 export const STOCKS = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'JPM', 'XOM', 'WMT', 'COST', 'UNH', 'SPY'] as const;
 export type StockSymbol = typeof STOCKS[number];
@@ -41,45 +43,46 @@ export function stockSetups(bars: StockBar[]) {
   };
 }
 
-export type StockReplayCost = { slipBps: number; commission: number };
-const START = 10_000;
-
 function simulate(bars: StockBar[], rule: DailyStockRule, start: number, end: number, cost: StockReplayCost, canEnter?: (previous: StockBar, current: StockBar) => boolean) {
   const closes = bars.map(bar => bar.bidClose);
-  const slip = cost.slipBps / 10_000;
-  const sell = (units: number, price: number) => Math.max(0, units * price * (1 - slip) - cost.commission);
-  let cash = START, units = 0, entryIndex = -1, entryCash = 0, trades = 0, wins = 0;
+  let cash = START, entryIndex = -1, entryCash = 0, trades = 0, wins = 0, stops = 0, financing = 0, skipped = 0;
+  let position: ReturnType<typeof replayEntry> = null;
   let pending: 'buy' | 'sell' | null = null;
   let peak = START, drawdown = 0;
   const series = [];
   for (let i = start; i < end; i++) {
     const bar = bars[i];
-    if (pending === 'sell' && units > 0) {
-      cash = sell(units, bar.bidOpen);
-      wins += Number(cash > entryCash);
-      trades++;
-      units = 0;
-    } else if (pending === 'buy' && i < end - 1 && cash > cost.commission && (!canEnter || canEnter(bars[i - 1], bar))) {
+    if (pending === 'buy' && i < end - 1 && (!canEnter || canEnter(bars[i - 1], bar))) {
       entryCash = cash;
       entryIndex = i;
-      units = (cash - cost.commission) / (bar.askOpen * (1 + slip));
-      cash = 0;
+      position = replayEntry(cash, bar.askOpen, bar.bidOpen, cost);
+      if (!position) skipped++;
     }
-    if (i === end - 1 && units > 0) {
-      cash = sell(units, bar.bidClose);
-      wins += Number(cash > entryCash);
-      trades++;
-      units = 0;
+    if (position) {
+      const stop = pending === 'sell' ? null : replayStop(position.stop, bar.bidOpen, bar.low);
+      const exit = pending === 'sell' ? bar.bidOpen : stop ?? (i === end - 1 ? bar.bidClose : null);
+      if (exit != null) {
+        cash = replayExit(position, exit, cost);
+        stops += Number(stop != null);
+        wins += Number(cash > entryCash);
+        trades++;
+        position = null;
+      }
     }
-    const triggered = stockSignal(bars, closes, i, rule, units > 0 ? i - entryIndex + 1 : null);
-    pending = triggered ? units > 0 ? 'sell' : 'buy' : null;
-    const equity = units > 0 ? sell(units, bar.bidClose) : cash;
+    if (position) {
+      const fee = position.nightlyFee * replayNights(bar.day);
+      position.cash -= fee;
+      financing += fee;
+    }
+    const triggered = stockSignal(bars, closes, i, rule, position ? i - entryIndex + 1 : null);
+    pending = triggered ? position ? 'sell' : 'buy' : null;
+    const equity = position ? replayExit(position, bar.bidClose, cost) : cash;
     peak = Math.max(peak, equity);
     drawdown = Math.max(drawdown, 1 - equity / peak);
     series.push({ day: bar.day, equity });
   }
-  const holdUnits = (START - cost.commission) / (bars[start].askOpen * (1 + slip));
-  return { return: cash / START - 1, hold: sell(holdUnits, bars[end - 1].bidClose) / START - 1, drawdown, trades, wins, series };
+  const baseline = replayEntry(START, bars[start].askOpen, bars[start].bidOpen, { slipBps: cost.slipBps, commission: cost.commission })!;
+  return { return: cash / START - 1, hold: replayExit(baseline, bars[end - 1].bidClose, cost) / START - 1, drawdown, trades, wins, stops, financing, skipped, series };
 }
 
 export function researchStock(bars: StockBar[], rule: DailyStockRule, cost: StockReplayCost, canEnter?: (previous: StockBar, current: StockBar) => boolean) {
@@ -89,7 +92,7 @@ export function researchStock(bars: StockBar[], rule: DailyStockRule, cost: Stoc
   const result = simulate(bars, rule, start, bars.length, cost, canEnter);
   const first = simulate(bars, rule, start, split, cost, canEnter);
   const later = simulate(bars, rule, split, bars.length, cost, canEnter);
-  const stress = simulate(bars, rule, split, bars.length, { slipBps: 2 * cost.slipBps, commission: 2 * cost.commission }, canEnter);
+  const stress = simulate(bars, rule, split, bars.length, stockReplayCosts(cost), canEnter);
   return {
     ...result, from: bars[start].day, to: bars.at(-1)!.day, holdoutFrom: bars[split].day,
     earlyReturn: first.return, holdoutReturn: later.return, holdoutHold: later.hold, holdoutTrades: later.trades, stressReturn: stress.return,

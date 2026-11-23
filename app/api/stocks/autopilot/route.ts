@@ -2,17 +2,18 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { etoroFromConnection } from '@/lib/stocks/connection';
-import { isStockTradeRule, isStockTradeSymbol, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
+import { isStockTradeRule, isStockTradeSymbol, STOCK_INSTRUMENTS, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
 import { stockLeverageSchema, stopMarginSchema, stockOrderOption, StockSizingError } from '@/lib/stocks/leverage';
+import { stockPortfolioSchema } from '@/lib/stocks/portfolio';
 
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
-const settingFields = 'symbol, strategy, amount, leverage, stop_margin_pct, active_environment, last_run_at, last_message';
+const settingFields = 'symbol, strategy, amount, leverage, stop_margin_pct, active_environment, last_run_at, last_message, portfolio';
 const command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('pause') }),
   z.object({
     action: z.literal('start'), symbol: z.string(), strategy: z.string(), amount: z.number().min(1).max(10_000),
     leverage: stockLeverageSchema.default(1), stopMarginPct: stopMarginSchema.optional(),
-    environment: z.enum(['demo', 'real']), confirmed: z.literal(true),
+    environment: z.enum(['demo', 'real']), confirmed: z.literal(true), portfolio: stockPortfolioSchema.optional(),
   }),
 ]);
 
@@ -45,11 +46,22 @@ export async function PUT(request: Request) {
   const connection = await db.from('etoro_connections').select('environment, credentials_encrypted').eq('user_id', user.id).eq('environment', value.environment).maybeSingle();
   if (connection.error || !connection.data) return fail('Connect eToro in this mode first.', 409);
   const amount = Math.round(value.amount * 100) / 100;
+  if (value.portfolio && (value.portfolio.maxGroup < amount * value.leverage || value.portfolio.maxExposure < amount * value.leverage)) {
+    return fail('The exposure and group limits must cover at least one position at the selected leverage.', 400);
+  }
   try {
     const broker = etoroFromConnection(connection.data);
-    const market = await broker.instrument(value.symbol);
-    if (!market) return fail('This ticker is unavailable on eToro.', 422);
-    stockOrderOption(await broker.stockOrderOptions(market.instrumentId), { amount, leverage: value.leverage, stopMarginPct: value.stopMarginPct });
+    const portfolio = value.portfolio;
+    const symbols = portfolio ? portfolio.symbols.filter(symbol => portfolio.strategies.some(rule => supportsStockTradeRule(rule, symbol))) : [value.symbol];
+    const eligibilities = await broker.stockOrderOptionsFor(symbols.map(symbol => STOCK_INSTRUMENTS[symbol]));
+    for (const symbol of symbols) {
+      try {
+        stockOrderOption(eligibilities.get(STOCK_INSTRUMENTS[symbol]) ?? [], { amount, leverage: value.leverage, stopMarginPct: value.stopMarginPct });
+      } catch (error) {
+        if (error instanceof StockSizingError) return fail(`${symbol}: ${error.message}`, 422);
+        throw error;
+      }
+    }
   } catch (error) {
     if (error instanceof StockSizingError) return fail(error.message, 422);
     return fail('Could not check eToro eligibility.', 503);
@@ -57,7 +69,7 @@ export async function PUT(request: Request) {
   const { data, error } = await db.from('stock_autopilot').upsert({
     user_id: user.id, symbol: value.symbol, strategy: value.strategy, amount, active_environment: value.environment,
     leverage: value.leverage, stop_margin_pct: value.leverage === 1 ? null : value.stopMarginPct,
-    updated_at: now, last_run_at: null, last_message: null,
+    updated_at: now, last_run_at: null, last_message: null, portfolio: value.portfolio ?? null,
   }).select(settingFields).single();
   return error ? fail('Could not start stock Autopilot.', 503) : NextResponse.json({ settings: data });
 }

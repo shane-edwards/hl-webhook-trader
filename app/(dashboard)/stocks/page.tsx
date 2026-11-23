@@ -13,6 +13,8 @@ import type { gradeStock } from '@/lib/stocks/grade';
 import type { EtoroClient } from '@/lib/stocks/etoro';
 import { StockOrderTicket } from '@/components/stocks/StockOrderTicket';
 import { StockBacktest } from '@/components/stocks/StockBacktest';
+import { StockSetups } from '@/components/stocks/StockSetups';
+import { stockSizingParams, stockSizingQuery } from '@/lib/stocks/leverage';
 import { INSIDE_BREAKOUT, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS } from '@/lib/stocks/trade-rules';
 import insideDayEvidence from '@/lib/stocks/inside-day-evidence.json';
 
@@ -42,6 +44,8 @@ export default function StocksPage() {
   const requestedRule = STOCK_TRADE_RULES.find(value => value.id === query.get('rule'))?.id;
   const mode = query.get('mode');
   const requestedMode = mode === 'real' || mode === 'demo' ? mode : undefined;
+  const incomingSize = stockSizingQuery(query).data;
+  const incomingParams = incomingSize ? stockSizingParams(incomingSize) : {};
   const returnView = query.get('returnTo') === 'autopilot' ? 'autopilot' : 'trade';
   const [environment, setEnvironment] = useState<Environment | null>(null);
   const [connections, setConnections] = useState<Environment[]>([]);
@@ -93,6 +97,7 @@ export default function StocksPage() {
       await refreshConnections();
       router.push(stockHref(returnView, {
         mode: targetEnv,
+        ...incomingParams,
         ...(requestedSymbol ? { symbol: requestedSymbol } : {}),
         ...(requestedRule ? { rule: requestedRule } : {}),
       }));
@@ -161,21 +166,23 @@ export default function StocksPage() {
               </details>
             </section>
           )}
+          {tab === 'setups' && !loading && <StockSetups connections={connections} />}
           {(tab === 'trade' || tab === 'autopilot') && !loading && (
             <StockOrderTicket
-              key={`${tab}:${requestedMode}:${requestedSymbol}:${requestedRule}`}
+              key={query.toString()}
               flow={tab === 'autopilot' ? 'auto' : 'manual'}
               connections={connections}
               initialEnvironment={requestedMode}
               initialSymbol={requestedSymbol}
               initialRule={requestedRule}
-              onConnect={(nextMode, ticker, strategy) => router.push(stockHref('account', {
-                mode: nextMode, symbol: ticker, returnTo: tab, ...(strategy ? { rule: strategy } : {}),
+              initialSizing={incomingSize}
+              onConnect={(nextMode, ticker, strategy, size) => router.push(stockHref('account', {
+                mode: nextMode, symbol: ticker, returnTo: tab, ...size, ...(strategy ? { rule: strategy } : {}),
               }))}
             />
           )}
           {tab === 'research' && <div className="space-y-3">
-            <StockBacktest key={`${requestedRule}:${requestedSymbol}`} connected={!!environment} loading={loading} initialRule={requestedRule} initialSymbol={requestedSymbol} />
+            <StockBacktest key={query.toString()} connected={!!environment} loading={loading} initialRule={requestedRule} initialSymbol={requestedSymbol} initialSizing={incomingSize} />
             <section className="surface p-4 lg:p-6 space-y-3">
               <h2 className="text-base font-semibold">{INSIDE_BREAKOUT.name}</h2>
               <p className="text-sm text-muted-foreground">{insideDayEvidence.stages[2].trades} holdout trades across {insideDayEvidence.symbols.length} eligible stocks. Average net return {pct((insideDayEvidence.stages[2].netBps ?? 0) / 10_000)} per trade, or {pct((insideDayEvidence.stages[2].stressBps ?? 0) / 10_000)} with higher costs.</p>
@@ -210,6 +217,7 @@ export default function StocksPage() {
                     }))}>{busy === 'portfolio' ? 'Loading…' : book ? 'Refresh portfolio' : 'View portfolio'}</Button>
                     <Button asChild variant="outline"><Link href={stockHref(returnView, {
                       mode: targetEnv,
+                      ...incomingParams,
                       ...(requestedSymbol ? { symbol: requestedSymbol } : {}),
                       ...(requestedRule ? { rule: requestedRule } : {}),
                     })}>{returnView === 'autopilot' ? 'Open Autopilot' : 'Open trade ticket'}</Link></Button>

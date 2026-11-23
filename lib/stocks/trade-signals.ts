@@ -24,9 +24,9 @@ export function dailyTradeSignal(bars: StockBar[], rule: DailyStockRule, held: n
 }
 
 export async function stockTradeDailyBars(broker: EtoroClient, instrumentId: number, rule: DailyStockRule, now: number) {
-  if (rule !== 'inside-day') return broker.candles(instrumentId, 240, now, true);
+  if (rule !== 'inside-day') return broker.candles(instrumentId, 240, now, true, true);
   // This setup was replayed on regular-session prices, so extended-hours prints cannot trigger it.
-  const paired = await broker.intradayCandles(instrumentId, now - 120 * DAY, now, undefined, '30m');
+  const paired = await broker.intradayCandles(instrumentId, now - 120 * DAY, now, undefined, '30m', true);
   return regularDailyBars(regularStockSessions(paired, 30).sessions.filter(session => session.day < stockMarketClock(now).day));
 }
 
@@ -80,12 +80,19 @@ export function stockEntryWindow(strategy: StockTradeRule, now: number, automati
   return (!automatic && strategy !== 'inside-day') || clock.minutes < 600;
 }
 
+export function dailyStockEntry(bars: StockBar[], strategy: DailyStockRule, now: number): StockEntry | null {
+  const clock = stockMarketClock(now);
+  const until = strategy === 'inside-day' ? 600 : clock.close;
+  const deadline = Math.floor(now / MINUTE) * MINUTE + (until - clock.minutes) * MINUTE;
+  return bars.at(-1)?.day === previousStockSession(now) && dailyTradeSignal(bars, strategy, null)
+    ? { validUntil: Math.min(now + 120_000, deadline), exitAt: null, maxSpread: 0.003 } : null;
+}
+
 export async function currentStockEntry(broker: EtoroClient, symbol: StockTradeSymbol, instrumentId: number, strategy: StockTradeRule, now: number): Promise<StockEntry | null> {
   if (!stockEntryWindow(strategy, now, false)) return null;
   if (strategy !== 'earnings-rebound') {
     const bars = await stockTradeDailyBars(broker, instrumentId, strategy, now);
-    return bars.at(-1)?.day === previousStockSession(now) && dailyTradeSignal(bars, strategy, null)
-      ? { validUntil: now + 120_000, exitAt: null, maxSpread: 0.003 } : null;
+    return dailyStockEntry(bars, strategy, now);
   }
 
   const filings = await recentEarnings(symbol);

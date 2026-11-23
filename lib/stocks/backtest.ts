@@ -2,18 +2,18 @@ import type { EtoroClient, IntradayBar } from './etoro';
 import { earningsBeforeOpen, type EarningsFiling } from './factor-research';
 import { regularStockSessions } from './intraday';
 import { researchStock, type StockReplayCost } from './research';
+import { replayEntry, replayExit, replayStop, stockReplayCosts, STOCK_REPLAY_CAPITAL as CAPITAL } from './replay';
 import { previousStockSession, stockMarketClock } from './session';
 import { earningsRebound, recentEarnings, regularDailyBars } from './trade-signals';
 import type { StockTradeRule, StockTradeSymbol } from './trade-rules';
 
 const MINUTE = 60_000;
 const DAY = 1_440 * MINUTE;
-const CAPITAL = 10_000;
 const date = (time: number) => new Date(time).toISOString().slice(0, 10);
 const dayAnchor = (day: string) => Date.parse(`${day}T15:00:00Z`);
 
 type EarningsWindow = { day: string; open: number; previousOpen: number };
-type EarningsTrade = { day: string; ask: number; bid: number };
+type EarningsTrade = { day: string; ask: number; bid: number; path?: IntradayBar[] };
 
 function openingTime(day: string) {
   const anchor = dayAnchor(day);
@@ -45,18 +45,23 @@ export function earningsReplayFill(signal: ReturnType<typeof earningsRebound>, q
 }
 
 function simulateEarnings(trades: EarningsTrade[], cost: StockReplayCost) {
-  let cash = CAPITAL, peak = CAPITAL, drawdown = 0, wins = 0;
-  const slip = cost.slipBps / 10_000;
-  const rows = trades.map(trade => {
+  let cash = CAPITAL, peak = CAPITAL, drawdown = 0, wins = 0, skips = 0, stops = 0;
+  const rows = trades.flatMap(({ day, ask, bid, path }) => {
+    const position = replayEntry(cash, ask, path?.[0]?.bidOpen ?? ask, cost);
+    if (!position) { skips++; return []; }
+    let exit = bid;
+    for (const bar of path ?? []) {
+      const stop = replayStop(position.stop, bar.bidOpen, bar.bidLow);
+      if (stop != null) { exit = stop; stops++; break; }
+    }
     const before = cash;
-    const units = Math.max(0, before - cost.commission) / (trade.ask * (1 + slip));
-    cash = Math.max(0, units * trade.bid * (1 - slip) - cost.commission);
+    cash = replayExit(position, exit, cost);
     if (cash > before) wins++;
     peak = Math.max(cash, peak);
     drawdown = Math.max(drawdown, 1 - cash / peak);
-    return { ...trade, equity: cash, pnl: cash - before };
+    return [{ day, ask, bid: exit, equity: cash, pnl: cash - before }];
   });
-  return { return: cash / CAPITAL - 1, drawdown, wins, trades: rows.length, rows };
+  return { return: cash / CAPITAL - 1, drawdown, wins, trades: rows.length, rows, stops, skipped: skips, financing: 0 };
 }
 
 async function backtestEarnings(broker: EtoroClient, instrumentId: number, symbol: StockTradeSymbol, cost: StockReplayCost, now: number) {
@@ -85,7 +90,11 @@ async function backtestEarnings(broker: EtoroClient, instrumentId: number, symbo
       if (!signal?.exitAt) return {};
       const prices = await broker.intradayCandles(instrumentId, entryAt, signal.exitAt + 5 * MINUTE);
       if (!prices.some(bar => bar.t === entryAt) || !prices.some(bar => bar.t === signal.exitAt)) return { missing: true };
-      return { trade: earningsReplayFill(signal, prices, window) };
+      const trade = earningsReplayFill(signal, prices, window);
+      const path = prices.filter(bar => bar.t >= entryAt && bar.t < signal.exitAt!);
+      if ((cost.leverage ?? 1) > 1 && path.some((bar, index) => bar.t !== entryAt + index * 5 * MINUTE)) return { missing: true };
+      if ((cost.leverage ?? 1) > 1 && path.length !== (signal.exitAt - entryAt) / (5 * MINUTE)) return { missing: true };
+      return { trade: trade ? { ...trade, path } : null };
     }));
     for (const row of batch) {
       if (row.missing) missing++;
@@ -99,7 +108,7 @@ async function backtestEarnings(broker: EtoroClient, instrumentId: number, symbo
   const earlier = simulateEarnings(trades.filter(trade => trade.day < holdoutFrom), cost);
   const holdout = trades.filter(trade => trade.day >= holdoutFrom);
   const later = simulateEarnings(holdout, cost);
-  const stress = simulateEarnings(holdout, { slipBps: cost.slipBps * 2, commission: cost.commission * 2 });
+  const stress = simulateEarnings(holdout, stockReplayCosts(cost));
   const series = [
     { day: from, equity: CAPITAL },
     ...full.rows.map(row => ({ day: row.day, equity: row.equity })),
@@ -109,13 +118,16 @@ async function backtestEarnings(broker: EtoroClient, instrumentId: number, symbo
     kind: 'earnings' as const, from, to, holdoutFrom, return: full.return, hold: null, drawdown: full.drawdown,
     trades: full.trades, wins: full.wins, earlyReturn: earlier.return, holdoutReturn: later.return, holdoutHold: null,
     holdoutTrades: later.trades, stressReturn: stress.return, series, windows: windows.length, missing, rows: full.rows,
+    stops: full.stops, skipped: full.skipped, financing: full.financing,
   };
 }
 
 export async function stockBacktest(broker: EtoroClient, symbol: StockTradeSymbol, instrumentId: number, rule: StockTradeRule, cost: StockReplayCost, now = Date.now()) {
   if (rule === 'earnings-rebound') return backtestEarnings(broker, instrumentId, symbol, cost, now);
   if (rule !== 'inside-day') {
-    const result = researchStock(await broker.candles(instrumentId, 1800, now), rule, cost);
+    const result = researchStock(await broker.candles(instrumentId, 1800, now, true), rule, cost, (prev, current) =>
+      (current.askOpen - current.bidOpen) / current.askOpen <= 0.003
+        && (current.day < '2025-01-01' || previousStockSession(dayAnchor(current.day)) === prev.day));
     return result && { kind: 'daily' as const, ...result };
   }
 
