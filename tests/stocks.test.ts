@@ -44,6 +44,10 @@ test('eToro uses the selected read endpoint and pairs bid and ask candles withou
     assert.match(headers.get('x-request-id')!, /^[0-9a-f-]{36}$/);
     assert.equal(init.redirect, 'error');
     if (url.endsWith('/trading/info/demo/pnl')) return Response.json({ clientPortfolio: { credit: 123, positions: [] } });
+    if (url.includes('/rates?')) {
+      assert.deepEqual(new URL(url).searchParams.getAll('instrumentIds'), ['1001,1002']);
+      return Response.json({ results: [1001, 1002].map(instrumentId => ({ instrumentId, bid: 100, ask: 101, date: '2026-11-23T02:54:18.97', quoteType: 'realtime' })) });
+    }
     if (url.includes('/candles?')) return Response.json({ results: ['2026-11-20', '2026-11-23'].map(day => ({ time: `${day}T00:00:00Z`, open: url.endsWith('side=ask') ? '101' : '100', high: '103', low: '97', close: '102' })) });
     throw new Error('Unexpected endpoint');
   });
@@ -51,5 +55,8 @@ test('eToro uses the selected read endpoint and pairs bid and ask candles withou
   assert.equal((await broker.portfolio()).credit, 123);
   const bars = await broker.candles(1001, 10, Date.parse('2026-11-23T16:00:00Z'));
   assert.deepEqual(bars, [{ day: '2026-11-20', bidOpen: 100, askOpen: 101, bidClose: 102, high: 103, low: 97 }]);
-  assert.equal(requests.length, 3);
+  const quotes = await broker.quotes([1001, 1002]);
+  assert.deepEqual(quotes.map(q => q.instrumentId), [1001, 1002]);
+  assert.equal(quotes[0].date, '2026-11-23T02:54:18.97Z');
+  assert.equal(requests.length, 4);
 });

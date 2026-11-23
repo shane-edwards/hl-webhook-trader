@@ -3,7 +3,7 @@ import { STOCKS, type StockBar, type StockSymbol } from './research';
 
 export type EtoroCredentials = { apiKey: string; userKey: string; environment: 'demo' | 'real' };
 type Instrument = { instrumentId: number; symbol: string; displayName: string; type: string };
-type Rate = { instrumentId: number; bid: number | null; ask: number | null; date: string | null };
+type Rate = { instrumentId: number; bid: number | null; ask: number | null; date: string | null; quoteType?: 'realtime' | 'delayed' | null };
 type Candle = { time: string; open: string; high: string; low: string; close: string };
 type BrokerPosition = {
   positionID: number; instrumentID: number; isBuy: boolean; units: number; amount: number;
@@ -45,8 +45,14 @@ export class EtoroClient {
 
   async quotes(ids: number[]) {
     if (!ids.length) return [];
-    const query = ids.map(id => `instrumentIds=${id}`).join('&');
-    return (await this.get<{ results: Rate[] }>(`/v2/market-data/rates?${query}`)).results;
+    // Repeating the parameter silently returns a single instrument in production.
+    const query = new URLSearchParams({ instrumentIds: ids.join(',') });
+    const { results } = await this.get<{ results: Rate[] }>(`/v2/market-data/rates?${query}`);
+    return results.map(rate => ({
+      ...rate,
+      // eToro can omit the UTC suffix in its quote response.
+      date: rate.date && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(rate.date) ? `${rate.date}Z` : rate.date,
+    }));
   }
 
   async candles(id: number, days: number, now = Date.now()): Promise<StockBar[]> {

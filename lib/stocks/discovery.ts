@@ -26,7 +26,7 @@ export async function discoverStocks(broker: EtoroClient) {
       const latest = bars.at(-1);
       if (!latest) throw new Error('No candles');
       const time = Date.parse(quote?.date ?? '');
-      const spread = quote?.bid && quote.ask && quote.ask >= quote.bid && quote.bid > 0 && time <= now + 60_000 && now - time < 20 * 60_000
+      const spread = quote?.quoteType === 'realtime' && quote.bid && quote.ask && quote.ask >= quote.bid && quote.bid > 0 && time <= now + 60_000 && now - time < 20 * 60_000
         ? (quote.ask - quote.bid) / ((quote.ask + quote.bid) / 2) : null;
       const grade = gradeStock(bars, benchmark, await getFundamentals(symbol, latest.bidClose, latest.day), spread, now);
       if (!grade) throw new Error('Insufficient market data');

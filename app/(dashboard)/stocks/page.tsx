@@ -14,7 +14,7 @@ type Environment = 'demo' | 'real';
 type PositionBook = Awaited<ReturnType<EtoroClient['portfolio']>>;
 type Discovery = NonNullable<ReturnType<typeof gradeStock>> & {
   symbol: StockSymbol; name: string; instrumentId: number;
-  quote: { bid: number | null; ask: number | null; date: string | null } | null;
+  quote: { bid: number | null; ask: number | null; date: string | null; quoteType?: 'realtime' | 'delayed' | null } | null;
 };
 type Scan = { rows: Discovery[]; unavailable: string[]; scannedAt: string };
 type Simulation = { symbol: StockSymbol; rule: StockRule; result: NonNullable<ReturnType<typeof researchStock>> };
@@ -121,7 +121,7 @@ export default function StocksPage() {
                       <div className="min-w-0"><h3 className="font-semibold">{row.symbol}</h3><p className="text-xs text-muted-foreground">{row.name}</p></div>
                       <div className="text-right shrink-0"><p className={row.label === 'Strong buy' ? 'font-medium text-success' : 'font-medium'}>{row.label}</p><p className="text-xs text-muted-foreground">{row.score}/100 · {row.coverage}% data</p></div>
                     </div>
-                    <p className="text-sm">{money(row.close)} at {row.day} close · {row.quote ? `${money(row.quote.bid)} bid / ${money(row.quote.ask)} ask` : 'Quote unavailable'}</p>
+                    <p className="text-sm">{money(row.close)} at {row.day} close · {row.quote ? `${money(row.quote.bid)} bid / ${money(row.quote.ask)} ask${row.quote.quoteType === 'delayed' ? ' (delayed)' : ''}` : 'Quote unavailable'}</p>
                     {!!row.setups.length && <p className="text-sm">Setup detected: {row.setups.map(id => STOCK_RULES.find(r => r.id === id)?.name).join(', ')}</p>}
                     <details className="text-sm"><summary className="cursor-pointer text-primary">View grading breakdown</summary>
                       <dl className="mt-2 space-y-1">{row.factors.map(f => <div key={f.label} className="grid grid-cols-[1fr_auto_auto] gap-2 text-xs"><dt>{f.label}</dt><dd className="tabular-nums">{f.value == null ? '—' : f.unit === 'percent' ? pct(f.value) : f.value.toFixed(1)}{f.unit === 'multiple' && f.value != null ? '×' : ''}</dd><dd className="text-muted-foreground text-right tabular-nums w-10">{f.points}/{f.max}</dd></div>)}</dl>
