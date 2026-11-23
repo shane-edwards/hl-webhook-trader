@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { etoroFromConnection } from '@/lib/stocks/connection';
-import { isStockSymbol } from '@/lib/stocks/etoro';
-import { STOCK_RULES } from '@/lib/stocks/research';
+import { isStockTradeRule, isStockTradeSymbol, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
 
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
 const settingFields = 'symbol, strategy, amount, active_environment, last_run_at, last_message';
@@ -37,7 +36,7 @@ export async function PUT(request: Request) {
     const { data, error } = await db.from('stock_autopilot').update({ active_environment: null, updated_at: now }).eq('user_id', user.id).select(settingFields).maybeSingle();
     return error ? fail('Could not pause stock Autopilot.', 503) : NextResponse.json({ settings: data });
   }
-  if (!isStockSymbol(value.symbol) || !STOCK_RULES.some(rule => rule.id === value.strategy)) return fail('Choose a supported stock and daily strategy.', 400);
+  if (!isStockTradeSymbol(value.symbol) || !isStockTradeRule(value.strategy) || !supportsStockTradeRule(value.strategy, value.symbol)) return fail('Choose a stock and a strategy that supports it.', 400);
   const connection = await db.from('etoro_connections').select('environment, credentials_encrypted').eq('user_id', user.id).eq('environment', value.environment).maybeSingle();
   if (connection.error || !connection.data) return fail('Connect eToro in this mode first.', 409);
   const amount = Math.round(value.amount * 100) / 100;

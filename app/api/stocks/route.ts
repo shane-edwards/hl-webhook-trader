@@ -49,7 +49,8 @@ export async function DELETE(request: Request) {
   const db = createServiceClient();
   const [autopilot, orders] = await Promise.all([
     db.from('stock_autopilot').select('user_id').eq('user_id', user.id).eq('active_environment', environment).maybeSingle(),
-    db.from('etoro_stock_orders').select('id').eq('user_id', user.id).eq('environment', environment).not('signal_day', 'is', null).is('closed_at', null).neq('state', 'rejected').limit(1),
+    db.from('etoro_stock_orders').select('id').eq('user_id', user.id).eq('environment', environment)
+      .or('signal_day.not.is.null,strategy_exit_at.not.is.null').is('closed_at', null).not('state', 'in', '(draft,rejected)').limit(1),
   ]);
   if (autopilot.error || orders.error) return fail('Could not check for managed positions.', 503);
   if (autopilot.data || orders.data?.length) return fail('Pause this Autopilot and finish its managed positions before disconnecting.', 409);

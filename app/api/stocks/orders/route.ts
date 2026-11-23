@@ -2,15 +2,16 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { etoroFromConnection } from '@/lib/stocks/connection';
-import { EtoroError, isStockSymbol, type StockOrder } from '@/lib/stocks/etoro';
-import { STOCK_RULES, stockSetups } from '@/lib/stocks/research';
-import { freshStockAsk, previousStockSession, stockMarketClock } from '@/lib/stocks/session';
+import { EtoroError, type StockOrder } from '@/lib/stocks/etoro';
+import { freshStockAsk, stockMarketClock } from '@/lib/stocks/session';
 import { reconcileStockOrder, submitStockOrder } from '@/lib/stocks/autopilot';
+import { currentStockEntry, stockEntryWindow } from '@/lib/stocks/trade-signals';
+import { isStockTradeRule, isStockTradeSymbol, supportsStockTradeRule } from '@/lib/stocks/trade-rules';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 const REVIEW_MS = 2 * 60_000;
-const visible = 'id, environment, symbol, strategy, state, broker_order_id, position_ids, created_at';
+const visible = 'id, environment, symbol, strategy, state, broker_order_id, position_ids, created_at, strategy_exit_at, closed_at';
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
 const environment = z.enum(['demo', 'real']);
 const input = z.discriminatedUnion('action', [
@@ -50,21 +51,25 @@ export async function POST(request: Request) {
 
   try {
     if (body.action === 'review') {
-      const rule = STOCK_RULES.find(rule => rule.id === body.strategy);
-      if (!isStockSymbol(body.symbol) || (body.strategy && !rule)) return fail('Choose a supported stock and strategy.', 400);
+      const rule = isStockTradeRule(body.strategy) ? body.strategy : null;
+      if (!isStockTradeSymbol(body.symbol) || (body.strategy && !rule) || (rule && !supportsStockTradeRule(rule, body.symbol))) return fail('Choose a stock and a strategy that supports it.', 400);
       if (Math.round(body.amount * 100) <= 0) return fail('Enter an amount in dollars and cents.', 400);
-      if (!stockMarketClock(Date.now()).open) return fail('Orders are available during the regular US market session.', 409);
+      const now = Date.now();
+      if (!stockMarketClock(now).open) return fail('Orders are available during the regular US market session.', 409);
+      if (rule && !stockEntryWindow(rule, now, false)) return fail(
+        rule === 'earnings-rebound' ? 'This strategy checks entries from 10:00 to 10:05 a.m. ET on full trading days.' : 'This strategy checks entries from 9:30 to 10:00 a.m. ET.', 409);
       const instrument = await broker.instrument(body.symbol);
       if (!instrument) return fail('This stock is unavailable on eToro.', 422);
       const instrumentId = instrument.instrumentId;
-      const [eligible, quotes, book, setup] = await Promise.all([
+      const [eligible, quotes, book, signal] = await Promise.all([
         broker.stockEligibility(instrumentId), broker.quotes([instrumentId]), broker.portfolio(),
-        rule ? broker.candles(instrumentId, 240, Date.now(), true).then(stockSetups) : null,
+        rule ? currentStockEntry(broker, body.symbol, instrumentId, rule, now) : null,
       ]);
       const quote = quotes.find(quote => quote.instrumentId === instrumentId);
       const ask = freshStockAsk(quote, Date.now());
       if (!ask) return fail('Waiting for a fresh real-time eToro quote.', 409);
-      if (rule && (setup?.day !== previousStockSession(Date.now()) || !setup.setups.includes(rule.id))) return fail('This strategy has no current entry signal for this stock.', 409);
+      if (rule && !signal) return fail('This strategy has no current entry signal for this stock.', 409);
+      if (signal && (!quote?.bid || (ask - quote.bid) / ask > signal.maxSpread)) return fail('The spread is too wide for this strategy entry.', 409);
       const amount = Math.round(body.amount * 100) / 100;
       if (!eligible.allowed) return fail('eToro did not confirm a cash-stock buy for this account.', 422);
       if (amount < eligible.minimum) return fail(`eToro’s minimum for this stock is $${eligible.minimum.toFixed(2)}.`, 422);
@@ -72,12 +77,15 @@ export async function POST(request: Request) {
       const costs = await broker.stockOrderCosts(order);
       const fees = costs.filter(cost => cost.currency.toUpperCase() === 'USD' && cost.costType === 'transactionFee').reduce((sum, cost) => sum + Math.max(0, cost.value), 0);
       if (book.credit < amount + fees) return fail('Your eToro buying power is below the order amount and estimated fees.', 422);
+      if (rule && signal && (Date.now() >= signal.validUntil || !stockEntryWindow(rule, Date.now(), false))) return fail('The strategy entry window expired.', 409);
       const saved = await orders().insert({
         user_id: user.id, environment: body.environment, connection_version: connection.data.updated_at,
-        symbol: body.symbol, strategy: rule?.id ?? null, request: order, reference_price: ask,
+        symbol: body.symbol, strategy: rule, request: order, reference_price: ask,
+        signal_expires_at: signal ? new Date(signal.validUntil).toISOString() : null,
+        strategy_exit_at: signal?.exitAt ? new Date(signal.exitAt).toISOString() : null,
       }).select(visible).single();
       if (saved.error) return fail('Could not save the order review.', 503);
-      return NextResponse.json({ review: saved.data, name: instrument.displayName, ask, amount, costs });
+      return NextResponse.json({ review: saved.data, name: instrument.displayName, ask, amount, costs, signal: signal?.description });
     }
 
     const find = () => orders().select('*').eq('user_id', user.id).eq('environment', body.environment).eq('id', body.id).maybeSingle();
@@ -98,10 +106,14 @@ export async function POST(request: Request) {
     if (row.state !== 'draft') return fail('This review was already submitted. Refresh its status.', 409);
     if (row.connection_version !== connection.data.updated_at || Date.now() - Date.parse(row.created_at) > REVIEW_MS) return fail('This review expired. Review the order again.', 409);
     const [quote] = await broker.quotes([row.request.instrumentId]);
-    const ask = freshStockAsk(quote, Date.now());
-    if (!ask || quote.instrumentId !== row.request.instrumentId || ask / Number(row.reference_price) > 1.005) return fail('The quote changed. Review the order again.', 409);
+    const checked = Date.now();
+    if ((row.signal_expires_at && checked >= Date.parse(row.signal_expires_at))
+      || (isStockTradeRule(row.strategy) && !stockEntryWindow(row.strategy, checked, false))) return fail('The strategy entry window expired.', 409);
+    const ask = freshStockAsk(quote, checked);
+    if (!ask || quote.instrumentId !== row.request.instrumentId || ask / Number(row.reference_price) > (row.strategy_exit_at ? 1.001 : 1.005)
+      || (row.strategy_exit_at && (!quote.bid || (ask - quote.bid) / ask > 0.001))) return fail('The quote changed. Review the order again.', 409);
     const claimed = await update({ state: 'sending' }).eq('state', 'draft').select('id').maybeSingle();
-    if (claimed.error?.code === '23505') return fail('Another order for this stock is pending. Refresh its status first.', 409);
+    if (claimed.error?.code === '23505') return fail('This signal already has an order, or an order for the stock is pending.', 409);
     if (claimed.error || !claimed.data) return fail('Could not reserve the order for submission.', 409);
 
     try {

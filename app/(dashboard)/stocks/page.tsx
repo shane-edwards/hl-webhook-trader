@@ -13,6 +13,8 @@ import { STOCKS, STOCK_RULES, type StockSymbol, type StockRule, type researchSto
 import type { gradeStock } from '@/lib/stocks/grade';
 import type { EtoroClient } from '@/lib/stocks/etoro';
 import { StockOrderTicket } from '@/components/stocks/StockOrderTicket';
+import { INSIDE_BREAKOUT, STOCK_TRADE_RULES, STOCK_TRADE_SYMBOLS } from '@/lib/stocks/trade-rules';
+import insideDayEvidence from '@/lib/stocks/inside-day-evidence.json';
 
 type Environment = 'demo' | 'real';
 type PositionBook = Awaited<ReturnType<EtoroClient['portfolio']>>;
@@ -38,8 +40,8 @@ export default function StocksPage() {
   const router = useRouter();
   const query = useSearchParams();
   const tab = stockSection(query.get('tab'));
-  const requestedSymbol = STOCKS.find(value => value === query.get('symbol'));
-  const requestedRule = STOCK_RULES.find(value => value.id === query.get('rule'))?.id;
+  const requestedSymbol = STOCK_TRADE_SYMBOLS.find(value => value === query.get('symbol'));
+  const requestedRule = STOCK_TRADE_RULES.find(value => value.id === query.get('rule'))?.id;
   const mode = query.get('mode');
   const requestedMode = mode === 'real' || mode === 'demo' ? mode : undefined;
   const returnView = query.get('returnTo') === 'autopilot' ? 'autopilot' : 'trade';
@@ -53,7 +55,7 @@ export default function StocksPage() {
   const [strongOnly, setStrongOnly] = useState(false);
   const [portfolio, setPortfolio] = useState<{ mode: Environment; book: PositionBook } | null>(null);
   const [selectedSymbol, setSymbol] = useState<StockSymbol | null>(null);
-  const symbol = selectedSymbol ?? requestedSymbol ?? 'AAPL';
+  const symbol = selectedSymbol ?? STOCKS.find(value => value === requestedSymbol) ?? 'AAPL';
   const [rule, setRule] = useState<StockRule>('breakout');
   const [slipBps, setSlipBps] = useState('3');
   const [commission, setCommission] = useState('1');
@@ -181,6 +183,18 @@ export default function StocksPage() {
             />
           )}
           {tab === 'research' && <div className="space-y-3">
+            <section className="surface p-4 lg:p-6 space-y-3">
+              <h2 className="text-base font-semibold">{INSIDE_BREAKOUT.name}</h2>
+              <p className="text-sm text-muted-foreground">{insideDayEvidence.stages[2].trades} holdout trades across {insideDayEvidence.symbols.length} eligible stocks. Average net return {pct((insideDayEvidence.stages[2].netBps ?? 0) / 10_000)} per trade, or {pct((insideDayEvidence.stages[2].stressBps ?? 0) / 10_000)} with higher costs.</p>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" asChild><Link href={stockHref('trade', { rule: INSIDE_BREAKOUT.id })}>Review in Trade</Link></Button>
+                <Button size="sm" variant="outline" asChild><Link href={stockHref('autopilot', { rule: INSIDE_BREAKOUT.id })}>Open in Autopilot</Link></Button>
+              </div>
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer">Replay assumptions</summary>
+                <p className="mt-2">Signals use regular-session bars. Trades fill at the next opening ask or bid on a $10,000 position. Base costs add 3 bps and $1 per side. Higher costs double both. {insideDayEvidence.stages[2].positiveMarkets} stocks finished positive under higher costs.</p>
+              </details>
+            </section>
             <section className="surface p-4 lg:p-6 space-y-4">
               <h2 className="text-lg font-semibold">Daily strategy simulator</h2>
               {!loading && !environment && <p className="text-sm text-muted-foreground"><Link className="text-primary underline" href={stockHref('account')}>Connect eToro</Link> to load historical quotes.</p>}

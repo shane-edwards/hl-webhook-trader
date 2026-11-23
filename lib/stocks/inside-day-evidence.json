@@ -1,0 +1,53 @@
+{
+  "symbols": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "GOOGL",
+    "META",
+    "TSLA",
+    "JPM",
+    "XOM",
+    "WMT",
+    "AMD",
+    "AVGO",
+    "BA",
+    "CAT",
+    "LLY",
+    "MU",
+    "PLTR"
+  ],
+  "stages": [
+    {
+      "label": "2025 screen",
+      "from": "2025-08-01",
+      "to": "2026-01-01",
+      "trades": 33,
+      "activeDays": 18,
+      "positiveMarkets": 6,
+      "netBps": 61.70152663457762,
+      "stressBps": 53.65994822727614
+    },
+    {
+      "label": "2026 H1 validation",
+      "from": "2026-01-01",
+      "to": "2026-07-01",
+      "trades": 42,
+      "activeDays": 32,
+      "positiveMarkets": 9,
+      "netBps": 136.2936733114383,
+      "stressBps": 128.19989754460983
+    },
+    {
+      "label": "2026 H2 holdout",
+      "from": "2026-07-01",
+      "to": "2026-11-21",
+      "trades": 31,
+      "activeDays": 25,
+      "positiveMarkets": 6,
+      "netBps": 33.93138148811148,
+      "stressBps": 25.909235800135423
+    }
+  ]
+}

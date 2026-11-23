@@ -4,6 +4,42 @@ import { gradeStock } from '../lib/stocks/grade';
 import { EtoroClient } from '../lib/stocks/etoro';
 import { researchStock, type StockBar } from '../lib/stocks/research';
 import { freshStockAsk, previousStockSession, stockMarketClock } from '../lib/stocks/session';
+import { dailyTradeSignal, earningsRebound, stockEntryWindow } from '../lib/stocks/trade-signals';
+import { type IntradayBar } from '../lib/stocks/etoro';
+import { INSIDE_DAY_SYMBOLS, supportsStockTradeRule } from '../lib/stocks/trade-rules';
+
+test('inside-day breakout checks only the completed pattern, enforces the opening window, and exits after five sessions', () => {
+  const bars: StockBar[] = Array.from({ length: 52 }, (_, i) => ({ day: String(i), bidOpen: 100, askOpen: 100.05, bidClose: 100, high: 102, low: 98 }));
+  bars[50].high = 101;
+  bars[50].low = 99;
+  bars[51].bidClose = 101.2;
+  assert.equal(dailyTradeSignal(bars.slice(0, -1), 'inside-day', null), false);
+  assert.equal(dailyTradeSignal(bars, 'inside-day', null), true);
+  assert.equal(dailyTradeSignal(bars, 'inside-day', 4), false);
+  assert.equal(dailyTradeSignal(bars, 'inside-day', 5), true);
+  assert.equal(stockEntryWindow('inside-day', Date.parse('2026-11-23T14:45Z'), false), true);
+  assert.equal(stockEntryWindow('inside-day', Date.parse('2026-11-23T15:00Z'), false), false);
+  assert.equal(INSIDE_DAY_SYMBOLS.length, 17);
+  assert.equal(supportsStockTradeRule('inside-day', 'COST'), false);
+});
+
+test('earnings rebound needs public earnings, complete paired sessions and an eligible market-adjusted gap', () => {
+  const make = (t: number, price: number): IntradayBar => ({ t, bidOpen: price, bidHigh: price, bidLow: price, bidClose: price, askOpen: price + 0.02, volume: 100 });
+  const priorStart = Date.parse('2026-11-20T14:30Z');
+  const todayStart = Date.parse('2026-11-23T14:30Z');
+  const prior = Array.from({ length: 13 }, (_, i) => make(priorStart + i * 30 * 60_000, 100));
+  const stock = [...prior, make(todayStart, 97)], market = [...prior, make(todayStart, 99)];
+  const at = Date.parse('2026-11-23T15:02Z');
+  const filed = [{ time: Date.parse('2026-11-23T12:00Z'), reportDate: '2026-11-23' }];
+  const signal = earningsRebound(stock, market, filed, at);
+  assert.ok(signal);
+  assert.equal(new Date(signal.exitAt!).toISOString(), '2026-11-23T20:50:00.000Z');
+  assert.equal(earningsRebound(stock, market, filed, signal.validUntil), null);
+  assert.equal(earningsRebound(stock, market, [{ ...filed[0], time: at }], at), null);
+  assert.equal(earningsRebound(stock.slice(1), market, filed, at), null);
+  assert.equal(earningsRebound(stock, [...prior, make(todayStart, 97.4)], filed, at), null);
+  assert.equal(supportsStockTradeRule('earnings-rebound', 'SPY'), false);
+});
 
 test('stock execution rejects delayed quotes and quotes after an early NYSE close', () => {
   const open = Date.parse('2026-11-27T17:59:35Z');

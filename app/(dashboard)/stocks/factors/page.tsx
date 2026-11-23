@@ -1,4 +1,7 @@
+import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
+import { stockHref } from '@/components/layout/workspaces';
+import { Button } from '@/components/ui/button';
 import { FACTOR_SOURCES } from '@/lib/stocks/factor-research';
 import evidence from '@/lib/stocks/factor-evidence.json';
 import replication from '@/lib/stocks/factor-replication.json';
@@ -23,9 +26,14 @@ export default function StockFactorsPage() {
         <section className="surface p-4 lg:p-6 space-y-4">
           <div>
             <h2 className="text-lg font-semibold">Earnings gap-down rebound</h2>
-            <p className="text-sm text-muted-foreground">{replication.paperCandidate ? 'Qualified for forward paper evaluation' : 'Research lead · did not qualify for paper testing'}</p>
+            <p className="text-sm text-muted-foreground">Experimental strategy · limited sample</p>
           </div>
           <p className="text-sm text-muted-foreground">After a public earnings filing, require a gap down of at least 1% relative to SPY. Use the 10 a.m. ask with an entry spread of at most 10 bps. The main test exits at the closing bid. The short comparison exits after 60 minutes.</p>
+          <p className="text-xs text-muted-foreground">The executable rule attempts to exit at 3:50 p.m. ET to leave time before the closing bell. The results below used the closing bid.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" asChild><Link href={stockHref('trade', { rule: 'earnings-rebound' })}>Review in Trade</Link></Button>
+            <Button size="sm" variant="outline" asChild><Link href={stockHref('autopilot', { rule: 'earnings-rebound' })}>Open in Autopilot</Link></Button>
+          </div>
           <div className="overflow-x-auto"><table className="min-w-[650px] w-full text-sm tabular-nums">
             <caption className="text-left text-xs text-muted-foreground pb-2">Average net basis points per trade · 10 bps = 0.10%</caption>
             <thead><tr>{['Sample', 'Trades', 'Active days', 'Net bps', 'Higher-cost bps'].map((label, i) => <th key={label} scope="col" className={`p-2 border-b border-border text-xs text-muted-foreground ${i ? 'text-right' : 'text-left'}`}>{label}</th>)}</tr></thead>

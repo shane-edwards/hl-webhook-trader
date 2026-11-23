@@ -1,9 +1,11 @@
 import { unstable_cache } from 'next/cache';
 import type { StockSymbol } from './research';
+import type { StockTradeSymbol } from './trade-rules';
 
-const CIK: Partial<Record<StockSymbol, number>> = {
+export const STOCK_CIK: Partial<Record<StockTradeSymbol, number>> = {
   AAPL: 320193, MSFT: 789019, NVDA: 1045810, AMZN: 1018724, GOOGL: 1652044, META: 1326801,
   TSLA: 1318605, JPM: 19617, XOM: 34088, WMT: 104169, COST: 909832, UNH: 731766,
+  AMD: 2488, AVGO: 1730168, BA: 12927, CAT: 18230, LLY: 59478, MU: 723125, PLTR: 1321655,
 };
 type Fact = { val: number; start?: string; end: string; filed: string; form: string };
 type Facts = Record<string, { units: Record<string, Fact[]> }>;
@@ -50,7 +52,7 @@ const fetchFacts = unstable_cache(async (id: number) => {
 }, ['sec-stock-annual-v1'], { revalidate: 86_400 });
 
 export async function getFundamentals(symbol: StockSymbol, price: number, asOf: string) {
-  const id = CIK[symbol];
+  const id = STOCK_CIK[symbol];
   if (!id) return null;
   try { return annualFundamentals(await fetchFacts(id), price, asOf); }
   catch { return null; }
