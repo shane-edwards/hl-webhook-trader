@@ -1,4 +1,5 @@
 import { tradingContext } from './trading-lock';
+import { APP_NAME } from './brand';
 
 // Alerts. Every alert is written to the in-app log (table `alerts`, migration
 // 007) and sent to each phone channel that is configured:
@@ -54,7 +55,7 @@ function email(subject: string, message: string, recipient = process.env.ALERT_E
   return post('https://api.resend.com/emails', {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
     body: JSON.stringify({
-      from: process.env.ALERT_EMAIL_FROM || 'HL Trader <onboarding@resend.dev>',
+      from: process.env.ALERT_EMAIL_FROM || `${APP_NAME} <onboarding@resend.dev>`,
       to: [recipient], subject: subject.slice(0, 150), text: message.slice(0, 20_000),
     }),
   });
@@ -73,7 +74,7 @@ async function record(message: string, delivered: string[], userId?: string): Pr
 
 /** Sends to every configured channel and logs the alert. True if at least one phone channel accepted it. */
 export async function notify(message: string, subject?: string, userId = tradingContext.getStore()?.userId): Promise<boolean> {
-  const title = subject ?? `HL Trader: ${message.split('\n')[0]}`;
+  const title = subject ?? `${APP_NAME}: ${message.split('\n')[0]}`;
   let destinations: { notification_ntfy_topic?: string; notification_telegram_chat_id?: string; notification_email_to?: string } | null = null;
   if (userId) {
     try {

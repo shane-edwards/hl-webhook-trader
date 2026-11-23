@@ -5,6 +5,8 @@
 //    NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID (free at cloud.reown.com).
 // The wallet is only ever asked for its address and one typed-data signature.
 
+import { APP_NAME } from '@/lib/brand';
+
 export interface Eip1193Provider {
   request(args: { method: string; params?: unknown[] | object }): Promise<unknown>;
   disconnect?: () => Promise<void>;
@@ -48,7 +50,7 @@ export async function connectWalletConnect(): Promise<ConnectedWallet> {
   ]);
   const client = await SignClient.init({
     projectId: walletConnectProjectId,
-    metadata: { name: 'HL Trader', description: 'Approve a trading key for Hyperliquid', url: window.location.origin, icons: [] },
+    metadata: { name: APP_NAME, description: 'Approve a trading key for Hyperliquid', url: window.location.origin, icons: [] },
   });
   const { uri, approval } = await client.connect({
     optionalNamespaces: { eip155: {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { notify } from '@/lib/notify';
+import { APP_NAME } from '@/lib/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export async function POST() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const sent = await notify('Test alert from HL Trader. If you can read this, alerts are working.', 'HL Trader test alert', user.id);
+  const sent = await notify(`Test alert from ${APP_NAME}. If you can read this, alerts are working.`, `${APP_NAME} test alert`, user.id);
   return NextResponse.json({ sent, ...(sent ? {} : { error: (await userChannels(user.id)).length ? 'The channel rejected the message; check the topic, token, chat id or email address' : 'No phone channel is configured. The test alert was written to the in-app log only.' }) }, { status: sent ? 200 : (await userChannels(user.id)).length ? 502 : 400 });
 }
 

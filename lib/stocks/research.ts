@@ -1,0 +1,88 @@
+import { sma } from '@/lib/strategy/trend';
+
+export const STOCKS = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'JPM', 'XOM', 'WMT', 'COST', 'UNH', 'SPY'] as const;
+export type StockSymbol = typeof STOCKS[number];
+export type StockBar = { day: string; bidOpen: number; askOpen: number; bidClose: number; high: number; low: number };
+export const STOCK_RULES = [
+  { id: 'breakout', name: '20-session breakout', entry: 'Close above the previous 20-session high and the 100-session average', exit: 'Close below the previous 10-session low' },
+  { id: 'pullback', name: 'Trend pullback', entry: 'Close reclaims its five-session average while above the 50-session average', exit: 'Close below the five-session average or hold 10 sessions' },
+] as const;
+export type StockRule = typeof STOCK_RULES[number]['id'];
+
+export function stockSignal(bars: StockBar[], closes: number[], i: number, rule: StockRule, held: number | null) {
+  if (i < 100) return false;
+  const close = closes[i];
+  if (rule === 'breakout') {
+    if (held != null) return close < Math.min(...bars.slice(i - 10, i).map(bar => bar.low));
+    return close > sma(closes, 100, i) && close > Math.max(...bars.slice(i - 20, i).map(bar => bar.high));
+  }
+  const fast = sma(closes, 5, i);
+  if (held != null) return close < fast || held >= 10;
+  return close > sma(closes, 50, i) && close > fast && closes[i - 1] <= sma(closes, 5, i - 1);
+}
+
+export function stockSetups(bars: StockBar[]) {
+  const i = bars.length - 1;
+  if (i < 100) return null;
+  const closes = bars.map(bar => bar.bidClose);
+  return {
+    day: bars[i].day, close: closes[i], average50: sma(closes, 50, i),
+    rangeHigh: Math.max(...bars.slice(i - 20, i).map(bar => bar.high)),
+    setups: STOCK_RULES.filter(rule => stockSignal(bars, closes, i, rule.id, null)).map(rule => rule.id),
+  };
+}
+
+type Cost = { slipBps: number; commission: number };
+const START = 10_000;
+
+function simulate(bars: StockBar[], rule: StockRule, start: number, end: number, cost: Cost) {
+  const closes = bars.map(bar => bar.bidClose);
+  const slip = cost.slipBps / 10_000;
+  const sell = (units: number, price: number) => Math.max(0, units * price * (1 - slip) - cost.commission);
+  let cash = START, units = 0, entryIndex = -1, entryCash = 0, trades = 0, wins = 0;
+  let pending: 'buy' | 'sell' | null = null;
+  let peak = START, drawdown = 0;
+  const series = [];
+  for (let i = start; i < end; i++) {
+    const bar = bars[i];
+    if (pending === 'sell' && units > 0) {
+      cash = sell(units, bar.bidOpen);
+      wins += Number(cash > entryCash);
+      trades++;
+      units = 0;
+    } else if (pending === 'buy' && i < end - 1 && cash > cost.commission) {
+      entryCash = cash;
+      entryIndex = i;
+      units = (cash - cost.commission) / (bar.askOpen * (1 + slip));
+      cash = 0;
+    }
+    if (i === end - 1 && units > 0) {
+      cash = sell(units, bar.bidClose);
+      wins += Number(cash > entryCash);
+      trades++;
+      units = 0;
+    }
+    const triggered = stockSignal(bars, closes, i, rule, units > 0 ? i - entryIndex + 1 : null);
+    pending = triggered ? units > 0 ? 'sell' : 'buy' : null;
+    const equity = units > 0 ? sell(units, bar.bidClose) : cash;
+    peak = Math.max(peak, equity);
+    drawdown = Math.max(drawdown, 1 - equity / peak);
+    series.push({ day: bar.day, equity });
+  }
+  const holdUnits = (START - cost.commission) / (bars[start].askOpen * (1 + slip));
+  return { return: cash / START - 1, hold: sell(holdUnits, bars[end - 1].bidClose) / START - 1, drawdown, trades, wins, series };
+}
+
+export function researchStock(bars: StockBar[], rule: StockRule, cost: Cost) {
+  if (bars.length < 260) return null;
+  const start = 100;
+  const split = start + Math.floor((bars.length - start) * 0.7);
+  const result = simulate(bars, rule, start, bars.length, cost);
+  const first = simulate(bars, rule, start, split, cost);
+  const later = simulate(bars, rule, split, bars.length, cost);
+  const stress = simulate(bars, rule, split, bars.length, { slipBps: 2 * cost.slipBps, commission: 2 * cost.commission });
+  return {
+    ...result, from: bars[start].day, to: bars.at(-1)!.day, holdoutFrom: bars[split].day,
+    earlyReturn: first.return, holdoutReturn: later.return, holdoutHold: later.hold, holdoutTrades: later.trades, stressReturn: stress.return,
+  };
+}
