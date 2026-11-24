@@ -4,7 +4,8 @@ export type { StockReplayCost } from './replay';
 
 export const STOCKS = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'JPM', 'XOM', 'WMT', 'COST', 'UNH', 'SPY'] as const;
 export type StockSymbol = typeof STOCKS[number];
-export type StockBar = { day: string; bidOpen: number; askOpen: number; bidClose: number; high: number; low: number };
+export type StockBar = { day: string; bidOpen: number; askOpen: number; bidClose: number; high: number; low: number;
+  askHigh?: number; askLow?: number; askClose?: number };
 export const STOCK_RULES = [
   { id: 'breakout', name: '20-session breakout', entry: 'Close above the previous 20-session high and the 100-session average', exit: 'Close below the previous 10-session low' },
   { id: 'pullback', name: 'Trend pullback', entry: 'Close reclaims its five-session average while above the 50-session average', exit: 'Close below the five-session average or hold 10 sessions' },

@@ -1,8 +1,10 @@
 import { unzipSync } from 'fflate';
+import { setTimeout as wait } from 'node:timers/promises';
 import type { createServiceClient } from '@/lib/supabase/server';
 import { stockFeed } from '@/lib/automation/research';
 import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { regularStockSessions } from '@/lib/stocks/intraday';
+import { EtoroError } from '@/lib/stocks/etoro';
 import { STOCK_INSTRUMENTS, isStockTradeSymbol } from '@/lib/stocks/trade-rules';
 import { BAR_MS, type SearchBar, type SearchPair } from './model';
 import { checkPerpVenue, searchHistory } from './engine';
@@ -76,19 +78,35 @@ async function pairedStocks(db: Db, user: string, pair: SearchPair, now: number)
   const broker = await stockFeed(db, user);
   const instrument = STOCK_INSTRUMENTS[pair.symbol];
   if (pair.frame === '1d') {
-    const days = await broker.candles(instrument, 3 * 365 + 30, now, true, false, 15_000);
-    return days.map(row => ({ t: Date.parse(row.day), o: row.bidOpen, h: row.high, l: row.low, c: row.bidClose, ask: row.askOpen, v: 0 }));
+    const days = await broker.candles(instrument, 3 * 365 + 30, now, true, false, 15_000, true);
+    return days.map(row => ({ t: Date.parse(row.day), o: row.bidOpen, h: row.high, l: row.low, c: row.bidClose, ask: row.askOpen,
+      askHigh: row.askHigh, askLow: row.askLow, askClose: row.askClose, v: 0 }));
   }
   const interval = pair.frame === '5m' ? 5 : 30;
-  const count = interval === 5 ? 6 : 7;
-  const span = (interval === 5 ? 28 : 165) * DAY;
+  const count = interval === 5 ? 6 : 8;
+  const span = (interval === 5 ? 27 : 145) * DAY;
   const ends = Array.from({ length: count }, (_, i) => now - (count - 1 - i) * span);
-  const quotes = await inBatches(ends, 3, end => broker.intradayCandles(instrument, end - span, end, undefined, `${interval}m`, false, 12_000));
+  let nextRequest = 0;
+  const pace = async () => {
+    const at = Math.max(nextRequest, Date.now());
+    nextRequest = at + 180;
+    await wait(Math.max(0, at - Date.now()));
+  };
+  const quotes = await inBatches(ends, 2, async end => {
+    const load = () => broker.intradayCandles(instrument, end - span, end, pace, `${interval}m`, false, 10_000, true);
+    try {
+      return await load();
+    } catch (error) {
+      if (!(error instanceof EtoroError) || ![502, 503, 504].includes(error.status)) throw error;
+      await wait(500);
+      return load();
+    }
+  });
   const { sessions } = regularStockSessions(quotes.flat(), interval);
   const last = sessions.at(-1);
   if (!last || now - last.bars[0].t > 8 * DAY || sessions.some((session, index) => index > 0 && Date.parse(session.day) - Date.parse(sessions[index - 1].day) > 10 * DAY)) return [];
   return sessions.flatMap(session => session.bars.map(row => ({ t: row.t, o: row.bidOpen, h: row.bidHigh, l: row.bidLow,
-    c: row.bidClose, v: row.volume, ask: row.askOpen, session: session.day })));
+    c: row.bidClose, v: row.volume, ask: row.askOpen, askHigh: row.askHigh, askLow: row.askLow, askClose: row.askClose, session: session.day })));
 }
 
 export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: string) {
@@ -118,6 +136,6 @@ export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: st
     }
     return checkPerpVenue(report, bars.filter(row => row.t + BAR_MS[frame] <= now).map(row => ({ ...row, ...bucket.get(row.t) })));
   } catch {
-    return { ...report, verdict: 'venue-failed' as const, note: 'Hyperliquid prices or funding are unavailable' };
+    return checkPerpVenue(report, []);
   }
 }

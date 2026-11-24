@@ -6,7 +6,14 @@ export type EtoroCredentials = { apiKey: string; userKey: string; environment: '
 type Instrument = { instrumentId: number; symbol: string; displayName: string; type: string };
 type Rate = { instrumentId: number; bid: number | null; ask: number | null; date: string | null; quoteType?: 'realtime' | 'delayed' | null };
 type Candle = { time: string; open: string; high: string; low: string; close: string; volume?: string };
-export type IntradayBar = { t: number; bidOpen: number; bidHigh: number; bidLow: number; bidClose: number; askOpen: number; volume: number };
+type AskRange = { askHigh?: number; askLow?: number; askClose?: number };
+export type IntradayBar = { t: number; bidOpen: number; bidHigh: number; bidLow: number; bidClose: number; askOpen: number; volume: number } & AskRange;
+function askRange(candle: Candle | undefined): AskRange {
+  if (!candle) return {};
+  const [open, high, low, close] = [candle.open, candle.high, candle.low, candle.close].map(Number);
+  return [open, high, low, close].every(value => Number.isFinite(value) && value > 0) && high >= Math.max(open, close) && low <= Math.min(open, close)
+    ? { askHigh: high, askLow: low, askClose: close } : {};
+}
 type BrokerPosition = {
   positionID: number; instrumentID: number; isBuy: boolean; units: number; amount: number;
   leverage: number; openRate: number; openDateTime: string; unrealizedPnL?: { pnL?: number } | null;
@@ -145,13 +152,14 @@ export class EtoroClient {
     }));
   }
 
-  async candles(id: number, days: number, now = Date.now(), tradingDates = false, signalOnly = false, timeoutMs = 6000): Promise<StockBar[]> {
+  async candles(id: number, days: number, now = Date.now(), tradingDates = false, signalOnly = false, timeoutMs = 6000,
+    includeAskRange = false): Promise<StockBar[]> {
     const from = new Date(now - days * 86_400_000).toISOString();
     const to = new Date(now).toISOString();
     const url = `/v1/data/instruments/${id}/candles?interval=1d&limit=2000&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
     const read = (side: 'bid' | 'ask') => this.request<{ results: Candle[] }>(`${url}&side=${side}`, undefined, undefined, timeoutMs);
     const [bid, ask] = await Promise.all([read('bid'), signalOnly ? null : read('ask')]);
-    const askByTime = new Map((ask ?? bid).results.map(bar => [Date.parse(bar.time), Number(bar.open)]));
+    const askByTime = new Map((ask ?? bid).results.map(bar => [Date.parse(bar.time), bar]));
     const today = nyDate.format(now);
     const bars: StockBar[] = [];
     const dates = new Set<string>();
@@ -166,7 +174,9 @@ export class EtoroClient {
       // Some older series contain both the previous evening's bucket and a midnight
       // bucket for the same session. Prefer the explicit midnight session stamp.
       if (tradingDates && day < '2025-01-01' && candleDate.getUTCHours() >= 20 && dates.has(day)) continue;
-      const b = { day, bidOpen: Number(raw.open), askOpen: askByTime.get(time) ?? NaN, bidClose: Number(raw.close), high: Number(raw.high), low: Number(raw.low) };
+      const opposite = askByTime.get(time);
+      const b = { day, bidOpen: Number(raw.open), askOpen: Number(opposite?.open), bidClose: Number(raw.close), high: Number(raw.high), low: Number(raw.low),
+        ...(ask && includeAskRange ? askRange(opposite) : {}) };
       if (![b.bidOpen, b.askOpen, b.bidClose, b.high, b.low].every(n => Number.isFinite(n) && n > 0) || b.askOpen < b.bidOpen || b.high < Math.max(b.bidOpen, b.bidClose) || b.low > Math.min(b.bidOpen, b.bidClose) || dates.has(day)) {
         throw new Error('Incomplete or invalid paired eToro candles');
       }
@@ -177,7 +187,8 @@ export class EtoroClient {
   }
 
   /** One fixed history window, including every page from each quote side. */
-  async intradayCandles(id: number, from: number, to: number, pace?: () => Promise<void>, interval: '5m' | '30m' = '5m', signalOnly = false, timeoutMs = 6000): Promise<IntradayBar[]> {
+  async intradayCandles(id: number, from: number, to: number, pace?: () => Promise<void>, interval: '5m' | '30m' = '5m',
+    signalOnly = false, timeoutMs = 6000, includeAskRange = false): Promise<IntradayBar[]> {
     const maxDays = interval === '30m' ? 175 : 28;
     if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > maxDays * 86_400_000) throw new Error('Invalid intraday candle range');
     const sides = async (side: 'bid' | 'ask') => {
@@ -194,14 +205,16 @@ export class EtoroClient {
       throw new Error('Intraday history did not finish paging');
     };
     const [bid, ask] = await Promise.all([sides('bid'), signalOnly ? null : sides('ask')]);
-    const asks = new Map((ask ?? bid).map(b => [Date.parse(b.time), Number(b.open)]));
+    const asks = new Map((ask ?? bid).map(b => [Date.parse(b.time), b]));
     const seen = new Set<number>();
     return bid.flatMap(b => {
       const t = Date.parse(b.time);
       if (!Number.isFinite(t) || t < from || t >= to) return [];
       if (seen.has(t)) throw new Error('Duplicate intraday candle');
       seen.add(t);
-      const bar = { t, bidOpen: Number(b.open), bidHigh: Number(b.high), bidLow: Number(b.low), bidClose: Number(b.close), askOpen: asks.get(t) ?? NaN, volume: Number(b.volume ?? NaN) };
+      const opposite = asks.get(t);
+      const bar = { t, bidOpen: Number(b.open), bidHigh: Number(b.high), bidLow: Number(b.low), bidClose: Number(b.close),
+        askOpen: Number(opposite?.open), volume: Number(b.volume ?? NaN), ...(ask && includeAskRange ? askRange(opposite) : {}) };
       const prices = [bar.bidOpen, bar.bidHigh, bar.bidLow, bar.bidClose, bar.askOpen];
       // An incomplete quote pair becomes a gap. Session validation decides whether it is usable.
       return prices.every(p => Number.isFinite(p) && p > 0) && bar.askOpen >= bar.bidOpen &&

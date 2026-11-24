@@ -33,12 +33,15 @@ test('strategy search abstains on short or missing history and matches the exact
   assert.equal(report.rule, null);
 });
 
-test('crypto evaluates both directions while stock searches keep their execution model', () => {
+test('crypto and paired stock history support both directions', () => {
   const history = Array.from({ length: 1100 }, (_, i): SearchBar =>
     ({ ...sample[i % sample.length], t: Date.UTC(2023, 0, 1 + i) }));
   const crypto = searchHistory(searchPair('crypto', 'BTC', '1d')!, history, 'sample');
   const stocks = searchHistory(searchPair('stocks', 'SPY', '1d')!, history, 'sample');
+  const paired = searchHistory(searchPair('stocks', 'SPY', '1d')!, history.map(bar => ({ ...bar, ask: bar.o * 1.001,
+    askHigh: bar.h * 1.001, askLow: bar.l * 1.001, askClose: bar.c * 1.001 })), 'sample');
   assert.equal(crypto.tried, 2 * stocks.tried);
+  assert.equal(paired.tried, crypto.tried);
   assert.equal(crypto.revision, searchRevision('crypto'));
   assert.equal(stocks.revision, SEARCH_REVISION);
 });
@@ -116,7 +119,9 @@ test('market recommendations list every current pass across assets and frames, w
     stress, benchmark: .02, drawdown: .08, from: '2026-06-01', through: '2026-11-23', qualified: true, reason: 'Passed' });
   const named = assetRule('BTC', 'trend_breakout', .15);
   const namedOther = assetRule('ETH', 'trend_pullback', .19);
-  const records = [record(btc), record(eth), record(sol, 9), record(spy),
+  const equityPair = record(spy);
+  equityPair.report!.alternatives = [{ verdict: 'paper-candidate', rule: { ...rule, side: 'short' }, holdout: metric, stress: metric, venue: null, benchmark: .01 }];
+  const records = [record(btc), record(eth), record(sol, 9), equityPair,
     record(link, 1, 'holdout-failed'), record(link, 2), record(doge, 1, 'insufficient-history'),
     { ...record(searchPair('crypto', 'ADA', '1h')!), status: 'running', report: null }];
   const result = summarizeMarketResearch('crypto', records, [
@@ -127,5 +132,6 @@ test('market recommendations list every current pass across assets and frames, w
   assert.deepEqual(result.setups.map(setup => [setup.pair.symbol, setup.pair.frame, setup.kind]),
     [['ETH', '1h', 'trade'], ['BTC', '1h', 'trade'], ['BTC', '4h', 'research'], ['ETH', '15m', 'research']]);
   assert.deepEqual(result.coverage, { symbols: 18, timeframes: 5, total: 90, scanned: 3, queued: 1, limited: 1, lastChecked: time(1) });
-  assert.deepEqual(summarizeMarketResearch('stocks', records, [], now).setups.map(setup => setup.pair), [spy]);
+  assert.deepEqual(summarizeMarketResearch('stocks', records, [], now).setups.map(setup => [setup.pair, setup.side]),
+    [[spy, 'long'], [spy, 'short']]);
 });

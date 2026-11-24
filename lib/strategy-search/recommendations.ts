@@ -1,7 +1,7 @@
 import { findIdea, ideaId, ideaSearchFrame } from '@/lib/automation/ideas';
 import { automationVersion, type Evidence } from '@/lib/automation/model';
 import { FAMILIES, marketSearchPairs, RECOMMENDATION_FRESH_MS, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
-  searchRevision, searchKey, searchPair, type SearchMarket, type SearchPair, type SearchReport, type SearchSide } from './model';
+  searchOutcomes, searchRevision, searchKey, searchPair, type SearchMarket, type SearchPair, type SearchReport, type SearchSide } from './model';
 
 export type SearchRecord = { id: string; status: string; asOf: string; completedAt: string | null; report: SearchReport | null };
 export type EvidenceRecord = { evidence: Evidence; asOf: string };
@@ -53,11 +53,13 @@ export function summarizeMarketResearch(market: SearchMarket, searches: SearchRe
       continue;
     }
     scanned++;
-    if (report.verdict === 'paper-candidate' && report.rule && report.stress && report.stress.net > 0 &&
-      (market === 'stocks' || !!report.venue && report.venue.net > 0)) {
-      setups.push({ id, pair, name: FAMILIES[report.rule.family], through: report.through,
-        stressedReturn: report.stress.net, drawdown: report.stress.drawdown, trades: report.stress.trades,
-        benchmark: report.benchmark ?? 0, kind: 'research', side: report.rule.side ?? 'long' });
+    for (const outcome of searchOutcomes(report)) {
+      if (outcome.verdict !== 'paper-candidate' || !outcome.rule || !outcome.stress || !(outcome.stress.net > 0) ||
+        market === 'crypto' && !(outcome.venue && outcome.venue.net > 0)) continue;
+      const side = outcome.rule.side ?? 'long';
+      setups.push({ id: `${id}:${side}`, pair, name: FAMILIES[outcome.rule.family], through: report.through,
+        stressedReturn: outcome.stress.net, drawdown: outcome.stress.drawdown, trades: outcome.stress.trades,
+        benchmark: outcome.benchmark ?? 0, kind: 'research', side });
     }
   }
   const latestEvidence = new Map<string, EvidenceRecord>();

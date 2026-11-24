@@ -1,5 +1,5 @@
-import { BAR_MS, FAMILIES, searchRevision, type Family, type Performance, type Rule, type SearchBar, type SearchPair, type SearchReport,
-  type SearchSide } from './model';
+import { BAR_MS, FAMILIES, searchOutcomes, searchRevision, type Family, type Performance, type Rule, type SearchBar, type SearchOutcome,
+  type SearchPair, type SearchReport, type SearchSide } from './model';
 
 const DAY = 86_400_000;
 const WARMUP = 110;
@@ -91,7 +91,7 @@ export function searchInputs(bars: SearchBar[], volumeThrough = bars.length, sid
 type Inputs = ReturnType<typeof searchInputs>;
 type Replay = Performance & { exposure: number };
 
-function replay(input: Inputs, rule: Rule, from: number, end: number, edge: number, cluster: number): Replay {
+function replay(input: Inputs, rule: Rule, from: number, end: number, edge: number, cluster: number, stockShort = false): Replay {
   const { bars, atr, trend, volume, volumeAverage, signals } = input;
   const direction = rule.side === 'short' ? -1 : 1;
   const average = trend.get(rule.trend);
@@ -107,17 +107,22 @@ function replay(input: Inputs, rule: Rule, from: number, end: number, edge: numb
     if (opening.session && opening.session !== bars[i].session) continue;
     const entry = (direction === 1 ? opening.ask ?? opening.o : opening.o) * (1 + direction * edge);
     const distance = atr[i] * rule.stop;
-    if (!(distance > 0 && distance < entry * .2) || direction * (opening.o - entry) <= -distance) continue;
+    const marketOpen = direction === 1 ? opening.o : opening.ask ?? opening.o;
+    if (!(distance > 0 && distance < entry * .2) || direction * (marketOpen - entry) <= -distance) continue;
     const stop = entry - direction * distance, target = entry + direction * rule.reward * distance;
     let exitPrice = 0, exitIndex = entryIndex, funding = 0;
     for (let j = entryIndex; j < Math.min(end, entryIndex + rule.maxBars); j++) {
       const bar = bars[j];
       exitIndex = j;
       funding += ((direction === 1 ? bar.funding : bar.shortFunding) ?? 0) * bar.o / entry;
-      const stopped = direction === 1 ? bar.l <= stop : bar.h >= stop;
-      if (stopped) { exitPrice = direction === 1 ? Math.min(stop, bar.o) : Math.max(stop, bar.o); break; }
-      if (direction === 1 ? bar.h >= target : bar.l <= target) { exitPrice = target; break; }
-      exitPrice = bar.c;
+      if (stockShort && !opening.session && j > entryIndex) {
+        // Charge calendar days, including weekends, at conservative annualized borrow assumptions.
+        funding += (bar.t - bars[j - 1].t) / DAY * (edge >= .003 ? .30 : .15) / 365;
+      }
+      const stopped = direction === 1 ? bar.l <= stop : (bar.askHigh ?? bar.h) >= stop;
+      if (stopped) { exitPrice = direction === 1 ? Math.min(stop, bar.o) : Math.max(stop, bar.ask ?? bar.o); break; }
+      if (direction === 1 ? bar.h >= target : (bar.askLow ?? bar.l) <= target) { exitPrice = target; break; }
+      exitPrice = direction === 1 ? bar.c : bar.askClose ?? bar.c;
       if (bar.session && bars[j + 1]?.session !== bar.session) break;
     }
     const ret = direction * (exitPrice * (1 - direction * edge) / entry - 1) - funding;
@@ -157,7 +162,12 @@ function* grid(hasVolume: boolean, side: SearchSide) {
 
 const isIntradayStock = (pair: SearchPair) => pair.market === 'stocks' && pair.frame !== '1d';
 const clusterDays = (pair: SearchPair) => isIntradayStock(pair) ? 3 * DAY : 7 * DAY;
-const edge = (pair: SearchPair) => pair.market === 'crypto' ? .0008 : .0004;
+const edge = (pair: SearchPair, side?: SearchSide) => pair.market === 'crypto' ? .0008 : side === 'short' ? .0019 : .0004;
+
+function withOutcomes(report: SearchReport, outcomes: SearchOutcome[]) {
+  const first = outcomes.find(item => item.verdict === 'paper-candidate') ?? outcomes[0];
+  return first ? { ...report, ...first, alternatives: outcomes.filter(item => item !== first) } : report;
+}
 
 export function searchHistory(pair: SearchPair, bars: SearchBar[], source: string): SearchReport {
   const report: SearchReport = { revision: searchRevision(pair.market), pair, source, bars: bars.length, from: '', through: '', tried: 0, validationPassed: 0,
@@ -169,20 +179,25 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
   const minimumSpan = isIntradayStock(pair) ? 95 * DAY : 2.8 * 365 * DAY;
   const coverage = pair.market === 'crypto' ? bars.length / (1 + span / BAR_MS[pair.frame]) : 1;
   if (bars.length < 650 || span < minimumSpan || coverage < .995) return report;
-  // The final window never contributes to ranking. When the one frozen winner fails there, the search stops.
+  // Each direction locks one finalist before seeing the final window.
   const cut = Math.floor(bars.length * .44), final = Math.floor(bars.length * .70);
   report.holdoutFrom = date(bars[final].t);
   const cluster = clusterDays(pair);
-  const cost = edge(pair);
-  let best = -Infinity;
-  let winner: Rule | null = null;
-  const sides: SearchSide[] = pair.market === 'crypto' ? ['long', 'short'] : ['long'];
+  const stock = pair.market === 'stocks';
+  const paired = !stock || bars.every(bar => !!bar.ask && !!bar.askHigh && !!bar.askLow && !!bar.askClose);
+  const sides: SearchSide[] = paired ? ['long', 'short'] : ['long'];
+  if (!paired) report.note = 'Complete historical ask ranges were unavailable for the short replay.';
+  const finalists: { outcome: SearchOutcome; rank: number }[] = [];
   for (const side of sides) {
+    const cost = edge(pair, side);
+    const stockShort = stock && side === 'short';
     const input = searchInputs(bars, cut, side);
+    let best = -Infinity;
+    let winner: Rule | null = null;
     for (const rule of grid(input.hasVolume, side)) {
       report.tried++;
-      const train = replay(input, rule, WARMUP, cut, cost, cluster);
-      const validation = replay(input, rule, cut, final, cost * 2, cluster);
+      const train = replay(input, rule, WARMUP, cut, cost, cluster, stockShort);
+      const validation = replay(input, rule, cut, final, cost * 2, cluster, stockShort);
       const valid = [train, validation].every(period => period.trades >= 20 && period.groups >= 7 && period.net > 0 &&
         period.drawdown <= .20 && (period.score ?? 0) >= 1.25);
       if (!valid) continue;
@@ -190,23 +205,28 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
       const rank = Math.min(train.score!, validation.score!);
       if (rank > best) { best = rank; winner = rule; }
     }
+    if (!winner) continue;
+    const holdout = replay(input, winner, final, bars.length, cost, cluster, stockShort);
+    const stress = replay(input, winner, final, bars.length, cost * 2, cluster, stockShort);
+    const benchmark = (side === 'short' ? -1 : 1) * (Math.exp(Math.log(bars.at(-1)!.c / bars[final].o) * stress.exposure) - 1);
+    const passed = holdout.net > 0 && stress.net > Math.max(0, benchmark) && stress.trades >= 25 && stress.groups >= 9 &&
+      stress.drawdown <= .16 && (stress.score ?? 0) >= 3.3;
+    finalists.push({ rank: best, outcome: { verdict: passed ? 'paper-candidate' : 'holdout-failed', rule: winner,
+      holdout, stress, venue: null, benchmark, note: report.note } });
   }
-  if (!winner) return { ...report, verdict: 'no-candidate' };
-  const input = searchInputs(bars, cut, winner.side);
-  const holdout = replay(input, winner, final, bars.length, cost, cluster);
-  const stress = replay(input, winner, final, bars.length, cost * 2, cluster);
-  const benchmark = (winner.side === 'short' ? -1 : 1) * (Math.exp(Math.log(bars.at(-1)!.c / bars[final].o) * stress.exposure) - 1);
-  const passed = holdout.net > 0 && stress.net > Math.max(0, benchmark) && stress.trades >= 25 && stress.groups >= 9 &&
-    stress.drawdown <= .16 && (stress.score ?? 0) >= 3.3;
-  return { ...report, verdict: passed ? 'paper-candidate' : 'holdout-failed', rule: winner, holdout, stress, testedOnLaterData: 1, benchmark };
+  const outcomes = finalists.sort((a, b) => b.rank - a.rank).map(item => item.outcome);
+  return withOutcomes({ ...report, verdict: 'no-candidate', testedOnLaterData: finalists.length }, outcomes);
 }
 
 export function checkPerpVenue(report: SearchReport, bars: SearchBar[]): SearchReport {
   if (report.verdict !== 'paper-candidate' || !report.rule || report.pair.market !== 'crypto') return report;
-  if (bars.length < 650 || (bars.at(-1)!.t - bars[0].t) / BAR_MS[report.pair.frame] + 1 > bars.length / .995) {
-    return { ...report, verdict: 'venue-failed', note: 'Incomplete Hyperliquid history' };
-  }
-  const venue = replay(searchInputs(bars, bars.length, report.rule.side), report.rule, WARMUP, bars.length, edge(report.pair) * 2, clusterDays(report.pair));
-  const passed = venue.trades >= 12 && venue.groups >= 3 && venue.net > 0 && venue.drawdown <= .16;
-  return { ...report, verdict: passed ? 'paper-candidate' : 'venue-failed', venue };
+  const hasHistory = bars.length >= 650 && (bars.at(-1)!.t - bars[0].t) / BAR_MS[report.pair.frame] + 1 <= bars.length / .995;
+  return withOutcomes(report, searchOutcomes(report).map(outcome => {
+    if (outcome.verdict !== 'paper-candidate' || !outcome.rule) return outcome;
+    if (!hasHistory) return { ...outcome, verdict: 'venue-failed', note: 'Incomplete Hyperliquid price or funding history' };
+    const rule = outcome.rule;
+    const venue = replay(searchInputs(bars, bars.length, rule.side), rule, WARMUP, bars.length, edge(report.pair, rule.side) * 2, clusterDays(report.pair));
+    const passed = venue.trades >= 12 && venue.groups >= 3 && venue.net > 0 && venue.drawdown <= .16;
+    return { ...outcome, verdict: passed ? 'paper-candidate' : 'venue-failed', venue };
+  }));
 }

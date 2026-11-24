@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { journeyHref } from '@/components/layout/journey';
 import { stockHref } from '@/components/layout/workspaces';
 import type { Evidence } from '@/lib/automation/model';
-import { FAMILIES, searchPair, type SearchMarket, type SearchPair, type SearchReport, type SearchFrame } from '@/lib/strategy-search/model';
+import { FAMILIES, searchOutcomes, searchPair, type SearchMarket, type SearchPair, type SearchReport, type SearchFrame } from '@/lib/strategy-search/model';
 
 type SearchState = { status: string; report: SearchReport | null; canStart: boolean; fresh: boolean; completedAt: string | null; detail?: string };
 export const frameNames: Record<SearchFrame, string> = { '5m': '5 min', '15m': '15 min', '30m': '30 min', '1h': '1 hour', '4h': '4 hours', '1d': 'Daily' };
@@ -95,10 +95,14 @@ export function StrategySearch({ market, symbol, frame, active = true, compact =
         {payload?.completedAt && <p>Checked {new Date(payload.completedAt).toLocaleString()}</p>}
         <p>{report.source} · {report.bars.toLocaleString()} candles{report.from && ` · From ${report.from}`}</p>
         <p>{report.validationPassed} qualified for the final test · {report.testedOnLaterData} tested on later data</p>
-        {report.holdout && <p>{report.holdout.trades} later trades · {pct(report.holdout.net)} after costs · {pct(report.stress?.net ?? 0)} with higher costs · {pct(report.stress?.drawdown ?? 0)} drawdown</p>}
-        {report.venue && <p>Hyperliquid check · {report.venue.trades} trades · {pct(report.venue.net)} after costs and funding</p>}
-        {report.note && <p>{report.note}</p>}
-        {report.verdict === 'paper-candidate' && report.rule && <p>{report.rule.side === 'short' ? 'Short' : 'Long'} · {report.rule.setting}-bar setting · {report.rule.stop}× ATR stop · {report.rule.reward}× risk target · {report.rule.maxBars} bars max</p>}
+        {report.note && !report.rule && <p>{report.note}</p>}
+        {searchOutcomes(report).map(outcome => outcome.rule && <div key={outcome.rule.side ?? 'long'} className="mt-2 space-y-1 border-t pt-2">
+          <p className="font-medium text-foreground">{outcome.rule.side === 'short' ? 'Short' : 'Long'} · {FAMILIES[outcome.rule.family]} · {outcome.verdict === 'paper-candidate' ? 'Passed research' : 'Did not qualify'}</p>
+          {outcome.holdout && <p>{outcome.holdout.trades} later trades · {pct(outcome.holdout.net)} after costs · {pct(outcome.stress?.net ?? 0)} with higher costs · {pct(outcome.stress?.drawdown ?? 0)} drawdown</p>}
+          {outcome.venue && <p>Hyperliquid check · {outcome.venue.trades} trades · {pct(outcome.venue.net)} after costs and funding</p>}
+          {outcome.note && <p>{outcome.note}</p>}
+          {outcome.verdict === 'paper-candidate' && <p>{outcome.rule.setting}-bar setting · {outcome.rule.stop}× ATR stop · {outcome.rule.reward}× risk target · {outcome.rule.maxBars} bars max</p>}
+        </div>)}
       </div>
     </details>}
   </section>;

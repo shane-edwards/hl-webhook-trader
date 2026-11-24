@@ -1,6 +1,6 @@
 import { STOCK_TRADE_SYMBOLS } from '@/lib/stocks/trade-rules';
 
-export const SEARCH_REVISION = 2;
+export const SEARCH_REVISION = 3;
 export const SEARCH_REFRESH_MS = 7 * 86_400_000;
 export const SEARCH_RETRY_MS = 12 * 3_600_000;
 export const RECOMMENDATION_FRESH_MS = 4 * 86_400_000;
@@ -38,15 +38,21 @@ export type Family = keyof typeof FAMILIES;
 export type SearchSide = 'long' | 'short';
 export type Rule = { family: Family; setting: number; trend: number; volume: number; stop: number; reward: number; maxBars: number; side?: SearchSide };
 export type SearchBar = { t: number; o: number; h: number; l: number; c: number; v: number; ask?: number; session?: string;
-  funding?: number; shortFunding?: number };
+  askHigh?: number; askLow?: number; askClose?: number; funding?: number; shortFunding?: number };
 export type Performance = { trades: number; groups: number; net: number; average: number; drawdown: number; score: number | null };
-export type SearchReport = {
-  revision: number; pair: SearchPair; source: string; bars: number; from: string; through: string;
-  tried: number; validationPassed: number; testedOnLaterData: number; holdoutFrom: string;
+export type SearchOutcome = {
   verdict: 'insufficient-history' | 'no-candidate' | 'holdout-failed' | 'venue-failed' | 'paper-candidate';
   rule: Rule | null; holdout: Performance | null; stress: Performance | null; venue: Performance | null;
   benchmark: number | null; note?: string;
 };
+export type SearchReport = SearchOutcome & {
+  revision: number; pair: SearchPair; source: string; bars: number; from: string; through: string;
+  tried: number; validationPassed: number; testedOnLaterData: number; holdoutFrom: string; alternatives?: SearchOutcome[];
+};
+
+export function searchOutcomes({ verdict, rule, holdout, stress, venue, benchmark, note, alternatives }: SearchReport): SearchOutcome[] {
+  return [{ verdict, rule, holdout, stress, venue, benchmark, note }, ...(alternatives ?? [])];
+}
 
 export type SearchJob = { status: string; as_of: string; revision?: number | null };
 
