@@ -88,7 +88,9 @@ export async function processResearchStep(db: Db) {
         data: { search: work.find(item => item.search)?.search, missing: work.filter(item => item.problem).map(item => ({ symbol: item.symbol, detail: item.problem })) } }
       : finishResearch(run.market, run.kind, run.as_of, work);
     const noData = work.every(item => item.problem);
-    const finished = await save({ status: noData ? 'failed' : 'completed', cursor: run.plan.length, work: [], report,
+    // Save experiment fingerprints atomically with the report, outside the user-facing report payload.
+    const experiments = work.filter(s => s.experiments?.length).map(s => ({ symbol: s.symbol, experiments: s.experiments, discoveryThrough: s.discoveryThrough }));
+    const finished = await save({ status: noData ? 'failed' : 'completed', cursor: run.plan.length, work: experiments, report,
       detail: noData ? 'Research did not receive usable market data.' : report.summary, completed_at: new Date().toISOString() });
     if (finished && (noData || work.some(item => item.problem))) {
       await notify(`${noData ? 'FAILED' : 'WARNING'}: ${run.market === 'stocks' ? 'Stocks' : 'Crypto'} research has missing market data. Review the Automation Center.`, undefined, run.user_id);
@@ -106,7 +108,7 @@ export async function processResearchStep(db: Db) {
         await save({ status: 'failed', detail: 'This idea is no longer available.', completed_at: new Date().toISOString() });
         return 'failed';
       }
-      step = pair ? { symbol, search: await runSearch(db, run.user_id, pair, run.as_of) } :
+      step = pair ? { symbol, ...await runSearch(db, run.user_id, pair, run.as_of) } :
         await runIdeaResearch(db, run.user_id, idea!, run.as_of);
     } else {
       step = await runResearchStep(db, run.user_id, run.market, run.kind, symbol, run.as_of);

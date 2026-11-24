@@ -6,7 +6,11 @@ import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { regularStockSessions } from '@/lib/stocks/intraday';
 import { EtoroError } from '@/lib/stocks/etoro';
 import { STOCK_INSTRUMENTS, isStockTradeSymbol } from '@/lib/stocks/trade-rules';
-import { BAR_MS, searchKey, type ForwardBook, type SearchBar, type SearchPair } from './model';
+import { CATALYST_INSTRUMENTS, CATALYST_UNIVERSE } from '@/lib/stocks/catalyst-universe';
+import type { EtoroClient } from '@/lib/stocks/etoro';
+import { BAR_MS, searchKey, type Experiment, type ForwardBook, type SearchBar, type SearchPair } from './model';
+import { attachContext, stockContext, type DailyContext, type EpsFact } from './context';
+import { positioningContext } from './crypto-context';
 import { advanceForward, checkPerpVenue, searchHistory } from './engine';
 
 type Db = ReturnType<typeof createServiceClient>;
@@ -73,9 +77,8 @@ export async function binanceArchive(pair: SearchPair, now: number) {
   return complete;
 }
 
-async function pairedStocks(db: Db, user: string, pair: SearchPair, now: number): Promise<SearchBar[]> {
+async function pairedStocks(broker: EtoroClient, pair: SearchPair, now: number): Promise<SearchBar[]> {
   if (!isStockTradeSymbol(pair.symbol)) return [];
-  const broker = await stockFeed(db, user);
   const instrument = STOCK_INSTRUMENTS[pair.symbol];
   if (pair.frame === '1d') {
     const days = await broker.candles(instrument, 3 * 365 + 30, now, true, false, 15_000, true);
@@ -111,6 +114,27 @@ async function pairedStocks(db: Db, user: string, pair: SearchPair, now: number)
     c: row.bidClose, v: row.volume, ask: row.askOpen, askHigh: row.askHigh, askLow: row.askLow, askClose: row.askClose, session: session.day })));
 }
 
+async function stockHistory(db: Db, user: string, pair: SearchPair, now: number) {
+  const broker = await stockFeed(db, user);
+  const market = CATALYST_UNIVERSE.find(item => item.symbol === pair.symbol);
+  if (!market) return pairedStocks(broker, pair, now);
+  const closes = (symbol: string) => broker.candles(CATALYST_INSTRUMENTS[symbol], 1200, now, true, true, 7000).catch(() => []);
+  async function epsFacts(cik: number): Promise<EpsFact[]> {
+    const id = String(cik).padStart(10,'0');
+    const res = await fetch(`https://data.sec.gov/api/xbrl/companyconcept/CIK${id}/us-gaap/EarningsPerShareDiluted.json`, {
+      headers: { 'User-Agent': process.env.SEC_USER_AGENT || 'Tideframe Research (https://hl-webhook-trader.vercel.app)' },
+      next: { revalidate: 86400 }, signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const rows = (await res.json()).units?.['USD/shares'];
+    return Array.isArray(rows) ? rows : [];
+  }
+  const [bars, stock, sector, facts] = await Promise.all([pairedStocks(broker, pair, now),
+    pair.frame === '1d' ? [] : closes(pair.symbol), closes(market.etf), epsFacts(market.cik).catch(() => [])]);
+  const daily = pair.frame === '1d' ? bars.map(b => ({ day: new Date(b.t).toISOString().slice(0,10), bidClose: b.c })) : stock;
+  return attachContext(bars, stockContext(bars, daily, sector, facts));
+}
+
 async function perpetualBars(pair: SearchPair, now: number): Promise<SearchBar[]> {
   // A transfer check using actual perp data and observed funding, independent of choosing the rule.
   const frame = pair.frame === '30m' ? '15m' : pair.frame;
@@ -143,20 +167,26 @@ async function perpetualBars(pair: SearchPair, now: number): Promise<SearchBar[]
 
 export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: string) {
   const now = Date.parse(asOf);
-  const [last, history] = await Promise.all([
-    db.from('automation_runs').select('books:report->data->search->forward').eq('user_id', user)
+  const [last, history, context] = await Promise.all([
+    db.from('automation_runs').select('books:report->data->search->forward,experiments:work->0->experiments,cutoff:work->0->discoveryThrough').eq('user_id', user)
       .eq('market', pair.market).eq('kind', 'focused').eq('idea_id', searchKey(pair)).eq('status', 'completed')
-      .order('completed_at', { ascending: false }).limit(1).maybeSingle(),
-    pair.market === 'stocks' ? pairedStocks(db, user, pair, now) : binanceArchive(pair, now),
+      .order('completed_at', { ascending: false }).limit(8),
+    pair.market === 'stocks' ? stockHistory(db, user, pair, now) : binanceArchive(pair, now),
+    pair.market === 'crypto' ? positioningContext(pair.symbol, now) : new Map() as DailyContext,
   ]);
   if (last.error) throw new Error('Could not read frozen forward strategies.');
-  const previous = (last.data?.books ?? []) as unknown as ForwardBook[];
+  const previous = (last.data[0]?.books ?? []) as unknown as ForwardBook[];
   if (!Array.isArray(previous)) throw new Error('Invalid forward simulation checkpoint.');
-  let report = searchHistory(pair, history, pair.market === 'stocks' ? 'eToro bid/ask cash-stock history' : 'Binance spot candles');
+  if (pair.market === 'crypto') attachContext(history, context);
+  const discoveryThrough = history[Math.floor(history.length * .44) - 1]?.t ?? 0;
+  const archive = last.data.flatMap(r => Number(r.cutoff) <= discoveryThrough && Array.isArray(r.experiments) ? r.experiments : []) as unknown as Experiment[];
+  const experiments: Experiment[] = [];
+  let report = searchHistory(pair, history, pair.market === 'stocks' ? 'eToro bid/ask cash-stock history' : 'Binance spot candles',
+    { previous: archive, record: experiments });
   let forwardBars = history;
   if (pair.market === 'crypto' && (report.verdict === 'paper-candidate' || previous.some(b => b.state === 'tracking' || b.state === 'data-gap'))) {
-    forwardBars = await perpetualBars(pair, now);
+    forwardBars = attachContext(await perpetualBars(pair, now), context);
     report = checkPerpVenue(report, forwardBars);
   }
-  return { ...report, forward: advanceForward(report, previous, forwardBars, Date.now()) };
+  return { search: { ...report, forward: advanceForward(report, previous, forwardBars, Date.now()) }, experiments, discoveryThrough };
 }

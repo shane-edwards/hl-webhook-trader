@@ -1,6 +1,6 @@
 import { STOCK_TRADE_SYMBOLS } from '@/lib/stocks/trade-rules';
 
-export const SEARCH_REVISION = 5;
+export const SEARCH_REVISION = 6;
 // Increment when changing any signal, fill, funding or exit semantics for frozen rules.
 export const RULE_INTERPRETER_VERSION = 1;
 export const SEARCH_REFRESH_MS = 7 * 86_400_000;
@@ -47,7 +47,9 @@ export const TRIGGERS = {
   thrust: 'strong close near the high', pivot: 'confirmed swing-high break', reclaim: 'ten-bar mean reclaim',
   acceleration: 'accelerating two-bar advance', outside: 'bullish outside bar',
 } as const;
-export type Recipe = { setup: keyof typeof SETUPS; trigger: keyof typeof TRIGGERS; within: number };
+export type ContextFactor = 'sector' | 'earnings' | 'fundingChange' | 'openInterest';
+export type Recipe = { setup: keyof typeof SETUPS; trigger: keyof typeof TRIGGERS; within: number; context?: ContextFactor };
+export type Experiment = { key: string; entries: number; sketch: number[]; fitness: number | null };
 export type SearchSide = 'long' | 'short';
 export type Rule = ({ family: Family; recipe?: never } | { family: 'sequence'; recipe: Recipe }) &
   { setting: number; trend: number; volume: number; stop: number; reward: number; maxBars: number; side?: SearchSide };
@@ -64,11 +66,14 @@ const SHORT_TRIGGERS: Record<Recipe['trigger'], string> = {
 export function ruleName(rule: Rule) {
   if (rule.family !== 'sequence') return FAMILIES[rule.family];
   const short = rule.side === 'short';
-  return `${(short ? SHORT_SETUPS : SETUPS)[rule.recipe.setup]} → ${(short ? SHORT_TRIGGERS : TRIGGERS)[rule.recipe.trigger]}`;
+  const context = { sector: short ? 'sector laggard' : 'sector leader', earnings: short ? 'falling quarterly EPS' : 'rising quarterly EPS',
+    fundingChange: short ? 'rising funding' : 'falling funding', openInterest: 'rising open interest' };
+  const name = `${(short ? SHORT_SETUPS : SETUPS)[rule.recipe.setup]} → ${(short ? SHORT_TRIGGERS : TRIGGERS)[rule.recipe.trigger]}`;
+  return rule.recipe.context ? `${name} · ${context[rule.recipe.context]}` : name;
 }
 export function ruleKey(rule: Rule) {
   return [rule.side ?? 'long', rule.family, rule.recipe?.setup, rule.recipe?.trigger, rule.recipe?.within,
-    rule.setting, rule.trend, rule.volume, rule.stop, rule.reward, rule.maxBars].join(':');
+    rule.setting, rule.trend, rule.volume, rule.stop, rule.reward, rule.maxBars, ...(rule.recipe?.context ? [rule.recipe.context] : [])].join(':');
 }
 export type ForwardFill = { entry: number; exit: number; price: number; exitPrice: number; net: number };
 export type ForwardBook = { version: number; rule: Rule; started: number; cursor: number; lastExit: number; count: number; equity: number;
@@ -82,7 +87,7 @@ export function paperTradingStatus(count?: number, state: ForwardBook['state'] |
   return `${stage} · ${count}${capped ? '+' : ''} ${count === 1 ? 'trade' : 'trades'} closed`;
 }
 export type SearchBar = { t: number; o: number; h: number; l: number; c: number; v: number; ask?: number; session?: string;
-  askHigh?: number; askLow?: number; askClose?: number; funding?: number; shortFunding?: number };
+  askHigh?: number; askLow?: number; askClose?: number; funding?: number; shortFunding?: number } & Partial<Record<ContextFactor, number>>;
 export type Performance = { trades: number; groups: number; net: number; average: number; drawdown: number; score: number | null };
 export type SearchOutcome = {
   verdict: 'insufficient-history' | 'no-candidate' | 'holdout-failed' | 'venue-failed' | 'paper-candidate';
@@ -93,7 +98,7 @@ export type SearchOutcome = {
 export type SearchReport = SearchOutcome & {
   revision: number; pair: SearchPair; source: string; bars: number; from: string; through: string;
   tried: number; validationPassed: number; testedOnLaterData: number; holdoutFrom: string; alternatives?: SearchOutcome[];
-  generation?: { tried: number; validated: number; uniquePairs: number }; forward?: ForwardBook[];
+  generation?: { tried: number; validated: number; uniquePairs: number; contexts?: Partial<Record<ContextFactor, number>>; exactRepeats?: number; similar?: number }; forward?: ForwardBook[];
 };
 
 export function searchOutcomes({ verdict, rule, holdout, stress, venue, benchmark, note, robustness, alternatives }: SearchReport): SearchOutcome[] {

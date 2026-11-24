@@ -15,7 +15,7 @@ import { previousStockSession } from '@/lib/stocks/session';
 import { STOCK_TRADE_RULES, type StockTradeSymbol } from '@/lib/stocks/trade-rules';
 import type { DailyStockRule, StockBar } from '@/lib/stocks/research';
 import type { StrategyIdea } from './ideas';
-import type { SearchReport } from '@/lib/strategy-search/model';
+import type { Experiment, SearchReport } from '@/lib/strategy-search/model';
 import { refreshScheduledStockJournal } from './stock-journal';
 import { CRYPTO_RESEARCH_RULES, CRYPTO_RESEARCH_SYMBOLS, STOCK_RESEARCH_RULES, STOCK_RESEARCH_SYMBOLS, isoDay, researchWindow,
   studyEvidence, type AutomationKind, type AutomationMarket, type Evidence, type RunReport } from './model';
@@ -26,6 +26,7 @@ const stockCosts = { amount: 1000, commission: 1, slipBps: 3, leverage: 1 as con
 const labCosts = { fee: 1, slipBps: 3 };
 type LabMarket = Parameters<typeof summarizeStockLab>[0][number];
 export type ResearchStep = { symbol: string; stock?: StockPortfolioInput; lab?: LabMarket; evidence?: Evidence[];
+  experiments?: Experiment[]; discoveryThrough?: number;
   journal?: Awaited<ReturnType<typeof refreshScheduledStockJournal>>; search?: SearchReport; problem?: string };
 
 export function researchPlan(market: AutomationMarket, kind: AutomationKind) {
