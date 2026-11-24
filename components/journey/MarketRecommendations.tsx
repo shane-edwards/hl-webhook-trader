@@ -21,7 +21,7 @@ function ResultRow({ setup }: { setup: MarketSetup }) {
       <p className="mt-1 text-xs text-muted-foreground">
         <span className="font-medium text-profit">+{(setup.stressedReturn * 100).toFixed(2)}%</span> at higher costs
         {' · '}{setup.trades} later trades
-        {setup.kind === 'research' && ' · Forward testing needed'}
+        {setup.kind === 'research' && ' · Research candidate'}
       </p>
     </div>
     <div className="flex flex-wrap items-center gap-2">

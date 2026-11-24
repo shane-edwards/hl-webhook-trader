@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { checkPerpVenue, searchHistory, searchInputs } from '../lib/strategy-search/engine';
+import { advanceForward, blockLowerBound, checkPerpVenue, searchHistory, searchInputs } from '../lib/strategy-search/engine';
+import { evolve, seedRecipes } from '../lib/strategy-search/evolution';
 import { marketSearchPairs, pairFromKey, searchDue, searchKey, searchPair, searchRevision, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
   SEARCH_RETRY_MS, SEARCH_REVISION, RECOMMENDATION_FRESH_MS, type SearchBar, type SearchReport } from '../lib/strategy-search/model';
 import { ideasForPair } from '../lib/automation/ideas';
@@ -10,6 +11,59 @@ import { summarizeMarketResearch, type SearchRecord } from '../lib/strategy-sear
 const sample = Array.from({ length: 800 }, (_, i): SearchBar => {
   const c = 100 + Math.sin(i / 8) * 10 + Math.sin(i / 3) * 3;
   return { t: Date.UTC(2023, 0, 1 + i), o: c, h: c + 1, l: c - 1, c, v: 100 + i % 17 };
+});
+
+test('generation rotates distinct temporal compositions, breeds deterministically and uses causal inputs', () => {
+  const seeds = seedRecipes('long', 23);
+  assert.equal(new Set(seeds.map(s => s.recipe.setup + s.recipe.trigger)).size, 20);
+  assert.notDeepEqual(seedRecipes('long', 24), seeds);
+  const prefix = searchInputs(sample.slice(0, 500));
+  const full = searchInputs(sample);
+  for (const seed of seedRecipes('long', 0, 64)) {
+    assert.deepEqual(prefix.entries(seed), full.entries(seed).filter(i => i < 499));
+  }
+  const score = (rule: typeof seeds[number]) => ({ fitness: rule.reward, signature: new Set(full.entries(rule).filter(i => i < 400)) });
+  const result = evolve('long', 23, score);
+  assert.ok(result.tried > seeds.length && result.tried <= 64);
+  assert.deepEqual(evolve('long', 23, score), result);
+  assert.equal(evolve('long', 23, () => ({fitness: -Infinity, signature:new Set()})).finalists.length,0);
+});
+
+test('only a passing rule enrolls; forward fills start after enrollment and checkpoint without duplicates', () => {
+  const history = Array.from({length: 450}, (_, i) => {
+    const o = 100 + i * .1;
+    return { t:Date.UTC(2025,0,1+i), o, h:o+.22, l:o-.15, c:o+.18, v:10 };
+  });
+  // Regular breakouts during the forward period.
+  for (let i=1;i<history.length;i++) history[i].c = history[i].h;
+  const pair = searchPair('stocks','SPY','1d')!;
+  const metric = { trades:40,groups:15,net:.2,average:.005,drawdown:.06,score:4 };
+  const report: SearchReport = {pair, revision:searchRevision('stocks'),source:'fixture',from:'',through:'',bars:450,tried:1,
+    validationPassed:1,testedOnLaterData:1,holdoutFrom:'',verdict:'paper-candidate',
+    rule:{family:'sequence',recipe:{setup:'shelf',trigger:'channel',within:4},side:'long',setting:10,trend:0,volume:0,stop:1.75,reward:2.5,maxBars:6},
+    holdout:metric,stress:metric,venue:null,benchmark:0};
+  const start=history[250].t;
+  assert.deepEqual(advanceForward({...report,verdict:'holdout-failed'},[],history,start),[]);
+  assert.deepEqual(advanceForward({...report,pair:{...pair,market:'crypto'}},[],history,start),[]);
+  const justStarted=advanceForward(report,[],history,start);
+  assert.equal(justStarted[0].count,0);
+  const partial=advanceForward(report,justStarted,history.slice(0,254),history[254].t);
+  assert.equal(partial[0].count,0);
+  assert.ok(partial[0].pending);
+  const later=advanceForward(report,partial,history.slice(0,300),history[300].t);
+  assert.ok(later[0].count>0 && later[0].recent.every(fill=>fill.entry>start));
+  assert.deepEqual(later,advanceForward(report,justStarted,history.slice(0,300),history[300].t));
+  assert.deepEqual(later,advanceForward(report,later,history.slice(0,300),history[300].t));
+  assert.equal(advanceForward(report,justStarted,history.slice(320),history[400].t)[0].state,'data-gap');
+  const finish = advanceForward(report,[{...justStarted[0],count:29}],history.slice(0,300),history[300].t);
+  assert.equal(finish[0].state,'completed');
+  assert.equal(finish[0].count,30);
+  assert.deepEqual(advanceForward(report,finish,history,history.at(-1)!.t),finish);
+});
+
+test('a concentrated stressed gain can have a nonpositive lower block-bootstrap bound',()=>{
+  assert.ok(blockLowerBound(Array(30).fill(.002)) > 0);
+  assert.ok(blockLowerBound([.5,...Array(29).fill(-.001)]) < 0);
 });
 
 test('strategy features for past bars are unchanged by future price and volume shocks', () => {
@@ -40,8 +94,11 @@ test('crypto and paired stock history support both directions', () => {
   const stocks = searchHistory(searchPair('stocks', 'SPY', '1d')!, history, 'sample');
   const paired = searchHistory(searchPair('stocks', 'SPY', '1d')!, history.map(bar => ({ ...bar, ask: bar.o * 1.001,
     askHigh: bar.h * 1.001, askLow: bar.l * 1.001, askClose: bar.c * 1.001 })), 'sample');
-  assert.equal(crypto.tried, 2 * stocks.tried);
-  assert.equal(paired.tried, crypto.tried);
+  // The fixed grid is symmetric. The number of distinct offspring depends on the discovery trades.
+  const classic = (r: SearchReport) => r.tried - r.generation!.tried;
+  assert.equal(classic(crypto), 2 * classic(stocks));
+  assert.equal(classic(paired), classic(crypto));
+  assert.ok(paired.generation!.tried >= 40 && stocks.generation!.uniquePairs >= 20);
   assert.equal(crypto.revision, searchRevision('crypto'));
   assert.equal(stocks.revision, SEARCH_REVISION);
 });

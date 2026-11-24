@@ -6,8 +6,8 @@ import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { regularStockSessions } from '@/lib/stocks/intraday';
 import { EtoroError } from '@/lib/stocks/etoro';
 import { STOCK_INSTRUMENTS, isStockTradeSymbol } from '@/lib/stocks/trade-rules';
-import { BAR_MS, type SearchBar, type SearchPair } from './model';
-import { checkPerpVenue, searchHistory } from './engine';
+import { BAR_MS, searchKey, type ForwardBook, type SearchBar, type SearchPair } from './model';
+import { advanceForward, checkPerpVenue, searchHistory } from './engine';
 
 type Db = ReturnType<typeof createServiceClient>;
 const DAY = 86_400_000;
@@ -79,6 +79,8 @@ async function pairedStocks(db: Db, user: string, pair: SearchPair, now: number)
   const instrument = STOCK_INSTRUMENTS[pair.symbol];
   if (pair.frame === '1d') {
     const days = await broker.candles(instrument, 3 * 365 + 30, now, true, false, 15_000, true);
+    if (!days.length || now - Date.parse(days.at(-1)!.day) > 8 * DAY ||
+      days.some((row,i) => i > 0 && Date.parse(row.day) - Date.parse(days[i-1].day) > 10 * DAY)) return [];
     return days.map(row => ({ t: Date.parse(row.day), o: row.bidOpen, h: row.high, l: row.low, c: row.bidClose, ask: row.askOpen,
       askHigh: row.askHigh, askLow: row.askLow, askClose: row.askClose, v: 0 }));
   }
@@ -109,11 +111,7 @@ async function pairedStocks(db: Db, user: string, pair: SearchPair, now: number)
     c: row.bidClose, v: row.volume, ask: row.askOpen, askHigh: row.askHigh, askLow: row.askLow, askClose: row.askClose, session: session.day })));
 }
 
-export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: string) {
-  const now = Date.parse(asOf);
-  if (pair.market === 'stocks') return searchHistory(pair, await pairedStocks(db, user, pair, now), 'eToro bid/ask cash-stock history');
-  const report = searchHistory(pair, await binanceArchive(pair, now), 'Binance historical and recent spot candles');
-  if (report.verdict !== 'paper-candidate') return report;
+async function perpetualBars(pair: SearchPair, now: number): Promise<SearchBar[]> {
   // A transfer check using actual perp data and observed funding, independent of choosing the rule.
   const frame = pair.frame === '30m' ? '15m' : pair.frame;
   try {
@@ -126,16 +124,39 @@ export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: st
     ]);
     const expected = Math.floor((now - since) / HOUR);
     if (new Set(funding.map(row => Math.round(row.time / HOUR))).size < .95 * expected) throw new Error('Incomplete funding history');
-    const bucket = new Map<number, { funding: number; shortFunding: number }>();
-    for (const payment of funding) {
-      const t = Math.floor(Math.round(payment.time / HOUR) * HOUR / BAR_MS[frame]) * BAR_MS[frame];
-      const costs = bucket.get(t) ?? { funding: 0, shortFunding: 0 };
-      costs.funding += Math.max(0, payment.rate);
-      costs.shortFunding += Math.max(0, -payment.rate);
+    const settlements = new Map(funding.map(row => [Math.round(row.time / HOUR) * HOUR, row.rate]));
+    const bucket = new Map<number, { funding: number; shortFunding: number; count: number }>();
+    for (const [settled, rate] of settlements) {
+      const t = Math.floor((settled - 1) / BAR_MS[frame]) * BAR_MS[frame];
+      const costs = bucket.get(t) ?? { funding: 0, shortFunding: 0, count: 0 };
+      costs.funding += Math.max(0, rate);
+      costs.shortFunding += Math.max(0, -rate);
+      costs.count++;
       bucket.set(t, costs);
     }
-    return checkPerpVenue(report, bars.filter(row => row.t + BAR_MS[frame] <= now).map(row => ({ ...row, ...bucket.get(row.t) })));
+    return bars.filter(row => row.t + BAR_MS[frame] <= now && (bucket.get(row.t)?.count ?? 0) ===
+      Math.floor((row.t + BAR_MS[frame]) / HOUR) - Math.floor(row.t / HOUR)).map(row => ({ ...row, ...bucket.get(row.t) }));
   } catch {
-    return checkPerpVenue(report, []);
+    return [];
   }
+}
+
+export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: string) {
+  const now = Date.parse(asOf);
+  const [last, history] = await Promise.all([
+    db.from('automation_runs').select('books:report->data->search->forward').eq('user_id', user)
+      .eq('market', pair.market).eq('kind', 'focused').eq('idea_id', searchKey(pair)).eq('status', 'completed')
+      .order('completed_at', { ascending: false }).limit(1).maybeSingle(),
+    pair.market === 'stocks' ? pairedStocks(db, user, pair, now) : binanceArchive(pair, now),
+  ]);
+  if (last.error) throw new Error('Could not read frozen forward strategies.');
+  const previous = (last.data?.books ?? []) as unknown as ForwardBook[];
+  if (!Array.isArray(previous)) throw new Error('Invalid forward simulation checkpoint.');
+  let report = searchHistory(pair, history, pair.market === 'stocks' ? 'eToro bid/ask cash-stock history' : 'Binance spot candles');
+  let forwardBars = history;
+  if (pair.market === 'crypto' && (report.verdict === 'paper-candidate' || previous.some(b => b.state === 'tracking' || b.state === 'data-gap'))) {
+    forwardBars = await perpetualBars(pair, now);
+    report = checkPerpVenue(report, forwardBars);
+  }
+  return { ...report, forward: advanceForward(report, previous, forwardBars, Date.now()) };
 }

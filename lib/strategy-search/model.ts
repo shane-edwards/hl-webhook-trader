@@ -1,6 +1,8 @@
 import { STOCK_TRADE_SYMBOLS } from '@/lib/stocks/trade-rules';
 
-export const SEARCH_REVISION = 3;
+export const SEARCH_REVISION = 5;
+// Increment when changing any signal, fill, funding or exit semantics for frozen rules.
+export const RULE_INTERPRETER_VERSION = 1;
 export const SEARCH_REFRESH_MS = 7 * 86_400_000;
 export const SEARCH_RETRY_MS = 12 * 3_600_000;
 export const RECOMMENDATION_FRESH_MS = 4 * 86_400_000;
@@ -35,8 +37,26 @@ export const FAMILIES = {
   band: 'Bollinger Band recovery', macd: 'MACD crossover', squeeze: 'Volatility squeeze release', supertrend: 'Supertrend reversal',
 } as const;
 export type Family = keyof typeof FAMILIES;
+export const SETUPS = {
+  coil: 'Narrowest range in seven bars', washout: 'Two-range selloff', shelf: 'Three higher lows',
+  pullback: 'Retracement in a rising trend', sweep: 'Rejected ten-bar low', impulse: 'Wide bullish impulse',
+  balance: 'Inside bar', fade: 'Three falling closes',
+} as const;
+export const TRIGGERS = {
+  midpoint: 'prior midpoint reclaim', engulf: 'engulfing reversal', channel: 'five-bar high break',
+  thrust: 'strong close near the high', pivot: 'confirmed swing-high break', reclaim: 'ten-bar mean reclaim',
+  acceleration: 'accelerating two-bar advance', outside: 'bullish outside bar',
+} as const;
+export type Recipe = { setup: keyof typeof SETUPS; trigger: keyof typeof TRIGGERS; within: number };
 export type SearchSide = 'long' | 'short';
-export type Rule = { family: Family; setting: number; trend: number; volume: number; stop: number; reward: number; maxBars: number; side?: SearchSide };
+export type Rule = ({ family: Family; recipe?: never } | { family: 'sequence'; recipe: Recipe }) &
+  { setting: number; trend: number; volume: number; stop: number; reward: number; maxBars: number; side?: SearchSide };
+export const ruleName = (rule: Rule) => rule.family === 'sequence'
+  ? `${SETUPS[rule.recipe.setup]} → ${TRIGGERS[rule.recipe.trigger]}` : FAMILIES[rule.family];
+export type ForwardFill = { entry: number; exit: number; price: number; exitPrice: number; net: number };
+export type ForwardBook = { version: number; rule: Rule; started: number; cursor: number; lastExit: number; count: number; equity: number;
+  peak: number; drawdown: number; recent: ForwardFill[]; state: 'tracking' | 'data-gap' | 'stopped' | 'completed' | 'archived';
+  pending?: { signal: number; entry: number; price: number; stop: number; target: number } };
 export type SearchBar = { t: number; o: number; h: number; l: number; c: number; v: number; ask?: number; session?: string;
   askHigh?: number; askLow?: number; askClose?: number; funding?: number; shortFunding?: number };
 export type Performance = { trades: number; groups: number; net: number; average: number; drawdown: number; score: number | null };
@@ -44,14 +64,16 @@ export type SearchOutcome = {
   verdict: 'insufficient-history' | 'no-candidate' | 'holdout-failed' | 'venue-failed' | 'paper-candidate';
   rule: Rule | null; holdout: Performance | null; stress: Performance | null; venue: Performance | null;
   benchmark: number | null; note?: string;
+  robustness?: { delayed: Performance; lowerGroupReturn: number };
 };
 export type SearchReport = SearchOutcome & {
   revision: number; pair: SearchPair; source: string; bars: number; from: string; through: string;
   tried: number; validationPassed: number; testedOnLaterData: number; holdoutFrom: string; alternatives?: SearchOutcome[];
+  generation?: { tried: number; validated: number; uniquePairs: number }; forward?: ForwardBook[];
 };
 
-export function searchOutcomes({ verdict, rule, holdout, stress, venue, benchmark, note, alternatives }: SearchReport): SearchOutcome[] {
-  return [{ verdict, rule, holdout, stress, venue, benchmark, note }, ...(alternatives ?? [])];
+export function searchOutcomes({ verdict, rule, holdout, stress, venue, benchmark, note, robustness, alternatives }: SearchReport): SearchOutcome[] {
+  return [{ verdict, rule, holdout, stress, venue, benchmark, note, robustness }, ...(alternatives ?? [])];
 }
 
 export type SearchJob = { status: string; as_of: string; revision?: number | null };
