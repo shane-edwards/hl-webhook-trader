@@ -1,4 +1,4 @@
-import { BAR_MS, FAMILIES, RULE_INTERPRETER_VERSION, searchOutcomes, searchRevision, type Family, type Performance, type Rule, type SearchBar, type SearchOutcome,
+import { BAR_MS, FAMILIES, RULE_INTERPRETER_VERSION, ruleKey, searchOutcomes, searchRevision, type Family, type Performance, type Rule, type SearchBar, type SearchOutcome,
   type SearchPair, type SearchReport, type SearchSide, type ForwardBook, type ForwardFill } from './model';
 import { evolve, sequenceFeatures } from './evolution';
 
@@ -309,11 +309,6 @@ export function replayFixed(input: Inputs, rule: Rule, from: number, end: number
   return replay(input, rule, from, end, perSideCost, 7 * DAY);
 }
 
-function identity(rule: Rule) {
-  return [rule.side ?? 'long', rule.family, rule.recipe?.setup, rule.recipe?.trigger, rule.recipe?.within,
-    rule.setting, rule.trend, rule.volume, rule.stop, rule.reward, rule.maxBars].join(':');
-}
-
 /** Checkpoint a frozen rule on bars after enrollment. Repeated worker attempts yield the same fills. */
 export function advanceForward(report: SearchReport, previous: ForwardBook[], bars: SearchBar[], enrolledAt: number) {
   const pair = report.pair;
@@ -346,7 +341,7 @@ export function advanceForward(report: SearchReport, previous: ForwardBook[], ba
     const rule = outcome.rule;
     if (!rule || outcome.verdict !== 'paper-candidate' || !outcome.stress || !(outcome.stress.net > 0) ||
         (pair.market === 'crypto' && !(outcome.venue && outcome.venue.net > 0)) ||
-        books.some(b => b.version === RULE_INTERPRETER_VERSION && identity(b.rule) === identity(rule))) continue;
+        books.some(b => b.version === RULE_INTERPRETER_VERSION && ruleKey(b.rule) === ruleKey(rule))) continue;
     books.push({ version: RULE_INTERPRETER_VERSION, rule, started: enrolledAt, cursor: enrolledAt, lastExit: 0, count: 0,
       equity: 1, peak: 1, drawdown: 0, recent: [], state: 'tracking' });
   }

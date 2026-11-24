@@ -19,6 +19,7 @@ import type { PaperResults } from '@/lib/automation/policy';
 import type { StockEnvironment } from '@/components/stocks/StockOrderTicket';
 import { stockSizingQuery } from '@/lib/stocks/leverage';
 import { RECOMMENDATION_FRESH_MS, SEARCH_ASSETS, SEARCH_FRAMES, searchPair } from '@/lib/strategy-search/model';
+import { researchRank } from '@/lib/strategy-search/recommendations';
 import { cn } from '@/lib/utils';
 
 type IdeaResult = { evidence: Evidence; asOf: string };
@@ -154,8 +155,9 @@ export default function JourneyPage() {
     const row = data?.results[id];
     return item.executable && data && row?.evidence.qualified && row.evidence.version === automationVersion(market, findPair.symbol, item.rule) &&
       data.observedAt - Date.parse(row.asOf) < RECOMMENDATION_FRESH_MS
-      ? [{ id, evidence: row.evidence }] : [];
-  }).sort((a, b) => b.evidence.stress - a.evidence.stress);
+      ? [{ id, evidence: row.evidence, rank: researchRank({ stressedReturn: row.evidence.stress, benchmark: row.evidence.benchmark,
+        drawdown: row.evidence.drawdown, trades: row.evidence.holdoutTrades }) }] : [];
+  }).sort((a, b) => b.rank - a.rank || a.id.localeCompare(b.id));
   const recommend = readyIdeas[0];
 
   function changeSearch(field: 'asset' | 'frame', value: string) {
@@ -164,6 +166,7 @@ export default function JourneyPage() {
     if (!next.has('asset')) next.set('asset', findPair.symbol);
     if (!next.has('frame')) next.set('frame', findPair.frame);
     next.delete('idea');
+    next.delete('rule');
     next.set(field, value);
     window.history.replaceState(null, '', `/journey/find?${next}`);
   }
@@ -226,7 +229,7 @@ export default function JourneyPage() {
               <label className="block text-xs font-medium">Timeframe<select aria-label="Timeframe" className={selectClass} value={findPair.frame}
                 onChange={event => changeSearch('frame', event.target.value)}>{SEARCH_FRAMES[market].map(frame => <option key={frame} value={frame}>{frameNames[frame]}</option>)}</select></label>
             </div>
-            <StrategySearch market={market} symbol={findPair.symbol} frame={findPair.frame} recommendation={recommend}
+            <StrategySearch market={market} symbol={findPair.symbol} frame={findPair.frame} recommendation={recommend} selectedRule={linkedPair ? query.get('rule') : null}
               active={!!linkedPair || openedResearch === market} />
             {!!matching.length && <details className="rounded-lg border p-3">
               <summary className="cursor-pointer text-sm font-medium">Built-in strategy results</summary>

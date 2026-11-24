@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { advanceForward, blockLowerBound, checkPerpVenue, searchHistory, searchInputs } from '../lib/strategy-search/engine';
 import { evolve, seedRecipes } from '../lib/strategy-search/evolution';
-import { marketSearchPairs, pairFromKey, searchDue, searchKey, searchPair, searchRevision, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
+import { marketSearchPairs, pairFromKey, ruleKey, ruleName, RULE_INTERPRETER_VERSION, searchDue, searchKey, searchPair, searchRevision, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
   SEARCH_RETRY_MS, SEARCH_REVISION, RECOMMENDATION_FRESH_MS, type SearchBar, type SearchReport } from '../lib/strategy-search/model';
 import { ideasForPair } from '../lib/automation/ideas';
 import { automationVersion, type Evidence } from '../lib/automation/model';
@@ -187,8 +187,24 @@ test('market recommendations list every current pass across assets and frames, w
     { evidence: { ...named, stress: .99 }, asOf: time(6) },
   ], now);
   assert.deepEqual(result.setups.map(setup => [setup.pair.symbol, setup.pair.frame, setup.kind]),
-    [['ETH', '1h', 'trade'], ['BTC', '1h', 'trade'], ['BTC', '4h', 'research'], ['ETH', '15m', 'research']]);
+    [['BTC', '4h', 'research'], ['ETH', '15m', 'research'], ['ETH', '1h', 'trade'], ['BTC', '1h', 'trade']]);
   assert.deepEqual(result.coverage, { symbols: 18, timeframes: 5, total: 90, scanned: 3, queued: 1, limited: 1, lastChecked: time(1) });
   assert.deepEqual(summarizeMarketResearch('stocks', records, [], now).setups.map(setup => [setup.pair, setup.side]),
     [[spy, 'long'], [spy, 'short']]);
+  const book = { version: RULE_INTERPRETER_VERSION, rule, started: now, cursor: now, lastExit: 0, count: 3,
+    equity: 1.03, peak: 1.03, drawdown: 0, recent: [] };
+  equityPair.report!.forward = [{ ...book, state: 'stopped', rule: { ...rule, side: 'short' } },
+    { ...book, state: 'tracking', rule: { ...rule, stop: 2 } }, { ...book, state: 'tracking' }];
+  const [tracked, ...rest] = summarizeMarketResearch('stocks', records, [], now).setups;
+  assert.equal(rest.length, 0);
+  assert.equal(tracked.ruleKey, ruleKey(rule));
+  assert.equal(tracked.trial?.count, 3);
+  equityPair.report!.forward[2] = { ...book, state: 'completed', equity: .99 };
+  assert.deepEqual(summarizeMarketResearch('stocks', records, [], now).setups, []);
+});
+
+test('generated short recommendations describe their actual mirrored signals', () => {
+  const [rule] = seedRecipes('short', 0);
+  assert.equal(ruleName({ ...rule, recipe: { setup: 'washout', trigger: 'outside', within: 4 } }),
+    'Two-range rally → bearish outside bar');
 });
