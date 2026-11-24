@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { AUTOMATION_MARKETS } from '@/lib/automation/model';
-import { automationDecision, latestCandidates, readAutomationProfile, readPaperResults } from '@/lib/automation/policy';
-import { enqueueResearch } from '@/lib/automation/queue';
+import { AUTOMATION_MARKETS, automationVersion } from '@/lib/automation/model';
+import { automationDecision, exactCandidate, latestCandidates, readAutomationProfile, readPaperResults } from '@/lib/automation/policy';
+import { enqueueIdea, enqueueResearch } from '@/lib/automation/queue';
+import { findIdea } from '@/lib/automation/ideas';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { STOCK_INSTRUMENTS, isStockTradeSymbol } from '@/lib/stocks/trade-rules';
 import { etoroFromConnection } from '@/lib/stocks/connection';
@@ -12,6 +13,8 @@ import { readHealth } from '@/lib/health';
 const market = z.enum(AUTOMATION_MARKETS);
 const command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('run'), market, kind: z.enum(['daily', 'weekly']).default('daily') }),
+  z.object({ action: z.literal('test'), market, idea: z.string().max(100) }),
+  z.object({ action: z.literal('paper'), market, idea: z.string().max(100) }),
   z.object({ action: z.literal('mode'), market, mode: z.enum(['research', 'paper']) }),
   z.object({ action: z.literal('schedule'), market, enabled: z.boolean() }),
   z.object({ action: z.literal('entries'), market, paused: z.boolean() }),
@@ -35,7 +38,7 @@ export async function GET() {
         const [policy, evidence, history] = await Promise.all([
           automationDecision(ctx.db, ctx.id, market), latestCandidates(ctx.db, ctx.id, market),
           ctx.db.from('automation_runs').select('id, kind, source, status, cursor, plan, detail, report, created_at, completed_at, as_of')
-            .eq('user_id', ctx.id).eq('market', market).order('created_at', { ascending: false }).limit(8),
+            .eq('user_id', ctx.id).eq('market', market).neq('kind', 'focused').order('created_at', { ascending: false }).limit(8),
         ]);
         if (history.error) throw new Error('Could not read automation run history.');
         const candidate = policy.candidate ?? evidence[0] ?? null;
@@ -62,6 +65,8 @@ export async function POST(request: Request) {
   const parsed = command.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return fail('Choose a valid automation action.', 400);
   const input = parsed.data;
+  const idea = input.action === 'test' || input.action === 'paper' ? findIdea(input.idea) : null;
+  if ((input.action === 'test' || input.action === 'paper') && idea?.market !== input.market) return fail('Choose an available strategy.', 400);
   const key = { user_id: ctx.id, market: input.market };
   try {
     const current = await readAutomationProfile(ctx.db, ctx.id, input.market);
@@ -74,9 +79,13 @@ export async function POST(request: Request) {
       const id = await enqueueResearch(ctx.db, ctx.id, input.market, input.kind, now);
       return NextResponse.json({ message: id ? 'Research queued. It runs in the background.' : 'A research run is already queued or running.' });
     }
+    if (input.action === 'test' && idea) {
+      const id = await enqueueIdea(ctx.db, ctx.id, idea, now);
+      return NextResponse.json({ message: id ? 'Backtest queued.' : 'Backtest already queued.' });
+    }
     let patch: object;
     if (input.action === 'approve') {
-      const candidate = (await latestCandidates(ctx.db, ctx.id, input.market)).find(item => item.version === input.version);
+      const candidate = await exactCandidate(ctx.db, ctx.id, input.market, input.version);
       if (!candidate || !(await readPaperResults(ctx.db, ctx.id, candidate)).passed) {
         return fail('This exact strategy version must pass research and Paper before Live.', 409);
       }
@@ -95,13 +104,25 @@ export async function POST(request: Request) {
         if (!cash || cash.minimum > Math.min(input.budget, input.maxOrder)) return fail('The Live loss budget is below the broker’s minimum cash order.', 422);
       }
       patch = { mode: 'live', enabled: true, entries_paused: false, live_version: candidate.version, loss_budget_usd: input.budget, max_order_usd: input.maxOrder };
+    } else if (input.action === 'paper' && idea) {
+      const version = automationVersion(idea.market, idea.symbol, idea.rule);
+      if (!idea.executable || !await exactCandidate(ctx.db, ctx.id, idea.market, version)) return fail('This setup must pass a recent backtest.', 409);
+      if (idea.market === 'stocks') {
+        const demo = await ctx.db.from('etoro_connections').select('environment').eq('user_id', ctx.id).eq('environment', 'demo').maybeSingle();
+        if (demo.error) throw new Error('Could not check the eToro Demo connection.');
+        if (!demo.data) return fail('Connect eToro Demo to start Paper.', 409);
+      }
+      if (current?.mode === 'live' && !current.entries_paused) return fail('Pause current automated entries before switching to Paper.', 409);
+      patch = { mode: 'paper', paper_version: version, live_version: null, enabled: true, entries_paused: false, loss_budget_usd: null, max_order_usd: null };
     } else if (input.action === 'mode') {
-      patch = { mode: input.mode, live_version: null, loss_budget_usd: null, max_order_usd: null,
+      patch = { mode: input.mode, paper_version: null, live_version: null, loss_budget_usd: null, max_order_usd: null,
         ...(input.mode === 'research' ? { entries_paused: true } : {}) };
     } else if (input.action === 'schedule') {
       patch = { enabled: input.enabled };
-    } else {
+    } else if (input.action === 'entries') {
       patch = { entries_paused: input.paused };
+    } else {
+      return fail('Choose a valid automation action.', 400);
     }
     const change = ctx.db.from('automation_profiles').update({ ...patch, updated_at: now }).match(key);
     const saved = await (current ? change.eq('updated_at', current.updated_at) : change).select('market').maybeSingle();

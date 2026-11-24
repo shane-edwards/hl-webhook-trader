@@ -3,7 +3,9 @@ import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { COST, STOP_SLIPPAGE, simulate, type Run } from '@/lib/autopilot/simulate';
 import { getStrategy, WARMUP_BARS } from '@/lib/autopilot/strategies';
 import { LAB_SYMBOLS, summarizeStockLab, type LabSymbol } from '@/lib/stocks/intraday-lab';
-import { loadLabMarket } from '@/lib/stocks/intraday-lab-data';
+import { loadIntradaySessions, loadLabMarket } from '@/lib/stocks/intraday-lab-data';
+import { replayStockIntraday, type IntradayTrade } from '@/lib/stocks/intraday';
+import { stockLabWindows } from '@/lib/stocks/intraday-lab';
 import { etoroFromConnection } from '@/lib/stocks/connection';
 import { loadPortfolioReplayMarket } from '@/lib/stocks/portfolio-replay-data';
 import { replayStockPortfolio, type StockPortfolioInput } from '@/lib/stocks/portfolio-replay';
@@ -11,6 +13,8 @@ import { DEFAULT_STOCK_PORTFOLIO } from '@/lib/stocks/portfolio';
 import { researchStock } from '@/lib/stocks/research';
 import { previousStockSession } from '@/lib/stocks/session';
 import { STOCK_TRADE_RULES, type StockTradeSymbol } from '@/lib/stocks/trade-rules';
+import type { DailyStockRule, StockBar } from '@/lib/stocks/research';
+import type { StrategyIdea } from './ideas';
 import { refreshScheduledStockJournal } from './stock-journal';
 import { CRYPTO_RESEARCH_RULES, CRYPTO_RESEARCH_SYMBOLS, STOCK_RESEARCH_RULES, STOCK_RESEARCH_SYMBOLS, isoDay, researchWindow,
   studyEvidence, type AutomationKind, type AutomationMarket, type Evidence, type RunReport } from './model';
@@ -49,6 +53,66 @@ function performance(run: Run) {
     drawdown = Math.max(drawdown, 1 - value / peak);
   }
   return { gain: value - 1, drawdown };
+}
+
+function stockEvidence(symbol: string, rule: DailyStockRule, bars: StockBar[]) {
+  const result = researchStock(bars, rule, stockCosts, (prev, current) =>
+    (current.askOpen - current.bidOpen) / current.askOpen <= .003 &&
+    (current.day < '2025-01-01' || previousStockSession(Date.parse(`${current.day}T15:00:00Z`)) === prev.day));
+  return result ? studyEvidence({ market: 'stocks', symbol, rule, name: STOCK_TRADE_RULES.find(item => item.id === rule)!.name, trades: result.trades,
+    holdoutTrades: result.holdoutTrades, from: result.from, through: result.to, early: result.earlyReturn, later: result.holdoutReturn,
+    stress: result.stressReturn, benchmark: result.holdoutHold * (stockCosts.amount / 10_000), drawdown: result.drawdown }) : null;
+}
+
+function intradayPerformance(trades: IntradayTrade[], cost: 'netBps' | 'stressBps') {
+  let equity = 1, peak = 1, drawdown = 0;
+  for (const trade of trades) {
+    equity *= 1 + trade[cost] / 10_000;
+    peak = Math.max(equity, peak);
+    drawdown = Math.max(drawdown, 1 - equity / peak);
+  }
+  return { result: equity - 1, drawdown };
+}
+
+export async function runIdeaResearch(db: Db, userId: string, idea: StrategyIdea, asOf: string): Promise<ResearchStep> {
+  const now = Date.parse(asOf);
+  if (idea.market === 'crypto') {
+    return { symbol: idea.symbol, evidence: (await cryptoStudy(idea.symbol, now, 'daily')).filter(e => e.rule === idea.rule) };
+  }
+  const broker = await stockFeed(db, userId);
+  if (idea.executable) {
+    const rule = idea.rule as DailyStockRule;
+    const { from, to } = researchWindow(now, 'stocks');
+    const stock = await loadPortfolioReplayMarket(broker, idea.symbol as StockTradeSymbol, [rule], from, to, false, 570);
+    const evidence = stockEvidence(idea.symbol, rule, rule === 'inside-day' ? stock.regular : stock.daily);
+    if (!evidence) throw new Error('Paired stock history is unavailable for this rule.');
+    return { symbol: idea.symbol, evidence: [evidence] };
+  }
+  const end = isoDay(now);
+  const { validationFrom, holdoutFrom } = stockLabWindows(end);
+  const sessions = await loadIntradaySessions(broker, idea.symbol, end);
+  const usable = sessions?.filter(session => session.day >= validationFrom) ?? [];
+  if (!sessions || usable.filter(s => s.day < holdoutFrom).length < 20 || usable.filter(s => s.day >= holdoutFrom).length < 20 ||
+      Date.parse(end) - Date.parse(usable.at(-1)!.day) > 7 * 86_400_000) {
+    throw new Error('Paired five-minute stock history is unavailable.');
+  }
+  if (idea.rule !== 'close' && usable.filter(s => s.bars.slice(0, 30).every(bar => bar.volume > 0)).length < usable.length * .8) {
+    throw new Error('The eToro history lacks usable intraday volume.');
+  }
+  const rule = idea.rule as 'orb-rvol' | 'vwap' | 'close' | 'close-volume';
+  const control = { 'orb-rvol': 'orb', vwap: 'vwap-unfiltered', close: 'close', 'close-volume': 'close' } as const;
+  const cost = { slipBps: 3, fee: 1, stressSlipBps: 6, stressFee: 2 };
+  const early = replayStockIntraday(sessions, rule, validationFrom, holdoutFrom, cost);
+  const later = replayStockIntraday(sessions, rule, holdoutFrom, end, cost);
+  const baseline = rule === 'close' ? [] : replayStockIntraday(sessions, control[rule], holdoutFrom, end, cost);
+  const prior = intradayPerformance(early, 'netBps');
+  const heldOut = intradayPerformance(later, 'netBps');
+  const stressed = intradayPerformance(later, 'stressBps');
+  const evidence = studyEvidence({ market: 'stocks', symbol: idea.symbol, rule, name: idea.name,
+    trades: early.length + later.length, holdoutTrades: later.length, early: prior.result, later: heldOut.result,
+    stress: stressed.result, benchmark: intradayPerformance(baseline, 'netBps').result,
+    drawdown: Math.max(prior.drawdown, heldOut.drawdown, stressed.drawdown), from: usable[0].day, through: usable.at(-1)!.day });
+  return { symbol: idea.symbol, evidence: [evidence] };
 }
 
 async function cryptoStudy(symbol: string, asOf: number, kind: AutomationKind) {
@@ -95,13 +159,8 @@ export async function runResearchStep(db: Db, userId: string, market: Automation
   const stock = await loadPortfolioReplayMarket(broker, symbol as StockTradeSymbol, [...STOCK_RESEARCH_RULES], from, to, false, 570);
   if (stock.daily.length < 260) throw new Error('Paired daily stock quotes are unavailable.');
   const evidence = symbol === 'SPY' ? [] : STOCK_RESEARCH_RULES.flatMap(rule => {
-    const bars = rule === 'inside-day' ? stock.regular : stock.daily;
-    const result = researchStock(bars, rule, stockCosts, (prev, current) =>
-      (current.askOpen - current.bidOpen) / current.askOpen <= .003 &&
-      (current.day < '2025-01-01' || previousStockSession(Date.parse(`${current.day}T15:00:00Z`)) === prev.day));
-    return result ? [studyEvidence({ market, symbol, rule, name: STOCK_TRADE_RULES.find(item => item.id === rule)!.name, trades: result.trades,
-      holdoutTrades: result.holdoutTrades, from: result.from, through: result.to, early: result.earlyReturn, later: result.holdoutReturn,
-      stress: result.stressReturn, benchmark: result.holdoutHold * (stockCosts.amount / 10_000), drawdown: result.drawdown })] : [];
+    const result = stockEvidence(symbol, rule, rule === 'inside-day' ? stock.regular : stock.daily);
+    return result ? [result] : [];
   });
   if (symbol !== 'SPY' && evidence.length !== STOCK_RESEARCH_RULES.length) throw new Error('One or more stock rules lack paired session history.');
   return { symbol, stock, evidence };

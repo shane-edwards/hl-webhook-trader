@@ -2,6 +2,7 @@ import type { createServiceClient } from '@/lib/supabase/server';
 import { brokerStockGross } from '@/lib/stocks/strategy-guard';
 import type { StockJournalOrder } from '@/lib/stocks/execution-journal';
 import { automationVersion, paperThreshold, type AutomationMarket, type AutomationProfile, type Evidence, type RunReport } from './model';
+import { findIdea, ideaId } from './ideas';
 
 type Db = ReturnType<typeof createServiceClient>;
 const day = 86_400_000;
@@ -23,6 +24,27 @@ export async function latestCandidates(db: Db, userId: string, market: Automatio
   const report = result.data?.report as RunReport | undefined;
   return (report?.evidence ?? []).filter(item => item.qualified &&
     item.version === automationVersion(market, item.symbol, item.rule)).sort((a, b) => b.stress - a.stress);
+}
+
+export async function exactCandidate(db: Db, userId: string, market: AutomationMarket, version: string, now = Date.now()) {
+  const [, scope, symbol, rule] = version.split('.');
+  if (scope !== market || version !== automationVersion(market, symbol, rule)) return null;
+  const idea = findIdea(ideaId(market, rule, symbol));
+  if (!idea?.executable) return (await latestCandidates(db, userId, market, now)).find(item => item.version === version) ?? null;
+  const fresh = new Date(now - 4 * day).toISOString();
+  const [focused, daily] = await Promise.all([
+    db.from('automation_runs').select('report, as_of').eq('user_id', userId).eq('market', market).eq('kind', 'focused')
+      .eq('status', 'completed').eq('idea_id', idea.id).gte('as_of', fresh)
+      .order('as_of', { ascending: false }).limit(1).maybeSingle(),
+    db.from('automation_runs').select('report, as_of').eq('user_id', userId).eq('market', market).eq('kind', 'daily')
+      .eq('status', 'completed').gte('as_of', fresh).order('as_of', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (focused.error || daily.error) throw new Error('Could not verify this version’s research.');
+  const latest = [focused.data, daily.data].flatMap(data => {
+    const evidence = (data?.report as RunReport | undefined)?.evidence?.find(item => item.version === version);
+    return data && evidence ? [{ asOf: data.as_of, evidence }] : [];
+  }).sort((a, b) => Date.parse(b.asOf) - Date.parse(a.asOf))[0]?.evidence;
+  return latest?.qualified ? latest : null;
 }
 
 export async function readPaperResults(db: Db, userId: string, candidate: Evidence) {
@@ -56,8 +78,8 @@ export async function automationDecision(db: Db, userId: string, market: Automat
   if (profile?.entries_paused) return response('paused', 'New automated entries are paused.');
   if (!profile || profile.mode === 'research') return response('legacy', 'Research can run alongside your existing Autopilot settings.');
   if (!profile.enabled) return response('paused', 'Automation is paused.');
-  const candidates = await latestCandidates(db, userId, market);
-  const candidate = profile.mode === 'live' ? candidates.find(item => item.version === profile.live_version) : candidates[0];
+  const version = profile.mode === 'live' ? profile.live_version : profile.paper_version;
+  const candidate = version ? await exactCandidate(db, userId, market, version) : (await latestCandidates(db, userId, market))[0];
   if (!candidate) return response('waiting', 'Waiting for a strategy version to pass the current research checks.');
   const results = await readPaperResults(db, userId, candidate);
   if (profile.mode === 'live') {

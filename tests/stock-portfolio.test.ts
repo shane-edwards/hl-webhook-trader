@@ -75,7 +75,7 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
       CREATE ROLE authenticated;
       CREATE ROLE service_role;
     `);
-    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio', '016_stock_execution_research', '017_stock_catalysts_and_guards', '018_automation_center']) {
+    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio', '016_stock_execution_research', '017_stock_catalysts_and_guards', '018_automation_center', '019_strategy_journey']) {
       await db.exec(readFileSync(`supabase/migrations/${path}.sql`, 'utf8'));
     }
     const user = '00000000-0000-4000-8000-000000000001';
@@ -132,6 +132,12 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
     assert.equal((await db.query('SELECT id FROM claim_automation_run()')).rows.length, 0);
     await db.exec("UPDATE automation_runs SET lease_until=now() - interval '1 second'");
     assert.equal((await db.query<{ attempts: number }>('SELECT attempts FROM claim_automation_run()')).rows[0].attempts, 2);
+    const enqueue = (idea: string | null) => db.query(`INSERT INTO automation_runs(user_id,market,kind,source,as_of,idea_id)
+      VALUES ($1,'stocks','focused','manual',now(),$2)`, [user, idea]);
+    await enqueue('stocks:close:SPY');
+    await enqueue('stocks:close-volume:SPY');
+    await assert.rejects(enqueue('stocks:close-volume:SPY'), /duplicate key/);
+    await assert.rejects(enqueue(null), /automation_runs_idea_check/);
   } finally {
     await db.close();
   }

@@ -42,7 +42,7 @@ function tradeReturn(buy: number, sell: number, slipBps: number, fee: number) {
   return (units * sell * (1 - slippage) - fee) / notional * 10_000 - 10_000;
 }
 
-export function replayStockIntraday(sessions: StockSession[], rule: IntradayRule | 'vwap-unfiltered', from: string, to: string,
+export function replayStockIntraday(sessions: StockSession[], rule: IntradayRule | 'vwap-unfiltered' | 'close-volume', from: string, to: string,
   cost: IntradayCost = { slipBps: 2, fee: 1, stressSlipBps: 5, stressFee: 2 }): IntradayTrade[] {
   const trades: IntradayTrade[] = [];
   const vwapRule = rule === 'vwap' || rule === 'vwap-unfiltered';
@@ -54,8 +54,14 @@ export function replayStockIntraday(sessions: StockSession[], rule: IntradayRule
       const buy = bars[i].askOpen;
       trades.push({ day, minutes, netBps: tradeReturn(buy, price, cost.slipBps, cost.fee), stressBps: tradeReturn(buy, price, cost.stressSlipBps, cost.stressFee) });
     };
-    if (rule === 'close') {
+    if (rule === 'close' || rule === 'close-volume') {
       const previous = sessions[dayIndex - 1];
+      if (rule === 'close-volume') {
+        const volume = (session: StockSession) => session.bars.slice(0, 6).reduce((sum, bar) =>
+          Number.isFinite(bar.volume) && bar.volume > 0 ? sum + bar.volume : NaN, 0);
+        const baseline = sessions.slice(Math.max(0, dayIndex - 20), dayIndex).map(volume);
+        if (baseline.length !== 20 || !(volume(sessions[dayIndex]) >= 1.25 * baseline.reduce((a, b) => a + b, 0) / 20)) continue;
+      }
       if (previous && Date.parse(day) - Date.parse(previous.day) <= 4 * 86_400_000 && bars[5].bidClose > previous.bars[77].bidClose) record(72, bars[77].bidClose, 30);
       continue;
     }

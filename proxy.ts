@@ -57,14 +57,14 @@ export async function proxy(request: NextRequest) {
   // Redirect authenticated users away from login
   if (user && pathname === '/login') {
     const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
+    url.pathname = '/journey/find';
     return NextResponse.redirect(url);
   }
 
   // Redirect root to dashboard
   if (user && pathname === '/') {
     const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
+    url.pathname = '/journey/find';
     return NextResponse.redirect(url);
   }
 

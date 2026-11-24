@@ -48,10 +48,11 @@ async function autopilot(body?: object) {
   return data.settings as AutoConfig | null;
 }
 
-export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo', initialSymbol, initialRule, initialSizing, onConnect }: {
+export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo', initialSymbol, initialRule, initialSizing, onConnect, compact = false }: {
   flow: 'manual' | 'auto'; connections: StockEnvironment[]; initialEnvironment?: StockEnvironment;
   initialSymbol?: StockTradeSymbol; initialRule?: string; initialSizing?: StockSizing;
   onConnect: (mode: StockEnvironment, symbol: StockTradeSymbol, strategy: string, size: Record<string, string>) => void;
+  compact?: boolean;
 }) {
   const [environment, setEnvironment] = useState(initialEnvironment);
   const [selectedSymbol, setSymbol] = useState<StockTradeSymbol | null>(null);
@@ -170,7 +171,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold">{flow === 'auto' ? 'Set up Autopilot' : 'Review a buy'}</h2>
-          <p className="text-xs text-muted-foreground mt-1">{environment === 'demo' ? 'Paper uses virtual funds in eToro Demo.' : 'Live uses real money in eToro.'}</p>
+          {!compact && <p className="text-xs text-muted-foreground mt-1">{environment === 'demo' ? 'Paper uses virtual funds in eToro Demo.' : 'Live uses real money in eToro.'}</p>}
         </div>
         <Segmented aria-label="Stock trading mode" value={environment} options={[{ value: 'demo', label: 'Paper' }, { value: 'real', label: 'Live' }]} disabled={!!busy || !!review} onChange={mode => {
           if (mode === environment) return;
@@ -194,12 +195,12 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
       {flow === 'auto' && auto?.last_message && <p className="text-sm text-muted-foreground">{auto.last_message}{auto.last_run_at && ` · ${nyTime.format(new Date(auto.last_run_at))} ET`}</p>}
       {flow === 'auto' && <Segmented aria-label="Autopilot scope" value={usePortfolio ? 'portfolio' : 'single'}
         options={[{ value: 'single', label: 'One strategy' }, { value: 'portfolio', label: 'Portfolio' }]} disabled={!!busy} onChange={value => setPortfolioMode(value === 'portfolio')} />}
-      {activeRule && !usePortfolio && <Link className="inline-block text-sm text-primary hover:underline" href={stockHref('research', { symbol, rule: activeRule.id, ...handoff })}>Backtest this strategy</Link>}
+      {!compact && activeRule && !usePortfolio && <Link className="inline-block text-sm text-primary hover:underline" href={stockHref('research', { symbol, rule: activeRule.id, ...handoff })}>Backtest this strategy</Link>}
       {usePortfolio && <Link className="block text-sm text-primary hover:underline" href="/stocks/portfolio">Replay the portfolio</Link>}
       {flow === 'auto' && <Link className="block text-sm text-primary hover:underline" href={`/stocks/scorecard?mode=${environment}`}>Strategy scorecard and guard</Link>}
       {connected ? <>
         <form onSubmit={preview} className="grid sm:grid-cols-2 lg:grid-cols-3 items-end gap-3">
-          {usePortfolio ? <StockPortfolioFields settings={portfolio} onChange={setPortfolioDraft} /> : <>
+          {usePortfolio ? <StockPortfolioFields settings={portfolio} onChange={setPortfolioDraft} /> : !compact && <>
           <label className="text-sm">Stock<select aria-label="Stock" className={selectClass} value={symbol} onChange={e => setSymbol(e.target.value as StockTradeSymbol)}>{[...STOCK_TRADE_SYMBOLS].sort().map(s => <option key={s}>{s}</option>)}</select></label>
           <label className="text-sm min-w-0">Strategy<select aria-label="Strategy" className={selectClass} value={strategy} onChange={e => setStrategy(e.target.value)}>
             {flow === 'manual' && <option value="">Manual buy</option>}
@@ -229,7 +230,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
           {Number(amount) > 0 ? `${formatCurrency(Number(amount) * leverage)} exposure · ${formatCurrency(Number(amount) * Number(stop) / 100)} estimated loss at the stop, before fees. ` : ''}
         </p>}
         {marketOpen === false && <p className="text-sm text-muted-foreground">The regular US market session is closed.</p>}
-        {activeRule && !usePortfolio && <p className="text-xs text-muted-foreground">{earnings ? 'Experimental. Entries from 10:00 to 10:05 a.m. ET. Tideframe attempts the exit at 3:50 p.m. ET.' : activeRule.description}</p>}
+        {!compact && activeRule && !usePortfolio && <p className="text-xs text-muted-foreground">{earnings ? 'Experimental. Entries from 10:00 to 10:05 a.m. ET. Tideframe attempts the exit at 3:50 p.m. ET.' : activeRule.description}</p>}
         {!usePortfolio && !earnings && (flow === 'auto' || strategy === 'inside-day') && <p className="text-xs text-muted-foreground">Entry window is 9:30–10:00 a.m. ET.</p>}
         {flow === 'manual' && strategy && !earnings && <p className="text-xs text-muted-foreground">Manage manual exits in eToro.</p>}
         <div className="border-t pt-3 space-y-2">

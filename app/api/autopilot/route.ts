@@ -1,6 +1,7 @@
 import { withTradingLock } from '@/lib/trading-lock';
 import { NextResponse } from 'next/server';
 import { readAutomationProfile } from '@/lib/automation/policy';
+import { findIdea } from '@/lib/automation/ideas';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { configFromSettings, runAutopilot } from '@/lib/autopilot/run';
@@ -48,11 +49,15 @@ export async function GET(request: Request) {
   // The autopilot columns and tables only exist after migration 004.
   if (!settings || settings.autopilot_enabled === undefined) return NextResponse.json({ ...base, available: false });
 
-  const mode = settings.autopilot_mode === 'live' ? 'live' : 'paper';
   const query = new URL(request.url).searchParams;
+  const idea = findIdea(query.get('idea'));
+  const ideaTrade = idea?.market === 'crypto' && idea.executable;
+  if (query.has('idea') && !ideaTrade) return NextResponse.json({ error: 'Choose a crypto strategy.' }, { status: 400 });
+  const mode = (ideaTrade ? query.get('mode') : settings.autopilot_mode) === 'live' ? 'live' : 'paper';
   const symbol = query.get('symbol');
   if (symbol) {
-    const cfg = configFromSettings(settings);
+    const baseConfig = configFromSettings(settings);
+    const cfg = ideaTrade ? { ...baseConfig, symbols: [idea.symbol], strategies: [idea.rule], allowShort: false } : baseConfig;
     const basket = symbol === 'BASKET' && cfg.strategies.includes(MOMENTUM_ID);
     if (query.get('mode') !== mode || (!basket && !cfg.symbols.includes(symbol))) return NextResponse.json({ error: 'Select a market in the current mode.' }, { status: 400 });
     try {
@@ -126,7 +131,14 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const cfg = configFromSettings(settings);
+  const baseConfig = configFromSettings(settings);
+  const idea = findIdea(body?.idea);
+  if (body?.idea != null && (idea?.market !== 'crypto' || !idea.executable || body.action !== 'manual_entry')) {
+    return NextResponse.json({ error: 'Choose a crypto strategy.' }, { status: 400 });
+  }
+  if (idea && body.mode === 'live' && body.confirmed !== true) return NextResponse.json({ error: 'Confirm the Live order.' }, { status: 400 });
+  const cfg = idea ? { ...baseConfig, mode: body.mode === 'live' ? 'live' as const : 'paper' as const,
+    symbols: [idea.symbol], strategies: [idea.rule], allowShort: false, risk: { ...baseConfig.risk, maxLeveragePerPosition: 1 } } : baseConfig;
 
   try {
     if (body?.action === 'reset') {
@@ -161,7 +173,7 @@ export async function POST(request: Request) {
       const manualBasket = manual?.id === MOMENTUM_ID && manual.symbol === 'BASKET' && manual.barT === Math.floor(Date.now() / DAY_MS) * DAY_MS
         && typeof manual.plan === 'string' && manual.plan.length > 0 && manual.plan.length <= 400;
       const manualMarket = manual && cfg.symbols.includes(manual.symbol) && STRATEGIES.some(s => s.id === manual.id)
-        && Number.isSafeInteger(manual.barT) && ['long', 'short'].includes(manual.side);
+        && Number.isSafeInteger(manual.barT) && (manual.side === 'long' || (!idea && manual.side === 'short'));
       if (body.action === 'manual_entry' && (!manual || !cfg.strategies.includes(manual.id) || (!manualBasket && !manualMarket))) {
         return NextResponse.json({ error: 'Select a current signal.' }, { status: 400 });
       }

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
 import { stockHref, stockSection } from '@/components/layout/workspaces';
+import { journeyHref } from '@/components/layout/journey';
+import { findIdea } from '@/lib/automation/ideas';
 import { STOCK_RULES, type StockSymbol } from '@/lib/stocks/research';
 import type { gradeStock } from '@/lib/stocks/grade';
 import type { EtoroClient } from '@/lib/stocks/etoro';
@@ -48,9 +50,16 @@ export default function StocksPage() {
   const journalSlip = query.has('slipBps') ? Number(query.get('slipBps')) : NaN;
   const incomingParams = incomingSize ? stockSizingParams(incomingSize) : {};
   const returnView = query.get('returnTo') === 'autopilot' ? 'autopilot' : 'trade';
+  const returnIdea = findIdea(query.get('idea'));
+  const returnStep = query.get('returnTo') === 'journey-test' ? 'test' : query.get('returnTo') === 'journey-trade' ? 'trade' : null;
   const [environment, setEnvironment] = useState<Environment | null>(null);
   const [connections, setConnections] = useState<Environment[]>([]);
   const targetEnv = requestedMode ?? environment ?? 'demo';
+  const returnHref = returnIdea?.market === 'stocks' && returnStep
+    ? journeyHref(returnStep, 'stocks', returnIdea.id) + '&' + new URLSearchParams({ mode: targetEnv, method: query.get('method') === 'automated' ? 'automated' : 'manual', ...incomingParams })
+    : stockHref(returnView, {
+      mode: targetEnv, ...incomingParams, ...(requestedSymbol ? { symbol: requestedSymbol } : {}), ...(requestedRule ? { rule: requestedRule } : {}),
+    });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -96,12 +105,7 @@ export default function StocksPage() {
       });
       form.reset();
       await refreshConnections();
-      router.push(stockHref(returnView, {
-        mode: targetEnv,
-        ...incomingParams,
-        ...(requestedSymbol ? { symbol: requestedSymbol } : {}),
-        ...(requestedRule ? { rule: requestedRule } : {}),
-      }));
+      router.push(returnHref);
     });
   }
 
@@ -220,12 +224,7 @@ export default function StocksPage() {
                     <Button disabled={pending} onClick={() => perform('portfolio', async () => setPortfolio({
                       mode: targetEnv, book: await stocksRequest<PositionBook>(`?view=portfolio&environment=${targetEnv}`),
                     }))}>{busy === 'portfolio' ? 'Loading…' : book ? 'Refresh portfolio' : 'View portfolio'}</Button>
-                    <Button asChild variant="outline"><Link href={stockHref(returnView, {
-                      mode: targetEnv,
-                      ...incomingParams,
-                      ...(requestedSymbol ? { symbol: requestedSymbol } : {}),
-                      ...(requestedRule ? { rule: requestedRule } : {}),
-                    })}>{returnView === 'autopilot' ? 'Open Autopilot' : 'Open trade ticket'}</Link></Button>
+                    <Button asChild variant="outline"><Link href={returnHref}>{returnStep === 'test' ? 'Back to Test' : returnStep === 'trade' ? 'Back to Trade' : returnView === 'autopilot' ? 'Open Autopilot' : 'Open trade ticket'}</Link></Button>
                   </div>
                   <details key={targetEnv}>
                     <summary className="cursor-pointer text-sm font-medium">Manage connection</summary>

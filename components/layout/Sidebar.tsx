@@ -1,24 +1,33 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { APP_NAME } from '@/lib/brand';
 import {
-  LogOut, CandlestickChart, Landmark, ChevronRight, Workflow,
+  LogOut, CandlestickChart, Search, FlaskConical, ChevronRight, SlidersHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isStocksPath } from './workspaces';
+import { currentJourneyStep, journeyHref } from './journey';
+import { findIdea } from '@/lib/automation/ideas';
 
 const workspaces = [
-  { id: 'automation', href: '/automation', label: 'Automation', icon: Workflow },
-  { id: 'crypto', href: '/dashboard', label: 'Crypto', icon: CandlestickChart },
-  { id: 'stocks', href: '/stocks', label: 'Stocks', icon: Landmark },
+  { id: 'find', label: 'Find', icon: Search },
+  { id: 'test', label: 'Test', icon: FlaskConical },
+  { id: 'trade', label: 'Trade', icon: CandlestickChart },
 ] as const;
 
-export function Sidebar() {
+function useJourneyNavigation() {
   const pathname = usePathname();
-  const workspace = pathname === '/automation' ? 'automation' : isStocksPath(pathname) ? 'stocks' : 'crypto';
+  const query = useSearchParams();
+  const idea = findIdea(query.get('idea'));
+  const market = idea?.market ?? (query.get('market') === 'crypto' || !pathname.startsWith('/journey') && !isStocksPath(pathname) ? 'crypto' : 'stocks');
+  return { active: currentJourneyStep(pathname, query.get('tab')), market, idea: idea?.id } as const;
+}
+
+export function Sidebar() {
+  const nav = useJourneyNavigation();
   const router = useRouter();
   const supabase = createClient();
 
@@ -39,13 +48,13 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Workspaces">
-        {workspaces.map(({ id, href, label, icon: Icon }) => {
-          const active = workspace === id;
+      <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Trading workflow">
+        {workspaces.map(({ id, label, icon: Icon }) => {
+          const active = nav.active === id;
           return (
             <Link
               key={id}
-              href={href}
+              href={journeyHref(id, nav.market, nav.idea)}
               aria-current={active ? 'location' : undefined}
               className={cn(
                 'flex items-center gap-3 px-3 h-11 rounded-lg text-sm font-semibold transition-colors',
@@ -61,6 +70,9 @@ export function Sidebar() {
       </nav>
 
       <div className="p-3 border-t border-border">
+        <Link href="/tools" className="flex items-center gap-3 px-3 min-h-10 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground">
+          <SlidersHorizontal className="w-4 h-4" />Tools and settings
+        </Link>
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors w-full"
@@ -75,20 +87,19 @@ export function Sidebar() {
 
 // Mobile bottom nav
 export function MobileNav() {
-  const pathname = usePathname();
-  const workspace = pathname === '/automation' ? 'automation' : isStocksPath(pathname) ? 'stocks' : 'crypto';
+  const nav = useJourneyNavigation();
 
   return (
     <nav
-      aria-label="Workspaces"
+      aria-label="Trading workflow"
       className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-3 gap-1 border-t border-border bg-card/95 backdrop-blur-xl px-2 pt-1.5 pb-safe"
     >
-      {workspaces.map(({ id, href, label, icon: Icon }) => {
-        const active = workspace === id;
+      {workspaces.map(({ id, label, icon: Icon }) => {
+        const active = nav.active === id;
         return (
           <Link
             key={id}
-            href={href}
+            href={journeyHref(id, nav.market, nav.idea)}
             aria-current={active ? 'location' : undefined}
             className={cn(
               'flex items-center justify-center gap-2 min-h-11 rounded-lg text-sm font-semibold transition-colors',
