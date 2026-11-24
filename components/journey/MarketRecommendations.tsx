@@ -6,7 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { journeyHref } from '@/components/layout/journey';
 import { stockHref } from '@/components/layout/workspaces';
-import type { SearchMarket } from '@/lib/strategy-search/model';
+import { paperTradingStatus, type SearchMarket } from '@/lib/strategy-search/model';
 import type { MarketResearch, MarketSetup } from '@/lib/strategy-search/recommendations';
 import { frameNames } from './StrategySearch';
 
@@ -19,13 +19,6 @@ function resultsHref(setup: MarketSetup) {
   const query = new URLSearchParams({ market, asset: symbol, frame });
   if (setup.ruleKey) query.set('rule', setup.ruleKey);
   return `/journey/find?${query}#asset-research`;
-}
-
-function TrialStatus({ setup }: { setup: MarketSetup }) {
-  const trial = setup.trial;
-  if (!trial) return <span>{setup.kind === 'trade' ? 'Trade setup available' : 'Research only'}</span>;
-  if (!trial.count) return <span>Paper trial · Awaiting first close</span>;
-  return <span>Paper trial {trial.complete ? 'complete' : 'in progress'} · {trial.count} closed · {percent(trial.net, true)} net</span>;
 }
 
 function SetupMetrics({ setup }: { setup: MarketSetup }) {
@@ -41,12 +34,14 @@ function SetupMetrics({ setup }: { setup: MarketSetup }) {
   </dl>;
 }
 
-function StrategyCard({ setup, leading = false }: { setup: MarketSetup; leading?: boolean }) {
+function StrategyCard({ setup, paused, leading = false }: { setup: MarketSetup; paused: boolean; leading?: boolean }) {
+  const trialState = setup.trial?.complete ? 'completed' : paused ? 'paused' : 'tracking';
   return <div className={leading ? 'space-y-4 border-l-2 border-primary pl-4' : 'space-y-3 py-4'}>
     <div>
       <p className="mb-1 text-xs font-medium text-muted-foreground">{setup.pair.symbol} · {frameNames[setup.pair.frame]} · {setup.side === 'short' ? 'Short' : 'Long'}</p>
       <h3 className={leading ? 'text-xl font-semibold tracking-tight' : 'font-semibold'}>{setup.name}</h3>
-      <p className="mt-1 text-xs text-muted-foreground"><TrialStatus setup={setup} /></p>
+      <p className="mt-1 text-xs font-medium">{paperTradingStatus(setup.trial?.count ?? setup.paperCloses,
+        trialState, setup.paperCloses === 30)}</p>
     </div>
     <SetupMetrics setup={setup} />
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -102,7 +97,7 @@ export function MarketRecommendations({ market }: { market: SearchMarket }) {
     {note && <p role="status" className="text-sm text-muted-foreground">{note}</p>}
     {data && !data.connected && <Button asChild size="sm" variant="outline"><Link href={stockHref('account')}>Connect eToro</Link></Button>}
     {data?.paused && <Button asChild size="sm" variant="outline"><Link href="/automation">Research settings</Link></Button>}
-    {leader && <StrategyCard setup={leader} leading />}
+    {data && leader && <StrategyCard setup={leader} paused={data.paused || !data.connected} leading />}
     {data && !leader && <div className="space-y-2">
       <p className="font-medium">{coverage?.scanned ? 'No strategy qualifies yet' : 'Waiting for qualifying results'}</p>
       <details className="text-sm">
@@ -120,7 +115,7 @@ export function MarketRecommendations({ market }: { market: SearchMarket }) {
     </div>}
     {others.length > 0 && <details key={market} className="border-t pt-3">
       <summary className="cursor-pointer text-sm font-medium">Compare {others.length} other {others.length === 1 ? 'strategy' : 'strategies'}</summary>
-      <ol className="mt-2 divide-y">{others.map(setup => <li key={setup.id}><StrategyCard setup={setup} /></li>)}</ol>
+      <ol className="mt-2 divide-y">{others.map(setup => <li key={setup.id}><StrategyCard setup={setup} paused={!!data?.paused || !data?.connected} /></li>)}</ol>
     </details>}
     {coverage && <details className="border-t pt-3 text-xs text-muted-foreground">
       <summary className="cursor-pointer">Scan details · {coverage.scanned}/{coverage.total} combinations tested</summary>

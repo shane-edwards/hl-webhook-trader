@@ -18,7 +18,7 @@ import { automationVersion, type AutomationMarket, type AutomationProfile, type 
 import type { PaperResults } from '@/lib/automation/policy';
 import type { StockEnvironment } from '@/components/stocks/StockOrderTicket';
 import { stockSizingQuery } from '@/lib/stocks/leverage';
-import { RECOMMENDATION_FRESH_MS, SEARCH_ASSETS, SEARCH_FRAMES, searchPair } from '@/lib/strategy-search/model';
+import { paperTradingStatus, RECOMMENDATION_FRESH_MS, SEARCH_ASSETS, SEARCH_FRAMES, searchPair } from '@/lib/strategy-search/model';
 import { researchRank } from '@/lib/strategy-search/recommendations';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,7 @@ type Journey = {
   profiles: AutomationProfile[];
   ready: Evidence | null;
   paper: PaperResults | null;
+  paperActive: boolean;
   connections: StockEnvironment[];
   hasWallet: boolean;
   isTestnet: boolean;
@@ -270,7 +271,9 @@ export default function JourneyPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="font-semibold">{idea.symbol} · {idea.name}</h2>
-              <p role="status" className={cn('mt-1 text-xs text-muted-foreground', current?.ready && 'text-profit')}>{status(evidence, work)}</p>
+              <p role="status" className={cn('mt-1 text-xs text-muted-foreground', current?.ready && 'text-profit')}>
+                {current?.paperActive && current.paper ? paperTradingStatus(current.paper.closed, 'tracking', current.paper.closed === 30) : status(evidence, work)}
+              </p>
             </div>
             {needsFeed ? <Button asChild size="sm"><Link href={stockHref('account', { mode: 'real', returnTo: 'journey-test', idea: idea.id })}>Connect eToro</Link></Button>
               : <Button size="sm" variant="outline" disabled={busy || testing || !current} onClick={() => void runTest()}>
@@ -283,7 +286,6 @@ export default function JourneyPage() {
             Continue to Trade <ArrowRight size={16} />
           </Link></Button>}
           {!idea.executable && <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span>Research only</span>
             {idea.source && !evidence && <a className="text-primary hover:underline" href={idea.source} target="_blank" rel="noreferrer">Source study</a>}
           </div>}
         </section> : <div className="min-w-0 space-y-3">

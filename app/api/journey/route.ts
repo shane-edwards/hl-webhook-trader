@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { findIdea, ideaId } from '@/lib/automation/ideas';
 import { AUTOMATION_MARKETS, automationVersion, type RunReport } from '@/lib/automation/model';
-import { exactCandidate, liveOpportunityCandidates, readPaperResults } from '@/lib/automation/policy';
+import { exactCandidate, liveOpportunityCandidates, paperVersionsInUse, readPaperResults } from '@/lib/automation/policy';
 
 export async function GET(request: Request) {
   const client = await createClient();
@@ -39,12 +39,17 @@ export async function GET(request: Request) {
     }
     let ready = null;
     let paper = null;
+    let paperActive = false;
     if (selected?.executable) {
       const version = automationVersion(selected.market, selected.symbol, selected.rule);
       ready = await exactCandidate(db, user.id, selected.market, version);
-      if (ready) paper = await readPaperResults(db, user.id, ready);
+      if (ready) {
+        const [results, active] = await Promise.all([readPaperResults(db, user.id, ready), paperVersionsInUse(db, user.id, selected.market)]);
+        paper = results;
+        paperActive = active.has(version);
+      }
     }
-    return NextResponse.json({ results, work, profiles: profiles.data, connections: links.data.map(row => row.environment), ready, paper, observedAt: Date.now(),
+    return NextResponse.json({ results, work, profiles: profiles.data, connections: links.data.map(row => row.environment), ready, paper, paperActive, observedAt: Date.now(),
       live: live.map(row => ({ version: row.candidate.version, name: row.candidate.name, symbol: row.candidate.symbol })),
       cryptoMode: settings.data?.autopilot_mode === 'live' ? 'live' : 'paper',
       hasWallet: !!settings.data?.hl_private_key_encrypted || !!process.env.HL_PRIVATE_KEY,
