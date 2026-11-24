@@ -54,7 +54,7 @@ export function replay(input: ReplayInput, triggers: Trigger[], hold: number, [f
   return { trades, marks, net: equity - 1, totalFunding };
 }
 
-export function summarize(books: ReturnType<typeof replay>[], [from, to]: Window) {
+export function summarize(books: ReturnType<typeof replay>[], [from, to]: Window, symbols: readonly string[] = FLOW_MARKETS) {
   const weeks = new Float64Array(Math.ceil((to - from) / (7 * DAY)));
   const entryDays = new Set<number>();
   const returns = new Map<number, number>();
@@ -79,6 +79,6 @@ export function summarize(books: ReturnType<typeof replay>[], [from, to]: Window
   return { net: equity - 1, drawdown, days: entryDays.size, weeks: activeWeeks.size, trades: trades.length,
     longs: trades.filter(trade => trade.side === 1).length, score: error > 0 ? average / error : 0,
     averageBps: trades.length ? trades.reduce((sum, trade) => sum + trade.pnl, 0) * 1e4 / trades.length : null,
-    markets: books.map((book, index) => ({ coin: FLOW_MARKETS[index], net: book.net, trades: book.trades.length })),
+    markets: books.map((book, index) => ({ coin: symbols[index], net: book.net, trades: book.trades.length })),
     funding: books.reduce((sum, book) => sum + book.totalFunding, 0) / books.length };
 }

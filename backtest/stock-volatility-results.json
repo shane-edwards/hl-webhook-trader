@@ -1,0 +1,462 @@
+{
+  "variants": 64,
+  "earlyPasses": 0,
+  "periods": [
+    [
+      "2022-04-01",
+      "2024-01-01"
+    ],
+    [
+      "2024-01-01",
+      "2026-01-01"
+    ],
+    [
+      "2026-01-01",
+      "2026-11-20"
+    ]
+  ],
+  "costs": [
+    {
+      "fill": 0.0003,
+      "stop": 0.0004
+    },
+    {
+      "fill": 0.00065,
+      "stop": 0.0008
+    }
+  ],
+  "coverage": [
+    {
+      "symbol": "SPY",
+      "bars": 1175
+    },
+    {
+      "symbol": "QQQ",
+      "bars": 1176
+    },
+    {
+      "symbol": "IWM",
+      "bars": 1167
+    },
+    {
+      "symbol": "XLK",
+      "bars": 1166
+    },
+    {
+      "symbol": "XLF",
+      "bars": 1167
+    },
+    {
+      "symbol": "XLE",
+      "bars": 1167
+    },
+    {
+      "symbol": "DIA",
+      "bars": 1167
+    },
+    {
+      "symbol": "XLY",
+      "bars": 1166
+    },
+    {
+      "symbol": "XLC",
+      "bars": 1166
+    },
+    {
+      "symbol": "XLI",
+      "bars": 1166
+    },
+    {
+      "symbol": "XLB",
+      "bars": 1166
+    },
+    {
+      "symbol": "XLP",
+      "bars": 1167
+    },
+    {
+      "symbol": "XLU",
+      "bars": 1166
+    },
+    {
+      "symbol": "XLV",
+      "bars": 1166
+    },
+    {
+      "symbol": "SMH",
+      "bars": 1167
+    },
+    {
+      "symbol": "VNQ",
+      "bars": 1167
+    }
+  ],
+  "observations": 1164,
+  "ranked": [
+    {
+      "rule": {
+        "event": "spike",
+        "curve": "VIX",
+        "rise": 0.08,
+        "level": 1.02,
+        "hold": 5
+      },
+      "discovery": {
+        "net": 0,
+        "drawdown": 0,
+        "days": 0,
+        "trades": 0,
+        "score": 0,
+        "averageBps": null,
+        "markets": [
+          {
+            "symbol": "SPY",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "QQQ",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "IWM",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "XLK",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "XLF",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "XLE",
+            "trades": 0,
+            "net": 0
+          }
+        ]
+      },
+      "validation": {
+        "net": 0.013738505105699739,
+        "drawdown": 0.13272987920178037,
+        "days": 10,
+        "trades": 50,
+        "score": 0.1456568189599894,
+        "averageBps": 23.606004150344106,
+        "markets": [
+          {
+            "symbol": "SPY",
+            "trades": 9,
+            "net": -0.010479210357441815
+          },
+          {
+            "symbol": "QQQ",
+            "trades": 9,
+            "net": 0.008991766443199989
+          },
+          {
+            "symbol": "IWM",
+            "trades": 8,
+            "net": 0.013796029598681203
+          },
+          {
+            "symbol": "XLK",
+            "trades": 8,
+            "net": 0.011528354737819768
+          },
+          {
+            "symbol": "XLF",
+            "trades": 8,
+            "net": -0.0255647692452019
+          },
+          {
+            "symbol": "XLE",
+            "trades": 8,
+            "net": 0.08415885945714252
+          }
+        ]
+      },
+      "rank": 0,
+      "ready": false
+    },
+    {
+      "rule": {
+        "event": "cooling",
+        "curve": "VIX",
+        "rise": 0.08,
+        "level": 1.02,
+        "hold": 3
+      },
+      "discovery": {
+        "net": 0,
+        "drawdown": 0,
+        "days": 0,
+        "trades": 0,
+        "score": 0,
+        "averageBps": null,
+        "markets": [
+          {
+            "symbol": "SPY",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "QQQ",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "IWM",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "XLK",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "XLF",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "XLE",
+            "trades": 0,
+            "net": 0
+          }
+        ]
+      },
+      "validation": {
+        "net": 0.04876294884854482,
+        "drawdown": 0.02697031773046532,
+        "days": 3,
+        "trades": 18,
+        "score": 1.6201517400964693,
+        "averageBps": 160.62910320047882,
+        "markets": [
+          {
+            "symbol": "SPY",
+            "trades": 3,
+            "net": 0.038381204579116535
+          },
+          {
+            "symbol": "QQQ",
+            "trades": 3,
+            "net": 0.04536145104042655
+          },
+          {
+            "symbol": "IWM",
+            "trades": 3,
+            "net": 0.02387291249484469
+          },
+          {
+            "symbol": "XLK",
+            "trades": 3,
+            "net": 0.056354509564846555
+          },
+          {
+            "symbol": "XLF",
+            "trades": 3,
+            "net": 0.05289412673730198
+          },
+          {
+            "symbol": "XLE",
+            "trades": 3,
+            "net": 0.07571348867473282
+          }
+        ]
+      },
+      "rank": 0,
+      "ready": false
+    },
+    {
+      "rule": {
+        "event": "cooling",
+        "curve": "VIX9D",
+        "rise": 0.15,
+        "level": 1.02,
+        "hold": 3
+      },
+      "discovery": {
+        "net": 0,
+        "drawdown": 0,
+        "days": 0,
+        "trades": 0,
+        "score": 0,
+        "averageBps": null,
+        "markets": [
+          {
+            "symbol": "SPY",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "QQQ",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "IWM",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "XLK",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "XLF",
+            "trades": 0,
+            "net": 0
+          },
+          {
+            "symbol": "XLE",
+            "trades": 0,
+            "net": 0
+          }
+        ]
+      },
+      "validation": {
+        "net": 0.004514922685766587,
+        "drawdown": 0.02697031773046532,
+        "days": 1,
+        "trades": 6,
+        "score": 1.3599629695079203,
+        "averageBps": 45.14922685766698,
+        "markets": [
+          {
+            "symbol": "SPY",
+            "trades": 1,
+            "net": 0.006808209068999371
+          },
+          {
+            "symbol": "QQQ",
+            "trades": 1,
+            "net": 0.006456560030192904
+          },
+          {
+            "symbol": "IWM",
+            "trades": 1,
+            "net": -0.009756695269165228
+          },
+          {
+            "symbol": "XLK",
+            "trades": 1,
+            "net": 0.0008478040652997176
+          },
+          {
+            "symbol": "XLF",
+            "trades": 1,
+            "net": 0.008746484110073505
+          },
+          {
+            "symbol": "XLE",
+            "trades": 1,
+            "net": 0.013987174109199918
+          }
+        ]
+      },
+      "rank": 0,
+      "ready": false
+    },
+    {
+      "rule": {
+        "event": "spike",
+        "curve": "VIX9D",
+        "rise": 0.08,
+        "level": 1.09,
+        "hold": 5
+      },
+      "discovery": {
+        "net": -0.017810447198391977,
+        "drawdown": 0.07378126446309363,
+        "days": 5,
+        "trades": 25,
+        "score": -0.2891541309664923,
+        "averageBps": -43.827240639787796,
+        "markets": [
+          {
+            "symbol": "SPY",
+            "trades": 4,
+            "net": 0.0011445687245068559
+          },
+          {
+            "symbol": "QQQ",
+            "trades": 4,
+            "net": 0.06997735256097326
+          },
+          {
+            "symbol": "IWM",
+            "trades": 4,
+            "net": -0.05267189273374229
+          },
+          {
+            "symbol": "XLK",
+            "trades": 4,
+            "net": 0.08118222940352604
+          },
+          {
+            "symbol": "XLF",
+            "trades": 4,
+            "net": -0.07721078418625948
+          },
+          {
+            "symbol": "XLE",
+            "trades": 5,
+            "net": -0.1292841569593558
+          }
+        ]
+      },
+      "validation": {
+        "net": 0.11337478102040821,
+        "drawdown": 0.09060240489840032,
+        "days": 8,
+        "trades": 43,
+        "score": 0.8007199406056276,
+        "averageBps": 161.79989933267535,
+        "markets": [
+          {
+            "symbol": "SPY",
+            "trades": 7,
+            "net": 0.11499879282978687
+          },
+          {
+            "symbol": "QQQ",
+            "trades": 7,
+            "net": 0.14983289249642584
+          },
+          {
+            "symbol": "IWM",
+            "trades": 7,
+            "net": 0.07126600505190517
+          },
+          {
+            "symbol": "XLK",
+            "trades": 7,
+            "net": 0.1760714418256193
+          },
+          {
+            "symbol": "XLF",
+            "trades": 7,
+            "net": 0.1564297206090277
+          },
+          {
+            "symbol": "XLE",
+            "trades": 8,
+            "net": 0.011649833309685942
+          }
+        ]
+      },
+      "rank": -0.2891541309664923,
+      "ready": false
+    }
+  ],
+  "later": []
+}

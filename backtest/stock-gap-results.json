@@ -1,0 +1,344 @@
+{
+  "periods": [
+    [
+      "2023-03-01",
+      "2025-01-01"
+    ],
+    [
+      "2025-01-01",
+      "2026-01-01"
+    ],
+    [
+      "2026-01-01",
+      "2026-11-21"
+    ]
+  ],
+  "costs": [
+    {
+      "fill": 0.0003,
+      "stop": 0.0004
+    },
+    {
+      "fill": 0.00065,
+      "stop": 0.0008
+    }
+  ],
+  "coverage": [
+    {
+      "symbol": "QQQ",
+      "days": 934
+    },
+    {
+      "symbol": "IWM",
+      "days": 927
+    },
+    {
+      "symbol": "XLK",
+      "days": 930
+    },
+    {
+      "symbol": "XLF",
+      "days": 930
+    }
+  ],
+  "etfs": {
+    "rules": 48,
+    "earlyPasses": 0,
+    "ranked": [
+      {
+        "rule": {
+          "event": "late-selloff",
+          "kind": "follow",
+          "threshold": 1.9,
+          "confirm": true,
+          "exitBar": 1
+        },
+        "early": {
+          "net": -0.013051468499737817,
+          "drawdown": 0.023976960766792232,
+          "days": 33,
+          "weeks": 25,
+          "trades": 35,
+          "score": -0.9289325526554627,
+          "averageBps": -14.57437200862926,
+          "markets": [
+            {
+              "symbol": "QQQ",
+              "net": -0.01923064654838158,
+              "count": 6
+            },
+            {
+              "symbol": "IWM",
+              "net": -0.013186257964319714,
+              "count": 14
+            },
+            {
+              "symbol": "XLK",
+              "net": -0.000787368245523834,
+              "count": 8
+            },
+            {
+              "symbol": "XLF",
+              "net": -0.019001601240726362,
+              "count": 7
+            }
+          ]
+        },
+        "validation": {
+          "net": -0.05412358430279818,
+          "drawdown": 0.060563231407344986,
+          "days": 13,
+          "weeks": 10,
+          "trades": 15,
+          "score": -1.7931093416848556,
+          "averageBps": -147.67408806926832,
+          "markets": [
+            {
+              "symbol": "QQQ",
+              "net": -0.056322616037417284,
+              "count": 3
+            },
+            {
+              "symbol": "IWM",
+              "net": -0.09765710275956796,
+              "count": 5
+            },
+            {
+              "symbol": "XLK",
+              "net": -0.07081731041156825,
+              "count": 4
+            },
+            {
+              "symbol": "XLF",
+              "net": 0.008302691997360112,
+              "count": 3
+            }
+          ]
+        },
+        "ready": false,
+        "rank": -1.7931093416848556
+      },
+      {
+        "rule": {
+          "event": "late-selloff",
+          "kind": "reverse",
+          "threshold": 1.9,
+          "confirm": true,
+          "exitBar": 0
+        },
+        "early": {
+          "net": -0.0286008499330479,
+          "drawdown": 0.029790427364289607,
+          "days": 20,
+          "weeks": 20,
+          "trades": 23,
+          "score": -1.2028439925814165,
+          "averageBps": -49.7304670020535,
+          "markets": [
+            {
+              "symbol": "QQQ",
+              "net": -0.01290675294185406,
+              "count": 5
+            },
+            {
+              "symbol": "IWM",
+              "net": -0.04460011095900884,
+              "count": 7
+            },
+            {
+              "symbol": "XLK",
+              "net": -0.02526097280243733,
+              "count": 5
+            },
+            {
+              "symbol": "XLF",
+              "net": -0.03163556302889281,
+              "count": 6
+            }
+          ]
+        },
+        "validation": {
+          "net": -0.028155377763069867,
+          "drawdown": 0.029755924861042615,
+          "days": 10,
+          "weeks": 9,
+          "trades": 11,
+          "score": -2.1568139626919307,
+          "averageBps": -104.02157348367722,
+          "markets": [
+            {
+              "symbol": "QQQ",
+              "net": 0,
+              "count": 0
+            },
+            {
+              "symbol": "IWM",
+              "net": -0.006350020965044445,
+              "count": 2
+            },
+            {
+              "symbol": "XLK",
+              "net": -0.03530275079551626,
+              "count": 5
+            },
+            {
+              "symbol": "XLF",
+              "net": -0.07096873929171876,
+              "count": 4
+            }
+          ]
+        },
+        "ready": false,
+        "rank": -2.1568139626919307
+      },
+      {
+        "rule": {
+          "event": "opening-gap",
+          "kind": "follow",
+          "threshold": 1.9,
+          "confirm": true,
+          "exitBar": 12
+        },
+        "early": {
+          "net": -0.025086021336258812,
+          "drawdown": 0.025086021336258812,
+          "days": 22,
+          "weeks": 19,
+          "trades": 28,
+          "score": -2.301600254041475,
+          "averageBps": -36.063533517572566,
+          "markets": [
+            {
+              "symbol": "QQQ",
+              "net": -0.03234142157574815,
+              "count": 8
+            },
+            {
+              "symbol": "IWM",
+              "net": -0.030141650021926036,
+              "count": 9
+            },
+            {
+              "symbol": "XLK",
+              "net": -0.018387587799494454,
+              "count": 6
+            },
+            {
+              "symbol": "XLF",
+              "net": -0.01947342594786683,
+              "count": 5
+            }
+          ]
+        },
+        "validation": {
+          "net": 0.006999195826859372,
+          "drawdown": 0.010940556676445001,
+          "days": 11,
+          "weeks": 10,
+          "trades": 13,
+          "score": 0.28287125301533445,
+          "averageBps": 21.612603611522818,
+          "markets": [
+            {
+              "symbol": "QQQ",
+              "net": 0.08550925585251967,
+              "count": 3
+            },
+            {
+              "symbol": "IWM",
+              "net": -0.021358109277176518,
+              "count": 2
+            },
+            {
+              "symbol": "XLK",
+              "net": -0.03929326741029526,
+              "count": 5
+            },
+            {
+              "symbol": "XLF",
+              "net": 0.003138904142388821,
+              "count": 3
+            }
+          ]
+        },
+        "ready": false,
+        "rank": -2.301600254041475
+      },
+      {
+        "rule": {
+          "event": "opening-gap",
+          "kind": "reverse",
+          "threshold": 1.9,
+          "confirm": true,
+          "exitBar": 7
+        },
+        "early": {
+          "net": -0.007135118021330933,
+          "drawdown": 0.01178649656316999,
+          "days": 17,
+          "weeks": 12,
+          "trades": 21,
+          "score": -0.997360953169483,
+          "averageBps": -13.493747655079517,
+          "markets": [
+            {
+              "symbol": "QQQ",
+              "net": 0.00228583828477813,
+              "count": 4
+            },
+            {
+              "symbol": "IWM",
+              "net": 0.007188262838883297,
+              "count": 7
+            },
+            {
+              "symbol": "XLK",
+              "net": -0.017097984120843623,
+              "count": 5
+            },
+            {
+              "symbol": "XLF",
+              "net": -0.020916589088142756,
+              "count": 5
+            }
+          ]
+        },
+        "validation": {
+          "net": -0.03496937020039581,
+          "drawdown": 0.03496937020039581,
+          "days": 12,
+          "weeks": 10,
+          "trades": 15,
+          "score": -2.4938728966374133,
+          "averageBps": -94.63756917198229,
+          "markets": [
+            {
+              "symbol": "QQQ",
+              "net": -0.02225265094232587,
+              "count": 2
+            },
+            {
+              "symbol": "IWM",
+              "net": -0.017324112642395417,
+              "count": 2
+            },
+            {
+              "symbol": "XLK",
+              "net": -0.050076440152247104,
+              "count": 5
+            },
+            {
+              "symbol": "XLF",
+              "net": -0.050224277064613965,
+              "count": 6
+            }
+          ]
+        },
+        "ready": false,
+        "rank": -2.4938728966374133
+      }
+    ],
+    "results": []
+  },
+  "shares": null
+}
