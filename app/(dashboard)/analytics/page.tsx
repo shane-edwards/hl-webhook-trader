@@ -7,10 +7,10 @@ import { Header } from '@/components/layout/Header';
 import { PnLChart } from '@/components/analytics/PnLChart';
 import { Stat, ChartTooltip } from '@/components/ui/stat';
 import { Segmented } from '@/components/ui/segmented';
-import { calculateAnalytics, buildMonthlyPnL, equityStats, executionStats, MIN_DAYS_FOR_SHARPE } from '@/lib/analytics';
-import { resultsByTag, type TagResult } from '@/lib/journal';
+import { equityStats, MIN_DAYS_FOR_SHARPE } from '@/lib/analytics';
+import { type TagResult } from '@/lib/journal';
 import { cn, formatCurrency } from '@/lib/utils';
-import type { Trade } from '@/types';
+import type { AnalyticsReport } from '@/lib/analytics-report';
 import type { AccountTruth } from '@/lib/hyperliquid/public';
 import { toast } from 'sonner';
 
@@ -41,7 +41,7 @@ function TagTable({ title, rows }: { title: string; rows: TagResult[] }) {
 }
 
 export default function AnalyticsPage() {
-  const [trades, setTrades] = useState<Trade[]>([]);
+  const [report, setReport] = useState<AnalyticsReport | null>(null);
   const [account, setAccount] = useState<AccountTruth | null>(null);
   const [accountState, setAccountState] = useState<'loading' | 'ready' | 'none'>('loading');
   const [period, setPeriod] = useState<Period>('month');
@@ -51,9 +51,12 @@ export default function AnalyticsPage() {
   const load = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
     try {
-      const [tradesRes, accountRes] = await Promise.all([fetch('/api/trades?limit=500'), fetch('/api/account')]);
-      setTrades((await tradesRes.json()).trades ?? []);
-      const a = accountRes.ok ? (await accountRes.json()).account ?? null : null;
+      const [analytics, exchange] = await Promise.allSettled([
+        fetch('/api/analytics').then(r => r.ok ? r.json() : null),
+        fetch('/api/account').then(r => r.ok ? r.json() : null),
+      ]);
+      setReport(analytics.status === 'fulfilled' ? analytics.value : null);
+      const a = exchange.status === 'fulfilled' ? exchange.value?.account ?? null : null;
       setAccount(a); setAccountState(a ? 'ready' : 'none');
     } catch {
       toast.error('Failed to load analytics data');
@@ -65,10 +68,6 @@ export default function AnalyticsPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const m = useMemo(() => calculateAnalytics(trades), [trades]);
-  const monthly = useMemo(() => buildMonthlyPnL(trades), [trades]);
-  const tags = useMemo(() => resultsByTag(trades), [trades]);
-  const execution = useMemo(() => executionStats(trades), [trades]);
   const eq = useMemo(() => equityStats(account?.periods[period]), [account, period]);
   // Sharpe always uses the 30-day series: it is the only one with roughly daily points.
   const month = useMemo(() => equityStats(account?.periods.month), [account]);
@@ -144,25 +143,26 @@ export default function AnalyticsPage() {
           )}
         </section>
 
+        {report ? <>
         <section className="space-y-3">
           <div>
             <h2 className="text-sm font-semibold">Trades placed by this app</h2>
             <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
               Closed trades, after fees and funding where the exchange figures have been pulled
-              ({m.costedTrades} of {m.totalTrades} so far; the rest show price move only, which flatters them).
+              ({report.stats.costedTrades} of {report.stats.totalTrades} so far; the rest show price move only, which flatters them).
             </p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-            <Stat label="Net profit and loss" value={formatCurrency(m.totalPnl)} hint={`${m.totalTrades} closed trades`} tone={tone(m.totalPnl)} loading={loading} />
-            <Stat label="Win rate" value={`${m.winRate.toFixed(1)}%`} hint={`${m.winningTrades} wins · ${m.losingTrades} losses`} loading={loading} />
-            <Stat label="Profit factor" value={isFinite(m.profitFactor) ? m.profitFactor.toFixed(2) : '∞'} hint="Gross profit ÷ gross loss" tone={tone(m.profitFactor, 1)} loading={loading} />
-            <Stat label="Average trade" value={formatCurrency(m.expectancy)} hint="Net result per closed trade" tone={tone(m.expectancy)} loading={loading} />
-            <Stat label="Average win / loss" value={`${formatCurrency(m.avgWin)} / ${formatCurrency(-m.avgLoss)}`} hint={isFinite(m.avgWinLossRatio) && m.avgWinLossRatio > 0 ? `Ratio ${m.avgWinLossRatio.toFixed(2)}` : undefined} loading={loading} />
-            <Stat label="Largest win / loss" value={`${formatCurrency(m.largestWin)} / ${formatCurrency(m.largestLoss)}`} hint={`Longest runs: ${m.maxConsecutiveWins} wins, ${m.maxConsecutiveLosses} losses`} loading={loading} />
-            <Stat label="Fees paid" value={formatCurrency(-m.totalFees)} hint="On trades with exchange figures" tone={m.totalFees > 0 ? 'down' : 'neutral'} loading={loading} />
-            <Stat label="Funding" value={formatCurrency(-m.totalFunding)} hint={`Average hold ${m.avgTradeDurationHours.toFixed(1)} hours`} tone={tone(-m.totalFunding)} loading={loading} />
+            <Stat label="Net profit and loss" value={formatCurrency(report.stats.totalPnl)} hint={`${report.stats.totalTrades} closed trades`} tone={tone(report.stats.totalPnl)} loading={loading} />
+            <Stat label="Win rate" value={`${report.stats.winRate.toFixed(1)}%`} hint={`${report.stats.winningTrades} wins · ${report.stats.losingTrades} losses`} loading={loading} />
+            <Stat label="Profit factor" value={report.stats.profitFactor != null && isFinite(report.stats.profitFactor) ? report.stats.profitFactor.toFixed(2) : '∞'} hint="Gross profit ÷ gross loss" tone={tone(report.stats.profitFactor, 1)} loading={loading} />
+            <Stat label="Average trade" value={formatCurrency(report.stats.expectancy)} hint="Net result per closed trade" tone={tone(report.stats.expectancy)} loading={loading} />
+            <Stat label="Average win / loss" value={`${formatCurrency(report.stats.avgWin)} / ${formatCurrency(-report.stats.avgLoss)}`} hint={report.stats.avgWinLossRatio != null && isFinite(report.stats.avgWinLossRatio) && report.stats.avgWinLossRatio > 0 ? `Ratio ${report.stats.avgWinLossRatio.toFixed(2)}` : undefined} loading={loading} />
+            <Stat label="Largest win / loss" value={`${formatCurrency(report.stats.largestWin)} / ${formatCurrency(report.stats.largestLoss)}`} hint={`Longest runs: ${report.stats.maxConsecutiveWins} wins, ${report.stats.maxConsecutiveLosses} losses`} loading={loading} />
+            <Stat label="Fees paid" value={formatCurrency(-report.stats.totalFees)} hint="On trades with exchange figures" tone={report.stats.totalFees > 0 ? 'down' : 'neutral'} loading={loading} />
+            <Stat label="Funding" value={formatCurrency(-report.stats.totalFunding)} hint={`Average hold ${report.stats.avgTradeDurationHours.toFixed(1)} hours`} tone={tone(-report.stats.totalFunding)} loading={loading} />
           </div>
-          <PnLChart data={monthly} />
+          <PnLChart data={report.monthly} />
         </section>
 
         <section className="space-y-3">
@@ -173,14 +173,14 @@ export default function AnalyticsPage() {
               which only a resting order can get. Fees cover entry and exit and appear once the exchange figures are in. A market order pays 0.045% a side, a resting one 0.015%.
             </p>
           </div>
-          {execution[0].trades === 0 ? (
+          {report.execution[0].trades === 0 ? (
             <p className="surface px-5 py-5 text-sm text-muted-foreground">No measured entries yet. Entries are measured from now on; earlier trades did not record the price at the moment of sending.</p>
           ) : (
             <div className="surface overflow-x-auto">
               <table className="data-table">
                 <thead><tr><th>How it was sent</th><th>Entries</th><th>Avg slippage</th><th>Slippage cost</th><th>Fees, round trip</th></tr></thead>
                 <tbody>
-                  {execution.map(r => (
+                  {report.execution.map(r => (
                     <tr key={r.type}>
                       <td className="font-medium">{r.type}</td>
                       <td className="num">{r.trades}</td>
@@ -204,11 +204,12 @@ export default function AnalyticsPage() {
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3 lg:gap-4">
-            <TagTable title="Direction" rows={tags.read} />
-            <TagTable title="Stop" rows={tags.stop} />
-            <TagTable title="Timeframe" rows={tags.timeframe} />
+            <TagTable title="Direction" rows={report.tags.read} />
+            <TagTable title="Stop" rows={report.tags.stop} />
+            <TagTable title="Timeframe" rows={report.tags.timeframe} />
           </div>
         </section>
+        </> : <p role="status" className="surface p-5 text-sm">{loading ? 'Loading complete trade history…' : 'Trade analytics unavailable. Refresh to retry.'}</p>}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { APP_NAME } from '@/lib/brand';
@@ -26,17 +27,27 @@ function useJourneyNavigation() {
   return { active: currentJourneyStep(pathname, query.get('tab')), market, idea: idea?.id } as const;
 }
 
-export function Sidebar() {
-  const nav = useJourneyNavigation();
+export function SignOutButton() {
   const router = useRouter();
-  const supabase = createClient();
-
   async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push('/login');
+    const { error } = await createClient().auth.signOut();
+    if (error) { toast.error('Sign out failed. Please try again.'); return; }
+    router.replace('/login');
     router.refresh();
   }
+  return (
+    <button
+      onClick={handleLogout}
+      className="flex items-center gap-3 px-3 h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors w-full"
+    >
+      <LogOut className="w-4 h-4 shrink-0" />
+      Sign out
+    </button>
+  );
+}
 
+export function Sidebar() {
+  const nav = useJourneyNavigation();
   return (
     <aside className="hidden lg:flex flex-col w-60 fixed inset-y-0 left-0 z-40 border-r border-border bg-card/60 backdrop-blur-xl">
       <div className="flex items-center gap-3 px-5 h-16 border-b border-border">
@@ -73,13 +84,7 @@ export function Sidebar() {
         <Link href="/tools" className="flex items-center gap-3 px-3 min-h-10 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground">
           <SlidersHorizontal className="w-4 h-4" />Tools and settings
         </Link>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-3 h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors w-full"
-        >
-          <LogOut className="w-4 h-4 shrink-0" />
-          Sign out
-        </button>
+        <SignOutButton />
       </div>
     </aside>
   );

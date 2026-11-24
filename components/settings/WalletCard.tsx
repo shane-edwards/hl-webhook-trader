@@ -81,7 +81,7 @@ export function WalletCard({ address, hasKey, isTestnet, onChanged }: Props) {
     try {
       const res = await fetch('/api/wallet', { method: 'DELETE' });
       if (!res.ok) throw new Error((await res.json()).error ?? 'Could not disconnect');
-      toast.success('Wallet disconnected. Webhook and strategy were turned off.');
+      toast.success('Wallet disconnected. Webhook, daily strategy and Crypto Autopilot were turned off.');
       onChanged();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not disconnect');

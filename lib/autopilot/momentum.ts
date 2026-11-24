@@ -1,3 +1,4 @@
+import { paperFill } from './paper-fill';
 // Cross-coin momentum: once a week, rank a fixed basket of coins
 // by their 90-day return, hold the strongest quarter long and the weakest
 // quarter short in equal size (so the book is roughly market-neutral).
@@ -71,7 +72,9 @@ export function momentumPlanKey(plan: { symbol: string; side: 'long' | 'short' }
  * One pass of the paper momentum book. Does nothing unless a week has passed
  * since the last rebalance. Returns the realised P&L to add to paper equity.
  */
-export async function runMomentumPaper(hl: HyperliquidClient, db: Db, userId: string, paperEquity: number, now = Date.now(), limits?: { canOpen: boolean; maxPositions: number; availableNotional: number; occupied?: Set<string>; manualPlan?: string }): Promise<{ pnl: number; events: MomentumEvent[]; opened?: boolean }> {
+export async function runMomentumPaper(hl: HyperliquidClient, db: Db, userId: string, paperEquity: number, now = Date.now(), limits?: { canOpen: boolean; maxPositions: number; availableNotional: number; occupied?: Set<string>; manualPlan?: string; slippagePercent?: number }): Promise<{ pnl: number; events: MomentumEvent[]; opened?: boolean }> {
+  const started = Date.now();
+  const clock = () => now + Date.now() - started;
   const events: MomentumEvent[] = [];
   const { data: legs, error } = await db.from('autopilot_positions').select('*')
     .eq('user_id', userId).eq('mode', 'paper').eq('strategy_id', MOMENTUM_ID).eq('status', 'open');
@@ -94,17 +97,13 @@ export async function runMomentumPaper(hl: HyperliquidClient, db: Db, userId: st
   if (openLegs.length && !stopped.size && now - lastRebalance < MOMENTUM_HOLD_DAYS * DAY_MS) return { pnl: 0, events };
   if (!openLegs.length && limits && !limits.canOpen) return { pnl: 0, events };
 
-  const ranked = await rankMomentum(hl, now);
-  const priceOf = new Map(ranked.map(r => [r.symbol, r.price]));
-  if (hl.getAllMids && (stopped.size || openLegs.some(l => !priceOf.has(l.symbol)))) {
-    for (const [symbol, value] of Object.entries(await hl.getAllMids())) {
-      if (Number(value) > 0) priceOf.set(symbol, Number(value));
-    }
-  }
-  if (openLegs.some(leg => !priceOf.has(leg.symbol))) throw new Error('Prices are unavailable for one or more momentum positions');
+
+  const slippage = limits?.slippagePercent ?? 2;
+  const exits = await Promise.all(openLegs.map(async leg => stopped.get(leg.symbol) ??
+    (await paperFill(hl, leg.symbol, leg.side === 'long' ? 'sell' : 'buy', { quantity: Number(leg.size) }, slippage, clock)).price));
   let pnl = 0;
-  for (const leg of openLegs) {
-    const exit = stopped.get(leg.symbol) ?? priceOf.get(leg.symbol)!;
+  for (const [index, leg] of openLegs.entries()) {
+    const exit = exits[index];
     const dir = leg.side === 'long' ? 1 : -1;
     const legPnl = Number(leg.notional_usd) * (dir * (exit / Number(leg.entry_price) - 1)) - Number(leg.notional_usd) * PAPER_COST * (1 + exit / Number(leg.entry_price)) - Number(leg.funding_paid ?? 0);
     pnl += legPnl;
@@ -120,6 +119,7 @@ export async function runMomentumPaper(hl: HyperliquidClient, db: Db, userId: st
     if (previous.error) throw new Error(previous.error.message);
     if ((previous.data ?? []).some(row => row.exit_reason === 'basket stop' && now - Date.parse(row.entry_time) < MOMENTUM_HOLD_DAYS * DAY_MS)) return { pnl, events };
   }
+  const ranked = await rankMomentum(hl, clock());
   const plan = momentumOrderPlan(ranked, paperEquity + pnl, limits?.availableNotional ?? Infinity, limits?.maxPositions ?? Infinity);
   if (limits?.manualPlan && momentumPlanKey(plan) !== limits.manualPlan) return { pnl, events };
   if (!plan.length || plan.some(leg => limits?.occupied?.has(leg.symbol))) {
@@ -127,15 +127,16 @@ export async function runMomentumPaper(hl: HyperliquidClient, db: Db, userId: st
     return { pnl, events };
   }
   const rebalanceDay = Math.floor(now / DAY_MS) * DAY_MS;
-  const rows = plan.map(({ symbol, price, ret, side, notional }) => {
+  const rows = await Promise.all(plan.map(async ({ symbol, ret, side, notional }) => {
+    const { price, at } = await paperFill(hl, symbol, side === 'long' ? 'buy' : 'sell', { usd: notional }, slippage, clock);
     return {
       user_id: userId, mode: 'paper', symbol, strategy_id: MOMENTUM_ID, side, status: 'open',
       entry_price: price, size: notional / price, notional_usd: notional,
       stop_price: price * (1 + (side === 'long' ? -1 : 1) * MOMENTUM_STOP_PCT / 100),
-      entry_bar_t: rebalanceDay, entry_time: new Date(now).toISOString(),
+      entry_bar_t: rebalanceDay, entry_time: new Date(at).toISOString(), paper_book_fill: true,
       entry_reason: `${MOMENTUM_LOOKBACK_DAYS}-day return ${(ret * 100).toFixed(0)}%`,
     };
-  });
+  }));
   const { error: insertError } = await db.from('autopilot_positions').insert(rows);
   if (insertError && insertError.code !== '23505') throw new Error(insertError.message); // 23505: already rebalanced today
   if (!insertError) {

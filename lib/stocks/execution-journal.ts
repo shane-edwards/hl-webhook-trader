@@ -35,7 +35,7 @@ export function stockJournalFill(order: EtoroOrderStatus): StockJournalFill | nu
 export async function readStockCloseExecution(broker: EtoroClient, instrumentId: number, positionId: string, close: StockJournalClose) {
   if (close.complete) return close;
   const status = await broker.stockCloseStatus(close.orderId);
-  if (status.instrumentID !== instrumentId) return close;
+  if (status.orderID !== close.orderId || status.instrumentID !== instrumentId) return close;
   const position = status.positions?.find(item => item.positionID === Number(positionId));
   if (!position?.rate || !position.units || !Number.isFinite(position.rate) || !Number.isFinite(position.units)) return close;
   return { ...close, rate: position.rate, units: position.units, closedAt: position.occurred ?? null, proceeds: status.proceeds,

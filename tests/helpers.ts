@@ -29,6 +29,7 @@ export function memoryDb(seed: Record<string, Row[]> = {}) {
       select: () => { if (op === 'update') { const r = exec(); inserted = r.data; op = 'select'; } return q; },
       eq: (k: string, v: unknown) => add(r => r[k] === v),
       is: (k: string, v: unknown) => add(r => (r[k] ?? null) === v),
+      not: (k: string, op: string, v: unknown) => { if (op !== 'is') throw new Error(op); return add(r => (r[k] ?? null) !== v); },
       in: (k: string, v: unknown[]) => add(r => v.includes(r[k])),
       gte: (k: string, v: string) => add(r => String(r[k]) >= v),
       lt: (k: string, v: string) => add(r => String(r[k]) < v),

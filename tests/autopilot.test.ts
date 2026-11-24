@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional } from '../lib/autopilot/risk';
 import { computeIndicators, getStrategy, WARMUP_BARS, type Bar } from '../lib/autopilot/strategies';
 import { isLiveEligible, runAutopilot, type AutopilotConfig } from '../lib/autopilot/run';
+import { runFastPass } from '../lib/upkeep';
 import { strategyDirection } from '../lib/autopilot/signals';
 import type { HyperliquidClient } from '../lib/hyperliquid/client';
 import { runMomentumLive } from '../lib/autopilot/momentum-live';
@@ -114,7 +115,11 @@ const cfg: AutopilotConfig = {
   mode: 'paper', symbols: ['BTC'], strategies: ['trend_breakout'], allowShort: false,
   risk: DEFAULT_RISK, slippagePercent: 1, reservedSymbol: null,
 };
-const client = (bars: Bar[]) => ({ getHourlyCandles: async () => bars } as unknown as HyperliquidClient);
+const book = (price: number, time: number) => ({ time, bids: [{ px: price - .01, sz: 10_000 }], asks: [{ px: price, sz: 10_000 }] });
+const client = (bars: Bar[]) => ({
+  getHourlyCandles: async () => bars,
+  getBookSnapshot: async () => book(bars.at(-1)!.c, bars.at(-1)!.t + HOUR),
+} as unknown as HyperliquidClient);
 
 test('strategy: breakout fires on a new 48h high in an uptrend and not otherwise', () => {
   const now = Date.UTC(2026, 5, 1);
@@ -127,8 +132,9 @@ test('strategy: breakout fires on a new 48h high in an uptrend and not otherwise
   assert.ok(sig.stopPct >= 0.004 && sig.stopPct <= 0.15);
 });
 
-test('autopilot (paper): opens once per signal, sizes by risk, then stops out and books the loss', async () => {
+test('autopilot (paper): opens once per signal, sizes by risk, then stops out and books the loss', async t => {
   const now = Date.UTC(2026, 5, 1);
+  t.mock.method(Date, 'now', () => now);
   const { db, tables } = fakeDb();
   const bars = uptrend(now, WARMUP_BARS + 20, true);
 
@@ -177,7 +183,7 @@ test('manual strategy entry rechecks the reviewed bar and mode, and uses the sam
   const now = Date.UTC(2026, 5, 1);
   const bars = uptrend(now, WARMUP_BARS + 20, true);
   const { db, tables } = fakeDb();
-  const hl = { ...client(bars), getAllMids: async () => ({ BTC: '420' }) } as unknown as HyperliquidClient;
+  const hl = { ...client(bars), getBookSnapshot: async () => book(420, now) } as unknown as HyperliquidClient;
   const signal = { id: 'trend_breakout', symbol: 'BTC', side: 'long' as const, barT: bars.at(-1)!.t };
   assert.equal((await runAutopilot(hl, db, 'u1', { ...cfg, manageOnly: true }, now)).manualOpened, false);
   assert.equal((await runAutopilot(hl, db, 'u1', { ...cfg, manualEntry: { ...signal, barT: signal.barT - HOUR } }, now)).manualOpened, false);
@@ -216,6 +222,7 @@ test('live basket opens balanced protected positions with the same cash risk bud
   assert.equal((await hl.getPositions()).filter(p => p.side === 'long').length, 2);
   assert.equal((await hl.getPositions()).filter(p => p.side === 'short').length, 2);
   assert.equal((await hl.getOpenOrders()).filter(o => o.reduceOnly && o.isTrigger).length, 4);
+  assert.ok(tables.autopilot_positions.every(row => row.recovery_pending === false && row.account_resource === 'testnet:' + exchange.address && row.entry_order_id));
   assert.ok(tables.autopilot_positions.reduce((sum, p) => sum + Number(p.notional_usd) * 0.15, 0) <= 50);
 });
 
@@ -225,7 +232,7 @@ test('momentum (paper): opens a balanced basket, holds it for a week, then settl
   const { db, tables } = fakeDb();
   // Coin k rises k% per 90 days; after the first week every price is 10% higher.
   let bump = 1, clock = now; // candles always end the day before the current scan
-  const hl = { getDailyCandles: async (symbol: string) => {
+  const hl = { getBookSnapshot: async () => book(100 * bump, clock), getDailyCandles: async (symbol: string) => {
     const k = MOMENTUM_UNIVERSE.indexOf(symbol);
     return Array.from({ length: 95 }, (_, i) => ({ time: clock - (95 - i) * DAY, close: 100 * (1 + (k / 100) * (i / 94)) * bump }));
   } } as unknown as HyperliquidClient;
@@ -333,4 +340,68 @@ test('suggestions: with little history it stays neutral but still sizes a stop f
   assert.equal(s.limitedHistory, true);
   assert.equal(s.bias, 'neutral');
   assert.ok(s.long.stopLossPct >= 0.5);
+});
+
+test('an unprotected live entry survives a failed emergency close, a worker restart and exchange settlement', async t => {
+  const now = Date.UTC(2026, 5, 1);
+  t.mock.method(Date, 'now', () => now);
+  const bars = uptrend(now, WARMUP_BARS + 20, true);
+  const exchange = new SimExchange({ BTC: 100 });
+  const hl = Object.assign(exchange.client, { getHourlyCandles: async () => bars });
+  const { db, tables } = memoryDb();
+  const live = { ...cfg, mode: 'live' as const };
+  const fills: object[] = [];
+  t.mock.method(globalThis, 'fetch', async (_url: unknown, init?: RequestInit) =>
+    Response.json(JSON.parse(String(init?.body)).type === 'userFillsByTime' ? fills : []));
+  exchange.rejectStops = true;
+  const close = t.mock.method(exchange, 'closePosition', async () => { throw new Error('Exchange unavailable'); });
+  const result = await runAutopilot(hl, db, 'u1', live, now);
+  const [row] = tables.autopilot_positions;
+  assert.equal(result.canOpen, false);
+  assert.equal(row.status, 'open');
+  assert.equal(row.recovery_pending, true);
+  assert.equal(row.account_resource, 'testnet:' + exchange.address);
+  assert.ok(exchange.positions.has('BTC'));
+  assert.ok(close.mock.callCount() > 0);
+  const wrong = Object.assign(new SimExchange({ BTC: 100 }).client, { address: 'another-wallet', getHourlyCandles: async () => bars });
+  await assert.rejects(runAutopilot(wrong, db, 'u1', live, now + 1000), /another Hyperliquid wallet/);
+  close.mock.restore();
+  const recovery = await runFastPass(hl, db, { user_id: 'u1', slippage_percent: 1 }, now + 5000);
+  assert.ok(recovery.notes.some(note => note.includes('verified flat')), JSON.stringify(recovery));
+  assert.equal(exchange.positions.size, 0);
+  assert.equal(row.recovery_pending, true);
+  fills.push({ coin: 'BTC', time: now + 1, oid: row.entry_order_id, dir: 'Open Long', sz: row.size, px: 100, closedPnl: 0, fee: 1 },
+    { coin: 'BTC', time: now + 5000, dir: 'Close Long', sz: row.size, px: 98, closedPnl: -12, fee: 1 });
+  await runAutopilot(hl, db, 'u1', live, now + 10_000);
+  assert.equal(tables.autopilot_positions.length, 1);
+  assert.equal(row.status, 'closed');
+  assert.equal(row.recovery_pending, false);
+  assert.ok(Math.abs(Number(row.exit_price) - 98) < 1e-8);
+  assert.equal(row.pnl, -14);
+});
+
+test('an automatic paper signal uses executable depth at scan time and rejects stale or undersized books', async t => {
+  const now = Date.UTC(2026, 5, 1);
+  t.mock.method(Date, 'now', () => now);
+  const bars = uptrend(now, WARMUP_BARS + 20, true);
+  const { db, tables } = memoryDb();
+  let quote = book(420, now - 16_000);
+  const hl = Object.assign(client(bars), { getBookSnapshot: async () => quote });
+  await runAutopilot(hl, db, 'u1', cfg, now);
+  assert.equal(tables.autopilot_positions.length, 0);
+  quote = book(420, now);
+  quote.asks[0].sz = .00001;
+  await runAutopilot(hl, db, 'u1', cfg, now);
+  assert.equal(tables.autopilot_positions.length, 0);
+  quote = book(420, now);
+  await runAutopilot(hl, db, 'u1', cfg, now);
+  const [row] = tables.autopilot_positions;
+  assert.equal(row.entry_price, 420);
+  assert.equal(row.entry_time, new Date(now).toISOString());
+  assert.equal(row.entry_bar_t, bars.at(-1)!.t);
+  assert.equal(row.paper_book_fill, true);
+  quote = book(350, now + 5000);
+  await runAutopilot(hl, db, 'u1', cfg, now + 5000);
+  assert.equal(row.status, 'closed');
+  assert.ok(Math.abs(Number(row.exit_price) - 349.99) < 1e-8);
 });

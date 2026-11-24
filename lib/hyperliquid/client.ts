@@ -1,3 +1,4 @@
+import { liveEntryReservation } from '@/lib/trading-lock';
 import { ledgerCashflow } from '@/lib/risk/cashflows';
 import { ethers } from 'ethers';
 import type {
@@ -91,6 +92,16 @@ export class HyperliquidClient {
       if (entries.length) {
         const { data: settings, error } = await ctx.db.from('settings').select('*').eq('user_id', ctx.userId).single();
         if (error || !settings || settings.trading_halted) throw new Error('Trading is halted or account settings are unavailable');
+        if (this.requireCoordination) {
+          const { hlClientFromSettings } = await import('./from-settings');
+          const current = hlClientFromSettings(settings);
+          if (!current || current.address.toLowerCase() !== this.address.toLowerCase() || current.isTestnet !== this.isTestnet)
+            throw new Error('The connected wallet or network changed. Refresh before placing an order.');
+        }
+        const recovery = await ctx.db.from('autopilot_positions').select('id').eq('account_resource', ctx.resource)
+          .eq('mode', 'live').eq('status', 'open').eq('recovery_pending', true);
+        if (recovery.error || recovery.data.some(row => row.id !== liveEntryReservation.getStore()))
+          throw new Error('New exposure is blocked while Autopilot reconciles a live entry.');
         // IOC prices include the worst-price guard. Reserve against that bound.
         const notional = entries.reduce((sum, o) => sum + Number(o.s) * Number(o.p), 0);
         await assertWithinPortfolioLimits(this, ctx.db, ctx.userId, notional, portfolioLimitsFromSettings(settings));

@@ -1,3 +1,4 @@
+import { withWalletChange } from '@/lib/wallet/change';
 import { NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
@@ -94,41 +95,54 @@ export async function POST(request: Request) {
     return bad('Invalid signature');
   }
 
-  // Hyperliquid expects lowercase addresses in the action it verifies.
-  const wire = { ...action, agentAddress: action.agentAddress.toLowerCase() };
-  let result: { status?: string; response?: unknown };
+  if (!ctx.settings) return bad('Settings not found');
   try {
-    const res = await fetch(exchangeUrl(isTestnet), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: wire, nonce: action.nonce, signature: { r: sig.r, s: sig.s, v: sig.v } }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    result = await res.json().catch(async () => ({ status: 'err', response: `HTTP ${res.status}` }));
-  } catch (err) {
-    return NextResponse.json({ error: `Could not reach Hyperliquid: ${err instanceof Error ? err.message : 'unknown error'}` }, { status: 502 });
-  }
-  if (result.status !== 'ok') {
-    const reason = typeof result.response === 'string' ? result.response : JSON.stringify(result.response ?? result);
-    return bad(`Hyperliquid rejected the approval: ${reason}. The wallet needs to have deposited to Hyperliquid${isTestnet ? ' testnet' : ''} first.`);
-  }
+    return await withWalletChange(ctx.service, ctx.user.id, ctx.settings, async () => {
+      // Hyperliquid expects lowercase addresses in the action it verifies.
+      const wire = { ...action, agentAddress: action.agentAddress.toLowerCase() };
+      let result: { status?: string; response?: unknown };
+      try {
+        const res = await fetch(exchangeUrl(isTestnet), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: wire, nonce: action.nonce, signature: { r: sig.r, s: sig.s, v: sig.v } }),
+          signal: AbortSignal.timeout(15_000),
+        });
+        result = await res.json().catch(async () => ({ status: 'err', response: `HTTP ${res.status}` }));
+      } catch (err) {
+        return NextResponse.json({ error: `Could not reach Hyperliquid: ${err instanceof Error ? err.message : 'unknown error'}` }, { status: 502 });
+      }
+      if (result.status !== 'ok') {
+        const reason = typeof result.response === 'string' ? result.response : JSON.stringify(result.response ?? result);
+        return bad(`Hyperliquid rejected the approval: ${reason}. The wallet needs to have deposited to Hyperliquid${isTestnet ? ' testnet' : ''} first.`);
+      }
 
-  const { error } = await ctx.service
-    .from('settings')
-    .update({ hl_private_key_encrypted: sealedKey, hl_wallet_address: ethers.getAddress(address), updated_at: new Date().toISOString() })
-    .eq('user_id', ctx.user.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      const { error } = await ctx.service
+        .from('settings')
+        .update({ hl_private_key_encrypted: sealedKey, is_testnet: isTestnet, hl_wallet_address: ethers.getAddress(address), updated_at: new Date().toISOString() })
+        .eq('user_id', ctx.user.id).eq('updated_at', ctx.settings.updated_at).select('user_id').single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ connected: true, address: ethers.getAddress(address), agentAddress: action.agentAddress, isTestnet });
+      return NextResponse.json({ connected: true, address: ethers.getAddress(address), agentAddress: action.agentAddress, isTestnet });
+    }, `${isTestnet ? 'testnet' : 'mainnet'}:${address.toLowerCase()}`);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Wallet change failed' }, { status: 409 });
+  }
 }
 
 export async function DELETE() {
   const ctx = await context();
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  // Stop automation too: with no key, signals would only produce errors.
-  const update: Record<string, unknown> = { hl_private_key_encrypted: null, hl_wallet_address: null, webhook_enabled: false, updated_at: new Date().toISOString() };
-  if (ctx.settings?.strategy_enabled !== undefined) update.strategy_enabled = false;
-  const { error } = await ctx.service.from('settings').update(update).eq('user_id', ctx.user.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ connected: false });
+  if (!ctx.settings) return NextResponse.json({ error: 'Settings not found' }, { status: 404 });
+  try {
+    return await withWalletChange(ctx.service, ctx.user.id, ctx.settings, async () => {
+      const { error } = await ctx.service.from('settings').update({ hl_private_key_encrypted: null, hl_wallet_address: null,
+        webhook_enabled: false, strategy_enabled: false, autopilot_enabled: false, autopilot_live_rules_confirmed: false })
+        .eq('user_id', ctx.user.id).eq('updated_at', ctx.settings.updated_at).select('user_id').single();
+      if (error) throw new Error(error.message);
+      return NextResponse.json({ connected: false });
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Disconnect failed' }, { status: 409 });
+  }
 }

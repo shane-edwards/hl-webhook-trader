@@ -13,7 +13,7 @@ import { approvedStockStop, prepareStockOrder, stockLeverageSchema, stockOrderFe
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 const REVIEW_MS = 2 * 60_000;
-const visible = 'id, environment, symbol, strategy, state, broker_order_id, position_ids, created_at, strategy_exit_at, closed_at, protection_state, leverage:request->leverage';
+const visible = 'id, environment, symbol, strategy, state, broker_order_id, position_ids, created_at, strategy_exit_at, closed_at, protection_state, close_attempts, leverage:request->leverage';
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
 const environment = z.enum(['demo', 'real']);
 const sizing = z.object({ symbol: z.string(), amount: z.number().positive().max(100_000), environment, leverage: stockLeverageSchema.default(1), stopMarginPct: stopMarginSchema.optional() });
