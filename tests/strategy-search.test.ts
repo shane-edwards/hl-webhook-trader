@@ -2,11 +2,29 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { advanceForward, blockLowerBound, checkPerpVenue, searchHistory, searchInputs } from '../lib/strategy-search/engine';
 import { evolve, seedRecipes } from '../lib/strategy-search/evolution';
-import { marketSearchPairs, pairFromKey, ruleKey, ruleName, RULE_INTERPRETER_VERSION, searchDue, searchKey, searchPair, searchRevision, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
+import { marketSearchPairs, pairFromKey, paperTradingStatus, ruleKey, ruleName, RULE_INTERPRETER_VERSION, searchDue, searchKey, searchPair, searchRevision, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
   SEARCH_RETRY_MS, SEARCH_REVISION, RECOMMENDATION_FRESH_MS, type SearchBar, type SearchReport } from '../lib/strategy-search/model';
 import { ideasForPair } from '../lib/automation/ideas';
 import { automationVersion, type Evidence } from '../lib/automation/model';
 import { summarizeMarketResearch, type SearchRecord } from '../lib/strategy-search/recommendations';
+import { paperVersionsInUse } from '../lib/automation/policy';
+import { memoryDb } from './helpers';
+
+test('paper status distinguishes an empty paper book from a backtest and respects stock Demo and pause controls', async () => {
+  assert.equal(paperTradingStatus(), 'Passed backtest');
+  assert.equal(paperTradingStatus(0), 'Paper trading · 0 trades closed');
+  assert.equal(paperTradingStatus(1, 'paused'), 'Paper trading paused · 1 trade closed');
+  assert.equal(paperTradingStatus(30, 'completed'), 'Paper trading complete · 30 trades closed');
+  assert.equal(paperTradingStatus(30, 'tracking', true), 'Paper trading · 30+ trades closed');
+  const { db, tables } = memoryDb({ automation_profiles: [{ user_id: 'u', market: 'stocks', mode: 'paper', enabled: true, paper_version: 'v' }],
+    etoro_connections: [{ user_id: 'u', environment: 'real' }] });
+  const active = () => paperVersionsInUse(db, 'u', 'stocks');
+  assert.equal((await active()).size, 0);
+  tables.etoro_connections.push({ user_id: 'u', environment: 'demo' });
+  assert.deepEqual([...(await active())], ['v']);
+  tables.automation_profiles[0].entries_paused = true;
+  assert.equal((await active()).size, 0);
+});
 
 const sample = Array.from({ length: 800 }, (_, i): SearchBar => {
   const c = 100 + Math.sin(i / 8) * 10 + Math.sin(i / 3) * 3;

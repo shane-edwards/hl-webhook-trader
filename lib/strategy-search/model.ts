@@ -74,6 +74,13 @@ export type ForwardFill = { entry: number; exit: number; price: number; exitPric
 export type ForwardBook = { version: number; rule: Rule; started: number; cursor: number; lastExit: number; count: number; equity: number;
   peak: number; drawdown: number; recent: ForwardFill[]; state: 'tracking' | 'data-gap' | 'stopped' | 'completed' | 'archived';
   pending?: { signal: number; entry: number; price: number; stop: number; target: number } };
+
+export function paperTradingStatus(count?: number, state: ForwardBook['state'] | 'paused' = 'tracking', capped = false) {
+  if (count === undefined) return 'Passed backtest';
+  const stage = { tracking: 'Paper trading', completed: 'Paper trading complete', stopped: 'Paper trading stopped',
+    archived: 'Paper trading archived', paused: 'Paper trading paused', 'data-gap': 'Paper trading paused for data' }[state];
+  return `${stage} · ${count}${capped ? '+' : ''} ${count === 1 ? 'trade' : 'trades'} closed`;
+}
 export type SearchBar = { t: number; o: number; h: number; l: number; c: number; v: number; ask?: number; session?: string;
   askHigh?: number; askLow?: number; askClose?: number; funding?: number; shortFunding?: number };
 export type Performance = { trades: number; groups: number; net: number; average: number; drawdown: number; score: number | null };

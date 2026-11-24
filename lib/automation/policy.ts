@@ -95,6 +95,25 @@ export async function readPaperResults(db: Db, userId: string, candidate: Eviden
   }));
 }
 
+// Resolve the actual paper runner, including older profiles that follow the best daily candidate.
+export async function paperVersionsInUse(db: Db, userId: string, market: AutomationMarket) {
+  const versions = new Set<string>();
+  const profile = await readAutomationProfile(db, userId, market);
+  if (profile?.mode !== 'paper' || !profile.enabled || profile.entries_paused) return versions;
+  if (market === 'stocks') {
+    const demo = await db.from('etoro_connections').select('environment').eq('user_id', userId).eq('environment', 'demo').maybeSingle();
+    if (demo.error) throw new Error('Could not verify paper trading status.');
+    if (!demo.data) return versions;
+  }
+  if (profile.scan_for_opportunities) {
+    for (const candidate of await opportunityCandidates(db, userId, market)) versions.add(candidate.version);
+  } else {
+    const version = profile.paper_version ?? (await latestCandidates(db, userId, market))[0]?.version;
+    if (version) versions.add(version);
+  }
+  return versions;
+}
+
 export async function automationDecision(db: Db, userId: string, market: AutomationMarket,
   pickSignal?: (candidates: Evidence[], mode: 'paper' | 'live') => Promise<Evidence | null>): Promise<AutomationDecision> {
   const profile = await readAutomationProfile(db, userId, market);

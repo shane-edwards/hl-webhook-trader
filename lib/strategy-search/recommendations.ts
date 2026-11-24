@@ -8,7 +8,7 @@ export type EvidenceRecord = { evidence: Evidence; asOf: string };
 export type MarketSetup = {
   id: string; pair: SearchPair; name: string; through: string; stressedReturn: number;
   drawdown: number; trades: number; benchmark: number; kind: 'trade' | 'research'; side: SearchSide; ideaId?: string;
-  ruleKey?: string; trial?: { count: number; net: number; complete: boolean };
+  ruleKey?: string; trial?: { count: number; net: number; complete: boolean }; paperCloses?: number;
 };
 
 function fresh(asOf: string, now: number, maxAge: number) {
