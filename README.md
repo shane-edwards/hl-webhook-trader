@@ -283,3 +283,13 @@ Set alert destinations in the Account limits card. Topics, Telegram chat IDs and
 Daily entry limits use exchange equity history around UTC midnight, current account value and ledger cash movements. The baseline can precede midnight by up to one hour because the exchange samples its portfolio history. Missing or incomplete history blocks new exposure. Deposits and withdrawals are excluded from the loss calculation.
 
 Autopilot evidence has been regenerated using fixed coin quantities and reconciled trade and equity accounting. Automation Center checks version-specific forward evidence before Live approval. Paper risk includes open-position P&L, estimated closing costs and accrued exchange funding. The current historical study continues to show weak recent results for the live long-only strategy.
+
+## Generated trade strategies
+
+The scheduled Strategy Search worker composes directional setup and trigger rules for both markets. Each pair starts with 20 distinct combinations per direction in a calendar-rotated batch. Up to three generations recombine and mutate the setup, confirmation window, trend filter and exits. Parent fitness uses the weaker of two discovery periods at higher costs. Selection also compares signal dates to avoid near-duplicate parents. The worker reserves validation and later bars for rules selected on earlier data.
+
+At most one generated and one existing finalist per direction reach the final window. Generated finalists face a holding-period gap between samples, doubled execution costs, a one-bar delay test, a 1% lower block-bootstrap bound and the existing benchmark, sample-size and drawdown checks. Crypto also requires a perpetual-venue replay with observed funding. These gates reduce selection risk. Multiple assets, repeated searches and overlapping history still leave uncertainty about future profits.
+
+A passing specification automatically starts a separate forward simulation for the exact symbol, timeframe and direction. The enabled research worker checkpoints future modeled fills in the pair's existing research report on subsequent refreshes. Repeated runs resume pending trades and retain up to 12 recent fills in each checkpoint. A rule stops at a realized drawdown over 16% or completes its 30-trade observation period. Results appear under **Forward simulations** in the pair's Strategy Search. These simulations use candle fills and have no broker order privileges. Existing broker automation has its own execution and authorization controls.
+
+Run `npm run backtest:generated` for the 64-combination daily portfolio study. Append `-- --download` on a fresh checkout to fetch public histories. [Trade rules and results](backtest/GENERATED-STRATEGIES.md)

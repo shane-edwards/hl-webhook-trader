@@ -1,5 +1,6 @@
-import { BAR_MS, FAMILIES, searchOutcomes, searchRevision, type Family, type Performance, type Rule, type SearchBar, type SearchOutcome,
-  type SearchPair, type SearchReport, type SearchSide } from './model';
+import { BAR_MS, FAMILIES, RULE_INTERPRETER_VERSION, searchOutcomes, searchRevision, type Family, type Performance, type Rule, type SearchBar, type SearchOutcome,
+  type SearchPair, type SearchReport, type SearchSide, type ForwardBook, type ForwardFill } from './model';
+import { evolve, sequenceFeatures } from './evolution';
 
 const DAY = 86_400_000;
 const WARMUP = 110;
@@ -85,32 +86,37 @@ export function searchInputs(bars: SearchBar[], volumeThrough = bars.length, sid
     }
     for (const [name, events] of Object.entries(family)) signals.set(`${name}:${period}`, events);
   }
-  return { bars, trend, atr, signals, hasVolume, volume, volumeAverage };
+  let sequences: ReturnType<typeof sequenceFeatures> | undefined;
+  const entries = (rule: Rule) => rule.family === 'sequence'
+    ? (sequences ??= sequenceFeatures(oriented, atr))(rule.recipe) : signals.get(`${rule.family}:${rule.setting}`) ?? [];
+  return { bars, trend, atr, signals, hasVolume, volume, volumeAverage, entries };
 }
 
 type Inputs = ReturnType<typeof searchInputs>;
 type Replay = Performance & { exposure: number };
 
-function replay(input: Inputs, rule: Rule, from: number, end: number, edge: number, cluster: number, stockShort = false): Replay {
-  const { bars, atr, trend, volume, volumeAverage, signals } = input;
+function replay(input: Inputs, rule: Rule, from: number, end: number, edge: number, cluster: number, stockShort = false,
+  book?: ForwardBook, delay = 0, sample?: number[]): Replay {
+  const { bars, atr, trend, volume, volumeAverage } = input;
   const direction = rule.side === 'short' ? -1 : 1;
   const average = trend.get(rule.trend);
   const groups = new Map<number, number>();
   let equity = 1, peak = 1, drawdown = 0, trades = 0, blockUntil = from, netSum = 0, exposed = 0;
-  for (const i of signals.get(`${rule.family}:${rule.setting}`) ?? []) {
-    const entryIndex = i + 1;
+  for (const i of input.entries(rule)) {
+    const entryIndex = i + 1 + delay;
     if (entryIndex < blockUntil || i < from) continue;
     if (entryIndex >= end) break;
     if (average && !(direction * bars[i].c > average[i])) continue;
     if (rule.volume && !(volume[i] >= rule.volume * volumeAverage[i - 1])) continue;
     const opening = bars[entryIndex];
+    if (book && opening.t <= book.lastExit) continue;
     if (opening.session && opening.session !== bars[i].session) continue;
     const entry = (direction === 1 ? opening.ask ?? opening.o : opening.o) * (1 + direction * edge);
     const distance = atr[i] * rule.stop;
     const marketOpen = direction === 1 ? opening.o : opening.ask ?? opening.o;
     if (!(distance > 0 && distance < entry * .2) || direction * (marketOpen - entry) <= -distance) continue;
     const stop = entry - direction * distance, target = entry + direction * rule.reward * distance;
-    let exitPrice = 0, exitIndex = entryIndex, funding = 0;
+    let exitPrice = 0, exitIndex = entryIndex, funding = 0, closed = false;
     for (let j = entryIndex; j < Math.min(end, entryIndex + rule.maxBars); j++) {
       const bar = bars[j];
       exitIndex = j;
@@ -120,12 +126,32 @@ function replay(input: Inputs, rule: Rule, from: number, end: number, edge: numb
         funding += (bar.t - bars[j - 1].t) / DAY * (edge >= .003 ? .30 : .15) / 365;
       }
       const stopped = direction === 1 ? bar.l <= stop : (bar.askHigh ?? bar.h) >= stop;
-      if (stopped) { exitPrice = direction === 1 ? Math.min(stop, bar.o) : Math.max(stop, bar.ask ?? bar.o); break; }
-      if (direction === 1 ? bar.h >= target : (bar.askLow ?? bar.l) <= target) { exitPrice = target; break; }
+      if (stopped) { exitPrice = direction === 1 ? Math.min(stop, bar.o) : Math.max(stop, bar.ask ?? bar.o); closed = true; break; }
+      if (direction === 1 ? bar.h >= target : (bar.askLow ?? bar.l) <= target) { exitPrice = target; closed = true; break; }
       exitPrice = direction === 1 ? bar.c : bar.askClose ?? bar.c;
-      if (bar.session && bars[j + 1]?.session !== bar.session) break;
+      closed = j + 1 === entryIndex + rule.maxBars || !!(bar.session && bars[j + 1] && bars[j + 1].session !== bar.session);
+      if (closed) break;
     }
     const ret = direction * (exitPrice * (1 - direction * edge) / entry - 1) - funding;
+    if (book) {
+      if (!closed) {
+        book.cursor = bars[i].t - 1;
+        book.pending = { signal: bars[i].t, entry: opening.t, price: entry, stop, target };
+        break;
+      }
+      const fill: ForwardFill = { entry: opening.t, exit: bars[exitIndex].t, price: entry, exitPrice: exitPrice * (1-direction*edge), net: ret };
+      book.recent = [...book.recent, fill].slice(-12);
+      book.count++;
+      book.lastExit = fill.exit;
+      book.equity *= 1 + ret;
+      book.peak = Math.max(book.peak, book.equity);
+      book.drawdown = Math.max(book.drawdown, 1 - book.equity / book.peak);
+      if (book.drawdown > .16 || book.count >= 30) {
+        book.state = book.drawdown > .16 ? 'stopped' : 'completed';
+        book.cursor = fill.exit;
+        break;
+      }
+    }
     const group = Math.floor(bars[exitIndex].t / cluster);
     groups.set(group, (groups.get(group) ?? 0) + ret);
     trades++;
@@ -137,6 +163,10 @@ function replay(input: Inputs, rule: Rule, from: number, end: number, edge: numb
     blockUntil = exitIndex + 1;
   }
   const groupCount = Math.floor(bars[end - 1].t / cluster) - Math.floor(bars[from].t / cluster) + 1;
+  if (sample) {
+    const first = Math.floor(bars[from].t / cluster);
+    for (let i = 0; i < groupCount; i++) sample.push(groups.get(first + i) ?? 0);
+  }
   const mean = netSum / groupCount;
   const ss = [...groups.values()].reduce((sum, value) => sum + (value - mean) ** 2, 0) + (groupCount - groups.size) * mean ** 2;
   const error = groupCount > 1 ? Math.sqrt(ss / (groupCount - 1) / groupCount) : 0;
@@ -169,6 +199,22 @@ function withOutcomes(report: SearchReport, outcomes: SearchOutcome[]) {
   return first ? { ...report, ...first, alternatives: outcomes.filter(item => item !== first) } : report;
 }
 
+// Lower 1% percentile of the stressed mean. Adjacent three-group blocks retain clustered losses.
+export function blockLowerBound(groups: number[]) {
+  if (!groups.length) return 0;
+  let state = 191285;
+  const means = Array.from({ length: 1000 }, () => {
+    let sum = 0;
+    for (let i = 0; i < groups.length; i += 3) {
+      state = (Math.imul(1664525, state) + 1013904223) >>> 0;
+      const start = Math.floor(state / 2 ** 32 * groups.length);
+      for (let j = 0; j < Math.min(3, groups.length - i); j++) sum += groups[(start + j) % groups.length];
+    }
+    return sum / groups.length;
+  });
+  return means.sort((a,b) => a-b)[9];
+}
+
 export function searchHistory(pair: SearchPair, bars: SearchBar[], source: string): SearchReport {
   const report: SearchReport = { revision: searchRevision(pair.market), pair, source, bars: bars.length, from: '', through: '', tried: 0, validationPassed: 0,
     testedOnLaterData: 0, holdoutFrom: '', verdict: 'insufficient-history', rule: null, holdout: null, stress: null, venue: null, benchmark: null };
@@ -179,7 +225,7 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
   const minimumSpan = isIntradayStock(pair) ? 95 * DAY : 2.8 * 365 * DAY;
   const coverage = pair.market === 'crypto' ? bars.length / (1 + span / BAR_MS[pair.frame]) : 1;
   if (bars.length < 650 || span < minimumSpan || coverage < .995) return report;
-  // Each direction locks one finalist before seeing the final window.
+  // Freeze at most one catalog and one evolved finalist per direction before using later data.
   const cut = Math.floor(bars.length * .44), final = Math.floor(bars.length * .70);
   report.holdoutFrom = date(bars[final].t);
   const cluster = clusterDays(pair);
@@ -188,31 +234,59 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
   const sides: SearchSide[] = paired ? ['long', 'short'] : ['long'];
   if (!paired) report.note = 'Complete historical ask ranges were unavailable for the short replay.';
   const finalists: { outcome: SearchOutcome; rank: number }[] = [];
+  const pairs = new Set<string>();
+  report.generation = { tried: 0, validated: 0, uniquePairs: 0 };
   for (const side of sides) {
     const cost = edge(pair, side);
     const stockShort = stock && side === 'short';
     const input = searchInputs(bars, cut, side);
-    let best = -Infinity;
-    let winner: Rule | null = null;
-    for (const rule of grid(input.hasVolume, side)) {
-      report.tried++;
+    const winners = new Map<'catalog'|'generated', { winner: Rule; rank: number }>();
+    const epoch = Math.floor(bars.at(-1)!.t / (7 * DAY));
+    const discoveryMid = Math.floor((WARMUP + cut) / 2);
+    const evolved = evolve(side, epoch, rule => {
+      const scores = [[WARMUP, discoveryMid], [discoveryMid, cut]].map(([start, end]) =>
+        replay(input, rule, start, end, cost * 2, cluster, stockShort));
+      const fitness = scores.every(s => s.trades >= 4 && s.score !== null)
+        ? Math.min(...scores.map(s => s.score! - s.drawdown)) : -Infinity;
+      const signature = new Set<number>();
+      if (Number.isFinite(fitness)) for (const i of input.entries(rule)) {
+        if (i >= cut) break;
+        signature.add(i);
+      }
+      return { fitness, signature };
+    });
+    for (const key of evolved.pairs) pairs.add(key);
+    report.generation.tried += evolved.tried;
+    report.generation.uniquePairs = pairs.size;
+    report.tried += evolved.tried;
+    function* candidates() { yield* grid(input.hasVolume, side); yield* evolved.finalists; }
+    for (const rule of candidates()) {
+      if (rule.family !== 'sequence') report.tried++;
       const train = replay(input, rule, WARMUP, cut, cost, cluster, stockShort);
-      const validation = replay(input, rule, cut, final, cost * 2, cluster, stockShort);
+      const validation = replay(input, rule, cut + (rule.family === 'sequence' ? rule.maxBars : 0), final, cost * 2, cluster, stockShort);
       const valid = [train, validation].every(period => period.trades >= 20 && period.groups >= 7 && period.net > 0 &&
         period.drawdown <= .20 && (period.score ?? 0) >= 1.25);
       if (!valid) continue;
       report.validationPassed++;
+      if (rule.family === 'sequence') report.generation.validated++;
       const rank = Math.min(train.score!, validation.score!);
-      if (rank > best) { best = rank; winner = rule; }
+      const group = rule.family === 'sequence' ? 'generated' : 'catalog';
+      if (rank > (winners.get(group)?.rank ?? -Infinity)) winners.set(group, { winner: rule, rank });
     }
-    if (!winner) continue;
-    const holdout = replay(input, winner, final, bars.length, cost, cluster, stockShort);
-    const stress = replay(input, winner, final, bars.length, cost * 2, cluster, stockShort);
-    const benchmark = (side === 'short' ? -1 : 1) * (Math.exp(Math.log(bars.at(-1)!.c / bars[final].o) * stress.exposure) - 1);
-    const passed = holdout.net > 0 && stress.net > Math.max(0, benchmark) && stress.trades >= 25 && stress.groups >= 9 &&
-      stress.drawdown <= .16 && (stress.score ?? 0) >= 3.3;
-    finalists.push({ rank: best, outcome: { verdict: passed ? 'paper-candidate' : 'holdout-failed', rule: winner,
-      holdout, stress, venue: null, benchmark, note: report.note } });
+    for (const { winner, rank } of winners.values()) {
+      const start = final + (winner.recipe ? winner.maxBars : 0);
+      const holdout = replay(input, winner, start, bars.length, cost, cluster, stockShort);
+      const groups: number[] = [];
+      const stress = replay(input, winner, start, bars.length, cost * 2, cluster, stockShort, undefined, 0, winner.recipe ? groups : undefined);
+      const robustness = winner.recipe ? { delayed: replay(input, winner, start, bars.length, cost * 2, cluster, stockShort, undefined, 1),
+        lowerGroupReturn: blockLowerBound(groups) } : undefined;
+      const benchmark = (side === 'short' ? -1 : 1) * (Math.exp(Math.log(bars.at(-1)!.c / bars[start].o) * stress.exposure) - 1);
+      const passed = holdout.net > 0 && stress.net > Math.max(0, benchmark) && stress.trades >= 25 && stress.groups >= 9 &&
+        stress.drawdown <= .16 && (stress.score ?? 0) >= 3.3 &&
+        (!robustness || (robustness.lowerGroupReturn > 0 && robustness.delayed.net > 0 && robustness.delayed.drawdown <= .16));
+      finalists.push({ rank, outcome: { verdict: passed ? 'paper-candidate' : 'holdout-failed', rule: winner,
+        holdout, stress, venue: null, benchmark, note: report.note, robustness } });
+    }
   }
   const outcomes = finalists.sort((a, b) => b.rank - a.rank).map(item => item.outcome);
   return withOutcomes({ ...report, verdict: 'no-candidate', testedOnLaterData: finalists.length }, outcomes);
@@ -229,4 +303,52 @@ export function checkPerpVenue(report: SearchReport, bars: SearchBar[]): SearchR
     const passed = venue.trades >= 12 && venue.groups >= 3 && venue.net > 0 && venue.drawdown <= .16;
     return { ...outcome, verdict: passed ? 'paper-candidate' : 'venue-failed', venue };
   }));
+}
+
+export function replayFixed(input: Inputs, rule: Rule, from: number, end: number, perSideCost: number) {
+  return replay(input, rule, from, end, perSideCost, 7 * DAY);
+}
+
+function identity(rule: Rule) {
+  return [rule.side ?? 'long', rule.family, rule.recipe?.setup, rule.recipe?.trigger, rule.recipe?.within,
+    rule.setting, rule.trend, rule.volume, rule.stop, rule.reward, rule.maxBars].join(':');
+}
+
+/** Checkpoint a frozen rule on bars after enrollment. Repeated worker attempts yield the same fills. */
+export function advanceForward(report: SearchReport, previous: ForwardBook[], bars: SearchBar[], enrolledAt: number) {
+  const pair = report.pair;
+  const step = BAR_MS[pair.frame];
+  const inputs = new Map<SearchSide, Inputs>();
+  const books = previous.map((saved): ForwardBook => {
+    if (saved.version !== RULE_INTERPRETER_VERSION) return { ...saved, state: 'archived' };
+    if (saved.state === 'completed' || saved.state === 'stopped' || saved.state === 'archived') return saved;
+    const book = { ...saved, recent: [...saved.recent] };
+    if (!bars.length) return { ...book, state: 'data-gap' };
+    const next = bars.findIndex(b => b.t > book.cursor);
+    if (next < 0 || next >= bars.length - 1) return book;
+    const missing = bars.slice(Math.max(1, next)).some((bar, offset) => {
+      const prior = bars[Math.max(1, next) + offset - 1];
+      if (pair.market === 'crypto' || (bar.session && prior.session === bar.session)) return bar.t - prior.t !== step;
+      return bar.t - prior.t > 7 * DAY;
+    });
+    if (next < WARMUP || missing || pair.market === 'stocks' && book.rule.side === 'short' &&
+      bars.slice(next).some(bar => !bar.askHigh || !bar.askLow || !bar.askClose || !bar.ask)) return { ...book, state: 'data-gap' };
+    const side = book.rule.side ?? 'long';
+    const input = inputs.get(side) ?? searchInputs(bars, next, side);
+    inputs.set(side, input);
+    book.state = 'tracking';
+    book.cursor = bars[bars.length - 2].t;
+    delete book.pending;
+    replay(input, book.rule, next, bars.length, 2 * edge(pair, side), clusterDays(pair), pair.market === 'stocks' && side === 'short', book);
+    return book;
+  });
+  for (const outcome of searchOutcomes(report)) {
+    const rule = outcome.rule;
+    if (!rule || outcome.verdict !== 'paper-candidate' || !outcome.stress || !(outcome.stress.net > 0) ||
+        (pair.market === 'crypto' && !(outcome.venue && outcome.venue.net > 0)) ||
+        books.some(b => b.version === RULE_INTERPRETER_VERSION && identity(b.rule) === identity(rule))) continue;
+    books.push({ version: RULE_INTERPRETER_VERSION, rule, started: enrolledAt, cursor: enrolledAt, lastExit: 0, count: 0,
+      equity: 1, peak: 1, drawdown: 0, recent: [], state: 'tracking' });
+  }
+  return books;
 }

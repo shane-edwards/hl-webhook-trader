@@ -1,0 +1,6150 @@
+{
+  "stocks": [
+    {
+      "name": "Narrowest range in seven bars → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.15573032037441867,
+          "validation": 0.6316797532136849,
+          "latest": -0.04998471636466624,
+          "stress": -0.29349547597532977,
+          "benchmark": 0.33715077199129023,
+          "trades": 755
+        },
+        {
+          "early": 0.08097536227823922,
+          "validation": 0.1704504318993592,
+          "latest": -0.05232498516849951,
+          "stress": -0.23827085990247962,
+          "benchmark": 0.15153300116789858,
+          "trades": 738
+        },
+        {
+          "early": -0.003915917090055553,
+          "validation": 0.21491851809248955,
+          "latest": -0.1845122608030368,
+          "stress": -0.36083770799400544,
+          "benchmark": 0.13070776658932384,
+          "trades": 759
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.023010229969036823,
+          "validation": 0.12752719345317096,
+          "latest": 0.052526593637832415,
+          "stress": -0.04850665291997422,
+          "benchmark": 0.09453918834660047,
+          "trades": 251
+        },
+        {
+          "early": -0.08517165921555528,
+          "validation": -0.006092366918965425,
+          "latest": 0.029624054920052965,
+          "stress": -0.03706712822348854,
+          "benchmark": 0.040967629085506094,
+          "trades": 251
+        },
+        {
+          "early": -0.06281927008041793,
+          "validation": 0.033491887803793086,
+          "latest": -0.007067590426603414,
+          "stress": -0.08985942985609424,
+          "benchmark": 0.0395706123427435,
+          "trades": 243
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.04232201731183846,
+          "validation": 0.19189259557836583,
+          "latest": 0.24144600161394256,
+          "stress": -0.008888535922989892,
+          "benchmark": 0.18747300289738897,
+          "trades": 470
+        },
+        {
+          "early": -0.05015525411881008,
+          "validation": 0.043447117156772755,
+          "latest": -0.11380881924134216,
+          "stress": -0.22110476112907831,
+          "benchmark": 0.08271644137719499,
+          "trades": 487
+        },
+        {
+          "early": 0.11362398603029306,
+          "validation": 0.014045895897317182,
+          "latest": -0.09760165402106347,
+          "stress": -0.2072568093063941,
+          "benchmark": 0.07874153593336138,
+          "trades": 477
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.021491295871898606,
+          "validation": 0.037525993164484926,
+          "latest": 0.017465353383480143,
+          "stress": 0.004674398528741576,
+          "benchmark": 0.011475377538715572,
+          "trades": 45
+        },
+        {
+          "early": -0.02739475222845546,
+          "validation": -0.01896311487721149,
+          "latest": 0.029313519843921523,
+          "stress": 0.014033916936114617,
+          "benchmark": 0.005713102146741589,
+          "trades": 45
+        },
+        {
+          "early": 0.018598496128910794,
+          "validation": 0.010765956022793437,
+          "latest": 0.026471818064830083,
+          "stress": 0.015896452383258965,
+          "benchmark": 0.009911817167473736,
+          "trades": 42
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.029914629411199434,
+          "validation": 0.08072955171658767,
+          "latest": 0.005838518980868207,
+          "stress": -0.030366641759572478,
+          "benchmark": 0.03503620043653841,
+          "trades": 115
+        },
+        {
+          "early": 0.02870480376658064,
+          "validation": 0.029857168704801474,
+          "latest": -0.04677691756688432,
+          "stress": -0.08115797777481316,
+          "benchmark": 0.01879986456219157,
+          "trades": 116
+        },
+        {
+          "early": -0.017326017882952512,
+          "validation": 0.09426943013462284,
+          "latest": -0.04645390812192904,
+          "stress": -0.08848919765159852,
+          "benchmark": 0.020989245153359547,
+          "trades": 124
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.07530757738252188,
+          "validation": 0.034681271171577724,
+          "latest": 0.20501217323022422,
+          "stress": 0.011187799061240098,
+          "benchmark": 0.18632478857814164,
+          "trades": 476
+        },
+        {
+          "early": -0.018627910735642628,
+          "validation": 0.027421898605118778,
+          "latest": 0.08651955801817769,
+          "stress": -0.08368255130112989,
+          "benchmark": 0.08629807664592902,
+          "trades": 484
+        },
+        {
+          "early": -0.021321194296813808,
+          "validation": 0.02472837479824274,
+          "latest": 0.13106898115002952,
+          "stress": -0.04893823090683095,
+          "benchmark": 0.08202056717733815,
+          "trades": 486
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.029120592190026842,
+          "validation": 0.039937748554407536,
+          "latest": 0.059052966843033905,
+          "stress": -0.09314817537639729,
+          "benchmark": 0.20367644046751754,
+          "trades": 467
+        },
+        {
+          "early": -0.009054776572366948,
+          "validation": -0.007223958248232146,
+          "latest": -0.13604518373061547,
+          "stress": -0.25306240248828554,
+          "benchmark": 0.08136341361588718,
+          "trades": 460
+        },
+        {
+          "early": -0.04471368297372846,
+          "validation": -0.05504948802157935,
+          "latest": -0.0753352491695471,
+          "stress": -0.22810025571784048,
+          "benchmark": 0.07543602320856353,
+          "trades": 430
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.10518849985958942,
+          "validation": 0.17411817366584445,
+          "latest": 0.0186837043391972,
+          "stress": -0.06781077070740832,
+          "benchmark": 0.09700184298846039,
+          "trades": 261
+        },
+        {
+          "early": 0.055165889641996764,
+          "validation": 0.04794238336942752,
+          "latest": -0.004936545155178686,
+          "stress": -0.08077594972953603,
+          "benchmark": 0.03946283592762158,
+          "trades": 254
+        },
+        {
+          "early": -0.0817920635901773,
+          "validation": 0.08866322440363254,
+          "latest": -0.039675404104066406,
+          "stress": -0.1237519197777411,
+          "benchmark": 0.040298282641239275,
+          "trades": 270
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.016702025540306822,
+          "validation": 0.43296684068098673,
+          "latest": -0.07223003735468925,
+          "stress": -0.28843622483580944,
+          "benchmark": 0.2988693721796915,
+          "trades": 695
+        },
+        {
+          "early": 0.07879264983230642,
+          "validation": 0.06210410131336936,
+          "latest": 0.027441931195551342,
+          "stress": -0.19632089132221683,
+          "benchmark": 0.13947608861868013,
+          "trades": 688
+        },
+        {
+          "early": -0.014810842254410483,
+          "validation": 0.0745824908004433,
+          "latest": -0.13122671027302443,
+          "stress": -0.2964696987186479,
+          "benchmark": 0.12204317035909756,
+          "trades": 697
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.20013094652786867,
+          "validation": 0.12721764319617387,
+          "latest": 0.03051846566563159,
+          "stress": -0.10379349021841608,
+          "benchmark": 0.13068760952034358,
+          "trades": 354
+        },
+        {
+          "early": -0.05738799166271613,
+          "validation": 0.06821703152978448,
+          "latest": 0.045740068594716646,
+          "stress": -0.04446593123868099,
+          "benchmark": 0.05721429528755268,
+          "trades": 355
+        },
+        {
+          "early": -0.03143859994149695,
+          "validation": 0.03616355437121779,
+          "latest": -0.13628947817072035,
+          "stress": -0.23643168857171873,
+          "benchmark": 0.05258498905791025,
+          "trades": 355
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0235139311030838,
+          "validation": 0.042007822297059405,
+          "latest": 0.03996151806445083,
+          "stress": -0.01203641494416955,
+          "benchmark": 0.050317392275814644,
+          "trades": 136
+        },
+        {
+          "early": -0.03659474593182441,
+          "validation": -0.03323290290729059,
+          "latest": -0.002417994037069446,
+          "stress": -0.045070962655453246,
+          "benchmark": 0.022802751263045956,
+          "trades": 164
+        },
+        {
+          "early": 0.028669341907935908,
+          "validation": -0.012953987731405478,
+          "latest": -0.007080442261236878,
+          "stress": -0.040673840170854916,
+          "benchmark": 0.02118633603315816,
+          "trades": 141
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.05131470450509973,
+          "validation": 0.03006604142716808,
+          "latest": 0.05316061057498943,
+          "stress": 0.03194559250907672,
+          "benchmark": 0.023898127406306188,
+          "trades": 66
+        },
+        {
+          "early": 0.02105164675123319,
+          "validation": -0.005317712359769598,
+          "latest": -0.008025736117963825,
+          "stress": -0.03121999683014785,
+          "benchmark": 0.0107111860964455,
+          "trades": 62
+        },
+        {
+          "early": 0.032413229142486184,
+          "validation": 0.08207664687856886,
+          "latest": 0.06029145769322106,
+          "stress": 0.04087243849311114,
+          "benchmark": 0.003107137903455514,
+          "trades": 50
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0527634588776097,
+          "validation": 0.12181185982729197,
+          "latest": -0.1561427576527675,
+          "stress": -0.21228151338381235,
+          "benchmark": 0.05976432154949759,
+          "trades": 196
+        },
+        {
+          "early": -0.002721286818489578,
+          "validation": 0.08872813340770001,
+          "latest": -0.1747638260911318,
+          "stress": -0.23487251608626855,
+          "benchmark": 0.035039064578516674,
+          "trades": 232
+        },
+        {
+          "early": -0.011564801653574146,
+          "validation": 0.11751315399014549,
+          "latest": -0.05414350658629193,
+          "stress": -0.12253130286813348,
+          "benchmark": 0.020140927975864604,
+          "trades": 213
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.047451770233682085,
+          "validation": -0.016006108195754536,
+          "latest": 0.08017777683962295,
+          "stress": -0.009884989705636399,
+          "benchmark": 0.06943670918782832,
+          "trades": 187
+        },
+        {
+          "early": -0.03289572041233355,
+          "validation": 0.03198252155225285,
+          "latest": -0.010845199713566211,
+          "stress": -0.07359005842291377,
+          "benchmark": 0.028255658404464815,
+          "trades": 195
+        },
+        {
+          "early": 0.05386766979991309,
+          "validation": 0.006867622816156136,
+          "latest": 0.06299671191386373,
+          "stress": 0.003615572964230398,
+          "benchmark": 0.020496974450445477,
+          "trades": 171
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.006050609602478961,
+          "validation": 0.22126499882642328,
+          "latest": 0.01433507154234364,
+          "stress": -0.09065358988630291,
+          "benchmark": 0.09650228404290065,
+          "trades": 261
+        },
+        {
+          "early": -0.02554564159050032,
+          "validation": 0.17068595225654803,
+          "latest": -0.07188375255293629,
+          "stress": -0.15158359833975923,
+          "benchmark": 0.04509590527562854,
+          "trades": 268
+        },
+        {
+          "early": -0.08425474505624106,
+          "validation": 0.18619935495360684,
+          "latest": 0.0048463588445172845,
+          "stress": -0.07598342838627638,
+          "benchmark": 0.04856490536300458,
+          "trades": 294
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.05677842986418887,
+          "validation": -0.019829963620861195,
+          "latest": 0.05137221613165249,
+          "stress": -0.050226149491838595,
+          "benchmark": 0.10491616813245301,
+          "trades": 280
+        },
+        {
+          "early": 0.05272460194526245,
+          "validation": -0.14297388428852337,
+          "latest": 0.011187969658370059,
+          "stress": -0.07537185211180725,
+          "benchmark": 0.04348713606354654,
+          "trades": 262
+        },
+        {
+          "early": -0.04361135579801321,
+          "validation": -0.08479478917425118,
+          "latest": 0.004458602534161756,
+          "stress": -0.08302473000512157,
+          "benchmark": 0.0440716127628617,
+          "trades": 274
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.06545344386596132,
+          "validation": 0.007277203704574364,
+          "latest": 0.021490285633988745,
+          "stress": -0.08237924988925416,
+          "benchmark": 0.13741314049960127,
+          "trades": 347
+        },
+        {
+          "early": -0.0002644631970840326,
+          "validation": -0.033393288933407775,
+          "latest": -0.04058352815945867,
+          "stress": -0.14936196705646146,
+          "benchmark": 0.06652203149725738,
+          "trades": 353
+        },
+        {
+          "early": 0.008218967796380676,
+          "validation": -0.0057749760842082925,
+          "latest": -0.12368784577493666,
+          "stress": -0.20334662553629007,
+          "benchmark": 0.046368032604248585,
+          "trades": 328
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.16358002033778385,
+          "validation": 0.3790572932164605,
+          "latest": 0.04340300659575944,
+          "stress": -0.1322925124545308,
+          "benchmark": 0.20087783439604728,
+          "trades": 494
+        },
+        {
+          "early": -0.05169239012330132,
+          "validation": 0.06543162392503415,
+          "latest": -0.0034186386206198557,
+          "stress": -0.15249412654707112,
+          "benchmark": 0.08996090456964828,
+          "trades": 500
+        },
+        {
+          "early": -0.06491566462643494,
+          "validation": 0.13594183082917805,
+          "latest": -0.10775112391186022,
+          "stress": -0.24449225649641218,
+          "benchmark": 0.08506610239534529,
+          "trades": 485
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.007976577720374642,
+          "validation": 0.261672612154686,
+          "latest": 0.10861451054259155,
+          "stress": -0.0896005814048474,
+          "benchmark": 0.18691404389497843,
+          "trades": 477
+        },
+        {
+          "early": -0.08938640608764287,
+          "validation": 0.029919181845454022,
+          "latest": -0.12024278617735507,
+          "stress": -0.2471204806874366,
+          "benchmark": 0.08255044404089977,
+          "trades": 476
+        },
+        {
+          "early": 0.09292790255885507,
+          "validation": 0.015547437342444594,
+          "latest": -0.12368698157265913,
+          "stress": -0.23377294830389356,
+          "benchmark": 0.084182179461367,
+          "trades": 476
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.024708487470043474,
+          "validation": -0.03715092039849194,
+          "latest": 0.1757131300679397,
+          "stress": 0.11056585750251685,
+          "benchmark": 0.057939513614149785,
+          "trades": 147
+        },
+        {
+          "early": 0.0760088804624088,
+          "validation": 0.08091998661542378,
+          "latest": 0.09522145574464759,
+          "stress": 0.05413925332350266,
+          "benchmark": 0.019282102116046654,
+          "trades": 116
+        },
+        {
+          "early": 0.037793473749195006,
+          "validation": 0.07477203995899802,
+          "latest": 0.05444582259420341,
+          "stress": 0.0230501938781184,
+          "benchmark": 0.013596203060326068,
+          "trades": 104
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.022969799649451856,
+          "validation": 0.050126833301225235,
+          "latest": -0.013726983390988084,
+          "stress": -0.042371703775281835,
+          "benchmark": 0.01794592676054671,
+          "trades": 65
+        },
+        {
+          "early": -0.01691518590421109,
+          "validation": 0.006926672812983406,
+          "latest": 0.06211458422857438,
+          "stress": 0.03379538634151154,
+          "benchmark": 0.0125787243549568,
+          "trades": 77
+        },
+        {
+          "early": 0.009946435046414792,
+          "validation": 0.019278462565329686,
+          "latest": -0.041388161555479454,
+          "stress": -0.059528191392015976,
+          "benchmark": 0.007324439337507759,
+          "trades": 62
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0028007459535952127,
+          "validation": 0.017244785896346385,
+          "latest": 0.05932505995851957,
+          "stress": -0.005240179991943316,
+          "benchmark": 0.04564525877703089,
+          "trades": 146
+        },
+        {
+          "early": -0.003808989458972392,
+          "validation": 0.060953433667535,
+          "latest": -0.05675564176849576,
+          "stress": -0.10967562301816244,
+          "benchmark": 0.026072634607174443,
+          "trades": 165
+        },
+        {
+          "early": -0.010370029711435087,
+          "validation": 0.07654283878232031,
+          "latest": 0.0250344079350699,
+          "stress": -0.030535056086781236,
+          "benchmark": 0.025638974075847806,
+          "trades": 149
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.04644679416748453,
+          "validation": 0.2307485940749341,
+          "latest": 0.04620154012094733,
+          "stress": -0.17308085738159593,
+          "benchmark": 0.2953265826505109,
+          "trades": 657
+        },
+        {
+          "early": 0.054581950889342666,
+          "validation": 0.0273521340247679,
+          "latest": -0.16964817983674266,
+          "stress": -0.31705136612059204,
+          "benchmark": 0.12060833630697818,
+          "trades": 655
+        },
+        {
+          "early": 0.002016894189272811,
+          "validation": 0.1536588939418158,
+          "latest": -0.10405224649880292,
+          "stress": -0.23805339038718012,
+          "benchmark": 0.10787251883757232,
+          "trades": 622
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.013039096783605241,
+          "validation": -0.003355947013446366,
+          "latest": 0.043958526967946915,
+          "stress": -0.002516819834345211,
+          "benchmark": 0.050986099922672994,
+          "trades": 134
+        },
+        {
+          "early": 0.0671054354435113,
+          "validation": -0.02577896690729823,
+          "latest": -0.010703845302969153,
+          "stress": -0.055621610593777585,
+          "benchmark": 0.02143623579762192,
+          "trades": 137
+        },
+        {
+          "early": -0.011114168300096847,
+          "validation": -0.007093781897303407,
+          "latest": -0.0085991446723115,
+          "stress": -0.06470811370573337,
+          "benchmark": 0.019855520040918347,
+          "trades": 108
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.15781370578713605,
+          "validation": 0.1799964807712791,
+          "latest": -0.03232040884560948,
+          "stress": -0.11610442742278025,
+          "benchmark": 0.0864177026201849,
+          "trades": 219
+        },
+        {
+          "early": -0.02075242838810914,
+          "validation": 0.1615389618808819,
+          "latest": -0.0764165349791495,
+          "stress": -0.1356816550806315,
+          "benchmark": 0.040869433599869553,
+          "trades": 236
+        },
+        {
+          "early": -0.05254570675613989,
+          "validation": 0.11046721178911924,
+          "latest": -0.034950162679499165,
+          "stress": -0.09715825444468822,
+          "benchmark": 0.04315171164819294,
+          "trades": 249
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.045560278659352506,
+          "validation": 0.16180579058058908,
+          "latest": 0.05880196596951279,
+          "stress": -0.09621275567883446,
+          "benchmark": 0.1595550084157327,
+          "trades": 416
+        },
+        {
+          "early": -0.07524894756633939,
+          "validation": 0.02504690398674838,
+          "latest": -0.05980953385399131,
+          "stress": -0.16770057620999668,
+          "benchmark": 0.07448084320369126,
+          "trades": 425
+        },
+        {
+          "early": -0.09842432900886647,
+          "validation": 0.09515541292821963,
+          "latest": -0.07170102645080495,
+          "stress": -0.19832101163876484,
+          "benchmark": 0.07027138190569879,
+          "trades": 431
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.09180866550395195,
+          "validation": 0.39745088298506703,
+          "latest": 0.20564243886236325,
+          "stress": -0.0069611185693679726,
+          "benchmark": 0.17287042657138155,
+          "trades": 446
+        },
+        {
+          "early": -0.04424799000217257,
+          "validation": 0.21432595566082627,
+          "latest": 0.010225810727845078,
+          "stress": -0.10813168257963894,
+          "benchmark": 0.07492268196836589,
+          "trades": 445
+        },
+        {
+          "early": 0.010862685936610493,
+          "validation": 0.03996620504621462,
+          "latest": -0.16945415296414287,
+          "stress": -0.2771178269853271,
+          "benchmark": 0.06627525207382602,
+          "trades": 456
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.014817657347214411,
+          "validation": -0.05067074016146431,
+          "latest": 0.1861372786198212,
+          "stress": 0.06549929232852558,
+          "benchmark": 0.1250620142929821,
+          "trades": 312
+        },
+        {
+          "early": -0.04667623141579637,
+          "validation": 0.040560347815645034,
+          "latest": -0.05282485644075916,
+          "stress": -0.14985952944249692,
+          "benchmark": 0.04183124888574302,
+          "trades": 269
+        },
+        {
+          "early": 0.11693424748978305,
+          "validation": -0.05978197757472621,
+          "latest": 0.012928227945925908,
+          "stress": -0.06582138906171117,
+          "benchmark": 0.028586724663765647,
+          "trades": 249
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.010312098140279826,
+          "validation": 0.1010444029154655,
+          "latest": -0.15792894620779632,
+          "stress": -0.21041765600362022,
+          "benchmark": 0.06226291169060787,
+          "trades": 217
+        },
+        {
+          "early": -0.005612917749536168,
+          "validation": 0.03179757986627632,
+          "latest": -0.13700215008483715,
+          "stress": -0.19966480017604823,
+          "benchmark": 0.037817872158579464,
+          "trades": 238
+        },
+        {
+          "early": -0.030146828594387342,
+          "validation": 0.12997543781889678,
+          "latest": -0.06418447892569457,
+          "stress": -0.13328677602318378,
+          "benchmark": 0.024471166701020588,
+          "trades": 221
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.039726842017586764,
+          "validation": 0.07685645644287149,
+          "latest": 0.13854433601630947,
+          "stress": 0.036082249373873214,
+          "benchmark": 0.08810731350124254,
+          "trades": 224
+        },
+        {
+          "early": -0.02720076135262541,
+          "validation": 0.09099497952394453,
+          "latest": -0.0077730815212596555,
+          "stress": -0.07484901494989687,
+          "benchmark": 0.03624952036471586,
+          "trades": 216
+        },
+        {
+          "early": 0.043219808393486894,
+          "validation": 0.02634610381541027,
+          "latest": 0.11044606023380688,
+          "stress": 0.03338321472946536,
+          "benchmark": 0.028572359835180933,
+          "trades": 227
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.06245796867667672,
+          "validation": 0.0858825644275216,
+          "latest": -0.03588993300756914,
+          "stress": -0.11726239730018236,
+          "benchmark": 0.07303854583888103,
+          "trades": 204
+        },
+        {
+          "early": -0.013028562932307896,
+          "validation": 0.014004785827914982,
+          "latest": 0.08706203036542266,
+          "stress": 0.013418129113889777,
+          "benchmark": 0.03769492413015455,
+          "trades": 201
+        },
+        {
+          "early": 0.025925272387204323,
+          "validation": 0.06308269549749593,
+          "latest": -0.0012741285901766257,
+          "stress": -0.05693294594169579,
+          "benchmark": 0.025409231610012416,
+          "trades": 204
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.07687469118120793,
+          "validation": 0.02110581711450444,
+          "latest": -0.0507326691364475,
+          "stress": -0.06274238064848166,
+          "benchmark": 0.014445651824942386,
+          "trades": 55
+        },
+        {
+          "early": 0.0321936933726722,
+          "validation": -0.0005673229986322232,
+          "latest": -0.018067348339543522,
+          "stress": -0.04089091964627111,
+          "benchmark": 0.009789555525067085,
+          "trades": 62
+        },
+        {
+          "early": -0.0288029905194803,
+          "validation": 0.016724990837694777,
+          "latest": 0.05486626014549102,
+          "stress": 0.03245886121776834,
+          "benchmark": 0.010020017681007399,
+          "trades": 75
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.11375454564605697,
+          "validation": 0.2437459014236615,
+          "latest": -0.04549496835748861,
+          "stress": -0.2337342658454486,
+          "benchmark": 0.22281935972049333,
+          "trades": 521
+        },
+        {
+          "early": -0.038183946944896935,
+          "validation": 0.035997722102770864,
+          "latest": -0.12461943185493418,
+          "stress": -0.24086461157756514,
+          "benchmark": 0.10060912011866605,
+          "trades": 527
+        },
+        {
+          "early": 0.04974133043771446,
+          "validation": 0.09006798624190172,
+          "latest": -0.15331986484113397,
+          "stress": -0.28135237480065795,
+          "benchmark": 0.08353134118571838,
+          "trades": 514
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.004171736381149178,
+          "validation": 0.006881664748357488,
+          "latest": -0.020141454412949924,
+          "stress": -0.07566885029391593,
+          "benchmark": 0.06706487184538318,
+          "trades": 183
+        },
+        {
+          "early": -0.02069440851153063,
+          "validation": -0.011973799322115512,
+          "latest": 0.027293403432421925,
+          "stress": -0.02737303725613005,
+          "benchmark": 0.02672431267045368,
+          "trades": 176
+        },
+        {
+          "early": -0.017462471306514262,
+          "validation": -0.03478510139904947,
+          "latest": -0.015974315801417116,
+          "stress": -0.06733720979736015,
+          "benchmark": 0.024320619687240943,
+          "trades": 156
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.03438455172574004,
+          "validation": 0.3616255293469441,
+          "latest": 0.26402826098397236,
+          "stress": -0.008994536023260523,
+          "benchmark": 0.27517299129948203,
+          "trades": 650
+        },
+        {
+          "early": -0.04216941768765884,
+          "validation": 0.14038771491621135,
+          "latest": -0.03841632810790503,
+          "stress": -0.21366903572476417,
+          "benchmark": 0.1241058878291296,
+          "trades": 651
+        },
+        {
+          "early": -0.001661867902198937,
+          "validation": 0.08253180011927995,
+          "latest": 0.0035453349718578275,
+          "stress": -0.1883442815078347,
+          "benchmark": 0.11417828876765804,
+          "trades": 633
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.060672155148049176,
+          "validation": -0.12709112499740102,
+          "latest": 0.13442896303305957,
+          "stress": 0.04621145165239737,
+          "benchmark": 0.09501066700731768,
+          "trades": 261
+        },
+        {
+          "early": -0.009601291372787021,
+          "validation": -0.08837444677833635,
+          "latest": 0.02362766777369892,
+          "stress": -0.07908843492689563,
+          "benchmark": 0.04026620887058224,
+          "trades": 230
+        },
+        {
+          "early": -0.010931154659080239,
+          "validation": -0.061579042857083835,
+          "latest": 0.08405948102583265,
+          "stress": 0.006218824820847487,
+          "benchmark": 0.029397837109340436,
+          "trades": 239
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.0817355483888164,
+          "validation": 0.21517730549411515,
+          "latest": -0.10480295646416689,
+          "stress": -0.236751507588431,
+          "benchmark": 0.12570305435729956,
+          "trades": 362
+        },
+        {
+          "early": -0.034935703120708275,
+          "validation": 0.1372009958967718,
+          "latest": -0.11388889639176498,
+          "stress": -0.22087683357740384,
+          "benchmark": 0.06780754629910046,
+          "trades": 378
+        },
+        {
+          "early": 0.04031558654609659,
+          "validation": 0.13841864344845878,
+          "latest": -0.2104863169892534,
+          "stress": -0.30376688710943955,
+          "benchmark": 0.05526160677217984,
+          "trades": 380
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.012792910552505992,
+          "validation": 0.07231919017494147,
+          "latest": 0.0006894356995548372,
+          "stress": -0.03571494111744215,
+          "benchmark": 0.024578918038385335,
+          "trades": 91
+        },
+        {
+          "early": -0.0055535643787916825,
+          "validation": 0.0219164343957341,
+          "latest": 0.01813645564261276,
+          "stress": -0.02964102770580113,
+          "benchmark": 0.01594323537590985,
+          "trades": 113
+        },
+        {
+          "early": 0.03172023203464261,
+          "validation": 0.07731959426093797,
+          "latest": -0.019436018705155367,
+          "stress": -0.039580354818779855,
+          "benchmark": 0.013364547012580016,
+          "trades": 90
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.019608709528897778,
+          "validation": 0.3172977100554989,
+          "latest": -0.014030352089411507,
+          "stress": -0.24384818661541136,
+          "benchmark": 0.3562254793676182,
+          "trades": 771
+        },
+        {
+          "early": 0.06682005991826234,
+          "validation": -0.01577388654738149,
+          "latest": -0.21008293102593792,
+          "stress": -0.3803092459232593,
+          "benchmark": 0.15335271774407658,
+          "trades": 784
+        },
+        {
+          "early": -0.0811766667664949,
+          "validation": 0.08415748031356363,
+          "latest": -0.14407214622096173,
+          "stress": -0.31094192127915776,
+          "benchmark": 0.13504625858317135,
+          "trades": 728
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.017434346501221727,
+          "validation": 0.06237440806306335,
+          "latest": 0.07794933371422245,
+          "stress": 0.018451689910938113,
+          "benchmark": 0.06304059952239277,
+          "trades": 174
+        },
+        {
+          "early": 0.008614260990379236,
+          "validation": 0.05172108146538589,
+          "latest": -0.059911123711503686,
+          "stress": -0.1088832329850398,
+          "benchmark": 0.029468792539753593,
+          "trades": 178
+        },
+        {
+          "early": -0.005218938728156887,
+          "validation": 0.08217437350151467,
+          "latest": -0.0056621440376855535,
+          "stress": -0.04524315449622409,
+          "benchmark": 0.024360060144717467,
+          "trades": 162
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0281141822437491,
+          "validation": 0.12393317906976307,
+          "latest": -0.0008539630985946534,
+          "stress": -0.06595892390520859,
+          "benchmark": 0.06589998204965915,
+          "trades": 175
+        },
+        {
+          "early": 0.0009974113391011405,
+          "validation": -0.018075379539081705,
+          "latest": 0.021866217139580944,
+          "stress": -0.04656137750449982,
+          "benchmark": 0.0371067930635535,
+          "trades": 203
+        },
+        {
+          "early": 0.05167758911564037,
+          "validation": 0.06830744953179085,
+          "latest": -0.06802294051677268,
+          "stress": -0.11164997801579221,
+          "benchmark": 0.026157123558918933,
+          "trades": 187
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.03412710506768691,
+          "validation": 0.057807366083597725,
+          "latest": -0.03569449248914078,
+          "stress": -0.08623459407838656,
+          "benchmark": 0.04251568319591131,
+          "trades": 136
+        },
+        {
+          "early": -0.037017617954162564,
+          "validation": 0.08368609629642526,
+          "latest": -0.06523712920168416,
+          "stress": -0.10508605934299473,
+          "benchmark": 0.0208677093085271,
+          "trades": 140
+        },
+        {
+          "early": -0.0022270833878368377,
+          "validation": 0.11802581120727768,
+          "latest": -0.02667202770560635,
+          "stress": -0.07295611190042652,
+          "benchmark": 0.0287471061371288,
+          "trades": 145
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.05960314815370226,
+          "validation": 0.21184292537473745,
+          "latest": 0.2252672723409721,
+          "stress": 0.015280434289621135,
+          "benchmark": 0.24544500496340388,
+          "trades": 617
+        },
+        {
+          "early": -0.027902363929543057,
+          "validation": 0.09544199156464536,
+          "latest": 0.07445794504159808,
+          "stress": -0.13984331338364758,
+          "benchmark": 0.1091229829934077,
+          "trades": 610
+        },
+        {
+          "early": -0.03821690137189998,
+          "validation": -0.010675728275480686,
+          "latest": -0.08634704958951653,
+          "stress": -0.23231867472188328,
+          "benchmark": 0.10738232470963548,
+          "trades": 603
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.028499622999601387,
+          "validation": -0.0078988654645235,
+          "latest": 0.12036304399459953,
+          "stress": 0.06941705642064026,
+          "benchmark": 0.03435946815756926,
+          "trades": 94
+        },
+        {
+          "early": 0.005698034047458611,
+          "validation": 0.027726339277199457,
+          "latest": 0.009239654813895356,
+          "stress": -0.019920240941487668,
+          "benchmark": 0.010613897395732326,
+          "trades": 79
+        },
+        {
+          "early": 0.07633994234419318,
+          "validation": 0.04212502597669371,
+          "latest": 0.03972519326773791,
+          "stress": 0.021521012394261962,
+          "benchmark": 0.0047008776563081485,
+          "trades": 70
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.04266563179320149,
+          "validation": 0.18008568257426105,
+          "latest": -0.08003532298334237,
+          "stress": -0.21491646226538724,
+          "benchmark": 0.14637899730336373,
+          "trades": 403
+        },
+        {
+          "early": 0.07220474396774534,
+          "validation": 0.1544867058753067,
+          "latest": -0.10454538182356159,
+          "stress": -0.23001483904952097,
+          "benchmark": 0.0798463998757016,
+          "trades": 409
+        },
+        {
+          "early": 0.003753690473422805,
+          "validation": 0.21645987716441922,
+          "latest": -0.09924549999634372,
+          "stress": -0.23595918371773456,
+          "benchmark": 0.06457328180870311,
+          "trades": 409
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.030560924068461753,
+          "validation": 0.07265485131576492,
+          "latest": 0.1464138465448898,
+          "stress": 0.05416721621579599,
+          "benchmark": 0.08934573218331295,
+          "trades": 228
+        },
+        {
+          "early": -0.0071288784870250236,
+          "validation": 0.014494361338928211,
+          "latest": -0.02274312931145999,
+          "stress": -0.08924412360676393,
+          "benchmark": 0.04004006821943166,
+          "trades": 216
+        },
+        {
+          "early": 0.026172432818332723,
+          "validation": 0.04481046540244553,
+          "latest": 0.001828630904631555,
+          "stress": -0.06397964477695468,
+          "benchmark": 0.026289029939954044,
+          "trades": 210
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.03027292454584633,
+          "validation": 0.2568020046936954,
+          "latest": 0.13473616594265383,
+          "stress": -0.07357335690146931,
+          "benchmark": 0.2314201271593262,
+          "trades": 548
+        },
+        {
+          "early": 0.07527759518053878,
+          "validation": 0.20843501134333084,
+          "latest": -0.09494291110965652,
+          "stress": -0.23373840660963777,
+          "benchmark": 0.09329375090420884,
+          "trades": 527
+        },
+        {
+          "early": -0.06288073808512375,
+          "validation": 0.05065888975721068,
+          "latest": -0.18623361307672925,
+          "stress": -0.3076130099580163,
+          "benchmark": 0.08966034201732845,
+          "trades": 558
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.024791614933670294,
+          "validation": 0.020340934680537215,
+          "latest": 0.009529191365838352,
+          "stress": 0.0005477910819682592,
+          "benchmark": 0.012407868397035024,
+          "trades": 36
+        },
+        {
+          "early": 0.010755628700080637,
+          "validation": -0.009466397400646883,
+          "latest": 0.016463567890673325,
+          "stress": -0.0023343146359507596,
+          "benchmark": 0.007950542053488968,
+          "trades": 36
+        },
+        {
+          "early": -0.011621486484702856,
+          "validation": -0.00728538972920217,
+          "latest": -0.0006337058245594876,
+          "stress": -0.012051719667247864,
+          "benchmark": 0.008219408330297617,
+          "trades": 44
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.017653151600568972,
+          "validation": 0.4053511822355612,
+          "latest": -0.10751916790948084,
+          "stress": -0.28449386366758217,
+          "benchmark": 0.2581186963561691,
+          "trades": 597
+        },
+        {
+          "early": -0.0023036437103195265,
+          "validation": -0.023137409840479833,
+          "latest": -0.18210706016056305,
+          "stress": -0.31944826503809,
+          "benchmark": 0.11608951741759016,
+          "trades": 555
+        },
+        {
+          "early": 0.006111459895245619,
+          "validation": 0.13952177958866527,
+          "latest": -0.1673333356220738,
+          "stress": -0.28543463451660595,
+          "benchmark": 0.09414219305646543,
+          "trades": 555
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.04589661550410746,
+          "validation": 0.05068464846573602,
+          "latest": 0.10491033187893567,
+          "stress": -0.019497647037793865,
+          "benchmark": 0.09766138734157764,
+          "trades": 262
+        },
+        {
+          "early": -0.07354325029823225,
+          "validation": 0.046409561482055176,
+          "latest": 0.01785365263393921,
+          "stress": -0.05035214777044008,
+          "benchmark": 0.04407005766949956,
+          "trades": 263
+        },
+        {
+          "early": -0.07418794190604407,
+          "validation": -0.007307873743739172,
+          "latest": -0.04022154566653502,
+          "stress": -0.11078123521625481,
+          "benchmark": 0.039975853430062894,
+          "trades": 250
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.021231752089358354,
+          "validation": 0.09719927005301161,
+          "latest": 0.06617981942135963,
+          "stress": -0.057423339718308986,
+          "benchmark": 0.11632689957455311,
+          "trades": 307
+        },
+        {
+          "early": -0.07523526396135825,
+          "validation": 0.007026668283484902,
+          "latest": -0.06996931515571954,
+          "stress": -0.15147033410067992,
+          "benchmark": 0.05117079618565141,
+          "trades": 324
+        },
+        {
+          "early": 0.0699819679830841,
+          "validation": -0.07535891213853997,
+          "latest": -0.10779976019901175,
+          "stress": -0.192637345704053,
+          "benchmark": 0.047275839689966494,
+          "trades": 284
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.015592086433778202,
+          "validation": 0.005937645896749121,
+          "latest": 0.05486781368552706,
+          "stress": 0.028059387841423748,
+          "benchmark": 0.019214782330416673,
+          "trades": 72
+        },
+        {
+          "early": 0.011520258507554474,
+          "validation": -0.0015651167374140622,
+          "latest": -0.044883623171167036,
+          "stress": -0.08215858639171837,
+          "benchmark": 0.009990614935554854,
+          "trades": 73
+        },
+        {
+          "early": -0.00916337541949032,
+          "validation": 0.08533386563793861,
+          "latest": 0.057119643753812906,
+          "stress": 0.036304943366733164,
+          "benchmark": 0.008807998202378958,
+          "trades": 57
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.05837586448272929,
+          "validation": 0.1634705521966862,
+          "latest": -0.07236242665481317,
+          "stress": -0.1883179610470875,
+          "benchmark": 0.12422027168939438,
+          "trades": 382
+        },
+        {
+          "early": 0.001513816439732009,
+          "validation": 0.08237712107474014,
+          "latest": -0.07350383386495088,
+          "stress": -0.18491450384258756,
+          "benchmark": 0.0668123264950241,
+          "trades": 395
+        },
+        {
+          "early": 0.012651907226475547,
+          "validation": 0.1397343345185342,
+          "latest": 0.010072093368364338,
+          "stress": -0.12538065919208208,
+          "benchmark": 0.06199231449336961,
+          "trades": 408
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.02421628816155223,
+          "validation": 0.09075168707237824,
+          "latest": 0.20401865481112258,
+          "stress": 0.03999704214288202,
+          "benchmark": 0.15503818554192011,
+          "trades": 384
+        },
+        {
+          "early": -0.051176074752804016,
+          "validation": 0.23094074440185883,
+          "latest": 0.11767856360117168,
+          "stress": -0.027244636051763173,
+          "benchmark": 0.071477423915237,
+          "trades": 385
+        },
+        {
+          "early": 0.022828617615323298,
+          "validation": 0.035514494884854364,
+          "latest": -0.028649486749905438,
+          "stress": -0.13400632688055875,
+          "benchmark": 0.05697580456533464,
+          "trades": 383
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.07089370397085837,
+          "validation": 0.5383052597690706,
+          "latest": 0.05911772508523124,
+          "stress": -0.24578056370648751,
+          "benchmark": 0.3933577184127598,
+          "trades": 874
+        },
+        {
+          "early": 0.07331406582101985,
+          "validation": 0.11696642726817912,
+          "latest": -0.03789022125639606,
+          "stress": -0.2379508773083825,
+          "benchmark": 0.1709614160026484,
+          "trades": 842
+        },
+        {
+          "early": -0.11198206997059965,
+          "validation": 0.10067655322499053,
+          "latest": -0.21160248201022488,
+          "stress": -0.4110413100249843,
+          "benchmark": 0.15428179816497403,
+          "trades": 848
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.07185044497699579,
+          "validation": 0.07029671578075625,
+          "latest": -0.020769105197587005,
+          "stress": -0.11298510705268319,
+          "benchmark": 0.11328844839247887,
+          "trades": 305
+        },
+        {
+          "early": 0.07165241076084418,
+          "validation": -0.003404098299180481,
+          "latest": -0.0504306166569983,
+          "stress": -0.1566463462932086,
+          "benchmark": 0.05277182475415512,
+          "trades": 309
+        },
+        {
+          "early": -0.04023725628297672,
+          "validation": 0.08803219324888512,
+          "latest": -0.05124288338820692,
+          "stress": -0.13130050080232342,
+          "benchmark": 0.04419329046349477,
+          "trades": 289
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.03250883082164224,
+          "validation": 0.2544865706356273,
+          "latest": -0.05493135643123323,
+          "stress": -0.22202220244741394,
+          "benchmark": 0.21142607009386413,
+          "trades": 509
+        },
+        {
+          "early": -0.04895015659385672,
+          "validation": 0.18487654144461718,
+          "latest": -0.07240842411187999,
+          "stress": -0.21573095567440195,
+          "benchmark": 0.09349173010295835,
+          "trades": 504
+        },
+        {
+          "early": -0.0403522926324246,
+          "validation": 0.05829248735576483,
+          "latest": -0.1691666640563999,
+          "stress": -0.30545975029259415,
+          "benchmark": 0.07460253640230602,
+          "trades": 505
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.01704910965071329,
+          "validation": 0.056180950419487986,
+          "latest": -0.016134976666508972,
+          "stress": -0.04756313236912333,
+          "benchmark": 0.025638495196154954,
+          "trades": 80
+        },
+        {
+          "early": -0.007803377997628582,
+          "validation": 0.0365676247661939,
+          "latest": -0.10778380701384832,
+          "stress": -0.12594244943695823,
+          "benchmark": 0.012627985304096413,
+          "trades": 92
+        },
+        {
+          "early": 0.03596855296979717,
+          "validation": 0.003708238375094144,
+          "latest": -0.06944536245622071,
+          "stress": -0.0921170965152174,
+          "benchmark": 0.01743924776864299,
+          "trades": 90
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0055099337929487395,
+          "validation": 0.05917777506228842,
+          "latest": 0.06913888793440273,
+          "stress": -0.0034563459200040838,
+          "benchmark": 0.07110525949426126,
+          "trades": 186
+        },
+        {
+          "early": -0.031105403140040802,
+          "validation": 0.079230462462403,
+          "latest": -0.08885117507384348,
+          "stress": -0.13983655234620251,
+          "benchmark": 0.02794076226149785,
+          "trades": 206
+        },
+        {
+          "early": -0.04547393236714967,
+          "validation": 0.06979126208498926,
+          "latest": 0.04992452779362936,
+          "stress": -0.007584458639160604,
+          "benchmark": 0.03628528850203655,
+          "trades": 211
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.008158417019080651,
+          "validation": 0.015623566889335395,
+          "latest": 0.07648998088464551,
+          "stress": 0.057373794590634776,
+          "benchmark": 0.024288228357761555,
+          "trades": 62
+        },
+        {
+          "early": -0.010699244072199347,
+          "validation": 0.05003532435409702,
+          "latest": 0.0005988108366640106,
+          "stress": -0.018415534640625956,
+          "benchmark": 0.008108270487027825,
+          "trades": 60
+        },
+        {
+          "early": 0.04684592712709807,
+          "validation": 0.11157562346777683,
+          "latest": 0.07827038919857744,
+          "stress": 0.05544061902578742,
+          "benchmark": 0.005373414249812321,
+          "trades": 66
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.0010258479233694953,
+          "validation": 0.028949478875550883,
+          "latest": -0.0792462162825056,
+          "stress": -0.13992132489433207,
+          "benchmark": 0.0603880143842637,
+          "trades": 181
+        },
+        {
+          "early": -0.042938185651553815,
+          "validation": 0.01870989279999008,
+          "latest": -0.058380615535620954,
+          "stress": -0.118562369850204,
+          "benchmark": 0.02511529754210663,
+          "trades": 199
+        },
+        {
+          "early": 0.03048987848569579,
+          "validation": -0.0017576616831902307,
+          "latest": -0.087887578496034,
+          "stress": -0.12988617769403088,
+          "benchmark": 0.0224774634884431,
+          "trades": 173
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.11731202182965181,
+          "validation": 0.09260065734698092,
+          "latest": 0.12062689296678802,
+          "stress": -0.09849621607490959,
+          "benchmark": 0.2356832759000332,
+          "trades": 555
+        },
+        {
+          "early": -0.013953824026101035,
+          "validation": 0.14205459482206093,
+          "latest": -0.03019536391631978,
+          "stress": -0.2119048754465011,
+          "benchmark": 0.10611629658224003,
+          "trades": 565
+        },
+        {
+          "early": 0.08743072014118625,
+          "validation": 0.023067437925405623,
+          "latest": -0.032136792882879156,
+          "stress": -0.20494910405015876,
+          "benchmark": 0.09456200614169653,
+          "trades": 549
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.08666378787465294,
+          "validation": 0.295759869395433,
+          "latest": 0.20610756910051053,
+          "stress": -0.08205676317774213,
+          "benchmark": 0.3753231434473511,
+          "trades": 810
+        },
+        {
+          "early": 0.02903521175526131,
+          "validation": 0.034720707235900546,
+          "latest": 0.013782790486179506,
+          "stress": -0.26435170620242093,
+          "benchmark": 0.1620349152960794,
+          "trades": 823
+        },
+        {
+          "early": -0.07029053584348274,
+          "validation": 0.07632427572250419,
+          "latest": -0.05792613040040927,
+          "stress": -0.2604663241083516,
+          "benchmark": 0.1420275846626782,
+          "trades": 796
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0038905721419365182,
+          "validation": 0.0744003807141781,
+          "latest": 0.014146270018858088,
+          "stress": -0.032864507344924604,
+          "benchmark": 0.031428031248454454,
+          "trades": 99
+        },
+        {
+          "early": 0.022217713579089915,
+          "validation": 0.07673591463809085,
+          "latest": -0.028497088010484357,
+          "stress": -0.06052040441603259,
+          "benchmark": 0.011657522402426644,
+          "trades": 105
+        },
+        {
+          "early": 0.012778721345670173,
+          "validation": 0.031169500311117537,
+          "latest": -0.07154130152848986,
+          "stress": -0.10496013474323915,
+          "benchmark": 0.02112675350647383,
+          "trades": 121
+        }
+      ]
+    }
+  ],
+  "crypto": [
+    {
+      "name": "Narrowest range in seven bars → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.1769100617309438,
+          "validation": -0.25692685777307556,
+          "latest": -0.30678972884837274,
+          "stress": -0.3578773060346211,
+          "benchmark": -0.004750007077612292,
+          "trades": 257
+        },
+        {
+          "early": -0.4000719908728606,
+          "validation": -0.10589448521500344,
+          "latest": -0.10315780269238994,
+          "stress": -0.15007436911955474,
+          "benchmark": 0.0020676961793528875,
+          "trades": 276
+        },
+        {
+          "early": -0.06483012175550315,
+          "validation": 0.03526642582659438,
+          "latest": -0.12949813866852475,
+          "stress": -0.1811299148117925,
+          "benchmark": 0.0023323446417028854,
+          "trades": 268
+        },
+        {
+          "early": -0.16536069087085384,
+          "validation": -0.0829883305655806,
+          "latest": -0.3323537314758482,
+          "stress": -0.36839257382645196,
+          "benchmark": -0.010256128840915688,
+          "trades": 271
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.23374283118592595,
+          "validation": -0.006835970900827673,
+          "latest": 0.0937778086843934,
+          "stress": 0.07613318335790142,
+          "benchmark": -0.003300398705659041,
+          "trades": 74
+        },
+        {
+          "early": -0.003337344223940067,
+          "validation": 0.22286642648932414,
+          "latest": 0.0024880726181380625,
+          "stress": -0.009947485470834683,
+          "benchmark": 0.0006591713940375388,
+          "trades": 76
+        },
+        {
+          "early": -0.05576056119628216,
+          "validation": 0.0040756453721030594,
+          "latest": -0.18390244095572236,
+          "stress": -0.20169419177257653,
+          "benchmark": 0.009838512117089124,
+          "trades": 74
+        },
+        {
+          "early": 0.002392064879951722,
+          "validation": 0.26849169371976844,
+          "latest": 0.08687544164827812,
+          "stress": 0.07336682630664626,
+          "benchmark": 0.008138818983854684,
+          "trades": 71
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.21832463325535875,
+          "validation": -0.15229947305008046,
+          "latest": -0.12446085779734775,
+          "stress": -0.15759871907817774,
+          "benchmark": 0.011732193802245536,
+          "trades": 180
+        },
+        {
+          "early": 0.1944342454355504,
+          "validation": 0.05494541246996813,
+          "latest": -0.2630092017823818,
+          "stress": -0.2861267444516127,
+          "benchmark": 0.03629744332859258,
+          "trades": 182
+        },
+        {
+          "early": -0.07911718078284342,
+          "validation": -0.03762036677306943,
+          "latest": -0.2905932518846387,
+          "stress": -0.3255254702296172,
+          "benchmark": 0.017545625705689072,
+          "trades": 175
+        },
+        {
+          "early": -0.26933076738376965,
+          "validation": -0.06144345952192523,
+          "latest": -0.18666366729843265,
+          "stress": -0.1675943342304189,
+          "benchmark": 0.030442957993568526,
+          "trades": 174
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.0836792073604064,
+          "validation": -0.011601947709368343,
+          "latest": -0.034411147859707156,
+          "stress": -0.04856976709066313,
+          "benchmark": 0.0028608148232374814,
+          "trades": 16
+        },
+        {
+          "early": 0.00538723007338851,
+          "validation": -0.032140858225609095,
+          "latest": -0.12524170221162081,
+          "stress": -0.12664165538547895,
+          "benchmark": 0.005849878146898649,
+          "trades": 12
+        },
+        {
+          "early": 0.02579795654768975,
+          "validation": 0.013791659638521372,
+          "latest": -0.02355666076286511,
+          "stress": -0.025697739711047912,
+          "benchmark": 0.0011790597928752339,
+          "trades": 11
+        },
+        {
+          "early": 0.0036821969325456227,
+          "validation": 0.003563034897109532,
+          "latest": -0.09297962267930007,
+          "stress": -0.09530711067034994,
+          "benchmark": 0.0014178765704210283,
+          "trades": 13
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.058819159584648895,
+          "validation": 0.07806417804164198,
+          "latest": -0.15341464144586156,
+          "stress": -0.169464889588905,
+          "benchmark": -0.003016545868316012,
+          "trades": 109
+        },
+        {
+          "early": -0.13150649343870313,
+          "validation": -0.027516831360855726,
+          "latest": -0.16963547852975996,
+          "stress": -0.18268840576678502,
+          "benchmark": -0.0020947930456235303,
+          "trades": 95
+        },
+        {
+          "early": -0.03189612917279255,
+          "validation": 0.04659777145707891,
+          "latest": -0.11378093353545511,
+          "stress": -0.14522321581809475,
+          "benchmark": -0.014747075328533157,
+          "trades": 94
+        },
+        {
+          "early": 0.012624802165077331,
+          "validation": -0.14379769196314976,
+          "latest": -0.12317279639748921,
+          "stress": -0.13807636269890808,
+          "benchmark": -0.0003034066393922119,
+          "trades": 101
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.08238049458215102,
+          "validation": 0.048617028209206936,
+          "latest": 0.03504702940569818,
+          "stress": -0.03291866539529843,
+          "benchmark": -0.008357049888485915,
+          "trades": 120
+        },
+        {
+          "early": -0.09264019023282931,
+          "validation": -0.162559145508879,
+          "latest": -0.31709125823754786,
+          "stress": -0.33673856610466346,
+          "benchmark": -0.008461835512411073,
+          "trades": 146
+        },
+        {
+          "early": -0.13423118852353325,
+          "validation": 0.05634121763588429,
+          "latest": -0.23610784918882305,
+          "stress": -0.27387319060194,
+          "benchmark": -0.01024641644608805,
+          "trades": 149
+        },
+        {
+          "early": -0.35934230712655113,
+          "validation": 0.06786533065925515,
+          "latest": -0.16555794910810545,
+          "stress": -0.1994392090898474,
+          "benchmark": 0.012578585060253153,
+          "trades": 162
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.06636022686959064,
+          "validation": 0.1593789078196023,
+          "latest": -0.015283951010033783,
+          "stress": -0.051609255077123384,
+          "benchmark": 0.008061178106165662,
+          "trades": 144
+        },
+        {
+          "early": 0.09615832220913474,
+          "validation": 0.1146782559168136,
+          "latest": -0.19797594789808587,
+          "stress": -0.21005227533161144,
+          "benchmark": -0.013707759626778018,
+          "trades": 143
+        },
+        {
+          "early": -0.04397853409673176,
+          "validation": -0.057518268981253146,
+          "latest": -0.22222216252163837,
+          "stress": -0.2496406616905512,
+          "benchmark": 0.007943436870877715,
+          "trades": 143
+        },
+        {
+          "early": -0.1689541020381473,
+          "validation": 0.06254291435457462,
+          "latest": -0.360057847119236,
+          "stress": -0.344728224179805,
+          "benchmark": 0.02396836366889464,
+          "trades": 133
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.14083218425546976,
+          "validation": 0.026191164455951987,
+          "latest": 0.06259802057929467,
+          "stress": 0.010529723586240408,
+          "benchmark": 0.00034286276052780673,
+          "trades": 96
+        },
+        {
+          "early": 0.20718467020776213,
+          "validation": -0.028936836693014265,
+          "latest": -0.1108168835911527,
+          "stress": -0.12700758387796357,
+          "benchmark": 0.0108386455492126,
+          "trades": 102
+        },
+        {
+          "early": -0.19952489214079533,
+          "validation": -0.14054508002221922,
+          "latest": -0.023284359553940814,
+          "stress": -0.06608229109718612,
+          "benchmark": 0.02894017938480853,
+          "trades": 109
+        },
+        {
+          "early": -0.050185699875301026,
+          "validation": 0.05194223538613982,
+          "latest": -0.02351926730484115,
+          "stress": -0.0397604526262528,
+          "benchmark": 0.008692457791373176,
+          "trades": 103
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.2077481844659138,
+          "validation": 0.05426349787004964,
+          "latest": -0.15824223665685844,
+          "stress": -0.21401385304785647,
+          "benchmark": 0.010281549031871076,
+          "trades": 207
+        },
+        {
+          "early": -0.0495910267319898,
+          "validation": -0.13799338159583163,
+          "latest": -0.07100792452088454,
+          "stress": -0.11848307786811531,
+          "benchmark": 0.025323530975188108,
+          "trades": 216
+        },
+        {
+          "early": -0.12322947141136247,
+          "validation": -0.09178228532738263,
+          "latest": -0.3587261707037967,
+          "stress": -0.38462789072001036,
+          "benchmark": -0.014121830766056512,
+          "trades": 220
+        },
+        {
+          "early": -0.09408843980650111,
+          "validation": 0.2110119201328504,
+          "latest": 0.09359400311804983,
+          "stress": 0.03622815855945653,
+          "benchmark": 0.00953247151990741,
+          "trades": 224
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.38324696970812083,
+          "validation": -0.03039060611350082,
+          "latest": -0.06053001546187743,
+          "stress": -0.08912214939949123,
+          "benchmark": 0.0037136017057467496,
+          "trades": 146
+        },
+        {
+          "early": -0.040821100203984925,
+          "validation": 0.1718503857407597,
+          "latest": -0.07391924062839395,
+          "stress": -0.10505569517163761,
+          "benchmark": 0.016474827498859396,
+          "trades": 146
+        },
+        {
+          "early": 0.0051579803688937415,
+          "validation": 0.07619622857135806,
+          "latest": -0.17448230814082485,
+          "stress": -0.20786808389372036,
+          "benchmark": 0.006567316431115092,
+          "trades": 136
+        },
+        {
+          "early": 0.21406094374885076,
+          "validation": 0.1907374156953454,
+          "latest": 0.13453652202699018,
+          "stress": 0.09432516768006081,
+          "benchmark": 0.03198910322319187,
+          "trades": 127
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.07173637942004864,
+          "validation": -0.1279742793421855,
+          "latest": -0.01128440247217008,
+          "stress": -0.041982886618812984,
+          "benchmark": 0.01690623222709864,
+          "trades": 95
+        },
+        {
+          "early": 0.1901693158376479,
+          "validation": -0.08621548018203436,
+          "latest": -0.18603779931023354,
+          "stress": -0.19907092148620725,
+          "benchmark": 0.03372847821897257,
+          "trades": 91
+        },
+        {
+          "early": -0.06301763780128833,
+          "validation": -0.04458697019667171,
+          "latest": -0.15136742352983473,
+          "stress": -0.16282196418704775,
+          "benchmark": 0.007188767741162366,
+          "trades": 74
+        },
+        {
+          "early": -0.03159011661193409,
+          "validation": -0.2068155745025439,
+          "latest": -0.2168972187151198,
+          "stress": -0.2297329163223124,
+          "benchmark": 0.021779577298604955,
+          "trades": 86
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.04405606222730027,
+          "validation": -0.006311028340803909,
+          "latest": -0.058268539038391576,
+          "stress": -0.05958713820671184,
+          "benchmark": -0.0030181064030631866,
+          "trades": 8
+        },
+        {
+          "early": 0.11207939919394816,
+          "validation": -0.06707713465450862,
+          "latest": -0.05941354839678789,
+          "stress": -0.060066484461618996,
+          "benchmark": 0.004533789800180613,
+          "trades": 6
+        },
+        {
+          "early": 0.008409976100692121,
+          "validation": -0.0037557765280253064,
+          "latest": -0.004954899670178148,
+          "stress": -0.006536683632427515,
+          "benchmark": 0.0007716798987926626,
+          "trades": 12
+        },
+        {
+          "early": 0.08892455486974367,
+          "validation": 0.03724785765982354,
+          "latest": -0.018523018191240095,
+          "stress": -0.01934333442369668,
+          "benchmark": 0.005790202818280549,
+          "trades": 7
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.1253763756681905,
+          "validation": 0.08945061734251007,
+          "latest": -0.10769589293076658,
+          "stress": -0.11619281148215228,
+          "benchmark": -0.0024609013663820928,
+          "trades": 59
+        },
+        {
+          "early": 0.039418434361482624,
+          "validation": 0.0953636777797188,
+          "latest": 0.05626244160485892,
+          "stress": 0.045261351716183354,
+          "benchmark": 0.013461130817492992,
+          "trades": 62
+        },
+        {
+          "early": 0.009632605118922125,
+          "validation": 0.12679806640463426,
+          "latest": -0.21579061414110257,
+          "stress": -0.22641292233749927,
+          "benchmark": -0.00800226587238638,
+          "trades": 68
+        },
+        {
+          "early": 0.13405584578799543,
+          "validation": -0.023792058681362416,
+          "latest": -0.027894599292017347,
+          "stress": -0.03720968298563587,
+          "benchmark": -0.004457709934265766,
+          "trades": 58
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.09126868899789405,
+          "validation": 0.1136891183886594,
+          "latest": 0.05118349563421569,
+          "stress": 0.04106262691864797,
+          "benchmark": 0.014256299704747247,
+          "trades": 51
+        },
+        {
+          "early": -0.004393521084934238,
+          "validation": 0.019900452467125407,
+          "latest": 0.00758795394284012,
+          "stress": -0.0026954482660081075,
+          "benchmark": 0.02362679989850032,
+          "trades": 56
+        },
+        {
+          "early": -0.08557955348646853,
+          "validation": 0.03417563296884524,
+          "latest": -0.13155649776974876,
+          "stress": -0.14434897490821025,
+          "benchmark": 0.0014993572857958937,
+          "trades": 50
+        },
+        {
+          "early": -0.01158001291019048,
+          "validation": 0.10293607393901301,
+          "latest": -0.03586748058399264,
+          "stress": -0.04631452338034449,
+          "benchmark": 0.04103774191785607,
+          "trades": 59
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.30318471515373896,
+          "validation": -0.1523163567626103,
+          "latest": -0.2271599611853506,
+          "stress": -0.27239870357794976,
+          "benchmark": 0.010659366706957885,
+          "trades": 223
+        },
+        {
+          "early": 0.4112130910297642,
+          "validation": -0.32968147429889383,
+          "latest": -0.36929741562307206,
+          "stress": -0.3932971578776885,
+          "benchmark": -0.004498133027078202,
+          "trades": 218
+        },
+        {
+          "early": -0.09273637607492022,
+          "validation": 0.05463767425186575,
+          "latest": -0.15588373878461398,
+          "stress": -0.19765794432604453,
+          "benchmark": 0.01492281539940063,
+          "trades": 196
+        },
+        {
+          "early": 0.031114151268117105,
+          "validation": -0.10309677599641195,
+          "latest": -0.08047549274765348,
+          "stress": -0.13294388326466033,
+          "benchmark": 0.025625615053199213,
+          "trades": 201
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.08008737333289069,
+          "validation": -0.008418516630333689,
+          "latest": -0.08158788488505288,
+          "stress": -0.09167428374202362,
+          "benchmark": -0.019224469305607297,
+          "trades": 66
+        },
+        {
+          "early": 0.08944441938286231,
+          "validation": -0.03444398243024005,
+          "latest": -0.20433415404298017,
+          "stress": -0.21877131890714374,
+          "benchmark": -0.013986478639308964,
+          "trades": 78
+        },
+        {
+          "early": -0.2650485786790889,
+          "validation": -0.0599330004325309,
+          "latest": -0.1087140386061788,
+          "stress": -0.13699206621133403,
+          "benchmark": 0.011652716520134776,
+          "trades": 88
+        },
+        {
+          "early": 0.017234455308648394,
+          "validation": 0.2092633039708227,
+          "latest": -0.10630474546568364,
+          "stress": -0.1184905034519618,
+          "benchmark": 0.003482487713185517,
+          "trades": 86
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.03093232806661282,
+          "validation": 0.2542695942703091,
+          "latest": -0.11526122296328954,
+          "stress": -0.1301599119535758,
+          "benchmark": 0.010849889584385083,
+          "trades": 104
+        },
+        {
+          "early": -0.0088854037389344,
+          "validation": 0.10333776430653013,
+          "latest": -0.05643061833163704,
+          "stress": -0.053915112463081255,
+          "benchmark": 0.006187783549504347,
+          "trades": 100
+        },
+        {
+          "early": 0.011217104865692482,
+          "validation": -0.07817548044110846,
+          "latest": -0.2014391401979854,
+          "stress": -0.21201298957149872,
+          "benchmark": -0.003999088844465731,
+          "trades": 81
+        },
+        {
+          "early": -0.1762090684911491,
+          "validation": -0.006367666415248496,
+          "latest": -0.1207716050878528,
+          "stress": -0.14320081581788155,
+          "benchmark": 0.03505764062428998,
+          "trades": 108
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.27976977666890296,
+          "validation": -0.17857243066121833,
+          "latest": -0.19222626964147077,
+          "stress": -0.23314624253031851,
+          "benchmark": -0.0032867141109037545,
+          "trades": 179
+        },
+        {
+          "early": -0.014194485525798078,
+          "validation": -0.020037649096748975,
+          "latest": -0.15454482151534307,
+          "stress": -0.1819421145256051,
+          "benchmark": 0.014173505392713392,
+          "trades": 179
+        },
+        {
+          "early": -0.20850847717505255,
+          "validation": 0.08125297478751765,
+          "latest": -0.15731254480013518,
+          "stress": -0.21180070191314007,
+          "benchmark": 0.010814263699508345,
+          "trades": 203
+        },
+        {
+          "early": -0.0231665310463081,
+          "validation": 0.3503921751137723,
+          "latest": 0.24405309524779478,
+          "stress": 0.19975717289544187,
+          "benchmark": 0.01838703502569229,
+          "trades": 190
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.32322927226348164,
+          "validation": -0.039244487782846574,
+          "latest": -0.13600989225247193,
+          "stress": -0.16191651306917595,
+          "benchmark": 0.0026605770050520255,
+          "trades": 182
+        },
+        {
+          "early": 0.10005841472801488,
+          "validation": 0.03726911247196292,
+          "latest": -0.33058049534640904,
+          "stress": -0.35121742182537063,
+          "benchmark": 0.021024502921694638,
+          "trades": 179
+        },
+        {
+          "early": 0.0936892128823155,
+          "validation": -0.08726595495680128,
+          "latest": -0.32947111639686316,
+          "stress": -0.35592067403622946,
+          "benchmark": 0.015236230530078276,
+          "trades": 172
+        },
+        {
+          "early": -0.1467705365916605,
+          "validation": -0.17399651513319453,
+          "latest": -0.40587214326847365,
+          "stress": -0.40016954446049435,
+          "benchmark": 0.03522354215148045,
+          "trades": 179
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.11089063741795564,
+          "validation": -0.0663355908225491,
+          "latest": -0.02290383177183604,
+          "stress": -0.027819884665617717,
+          "benchmark": 0.004162288400851824,
+          "trades": 26
+        },
+        {
+          "early": 0.10608161112237087,
+          "validation": -0.07392828414943362,
+          "latest": -0.06472899309282805,
+          "stress": -0.06838267388856828,
+          "benchmark": 0.025474135486394517,
+          "trades": 21
+        },
+        {
+          "early": -0.07820317750093492,
+          "validation": 0.012450443837309269,
+          "latest": -0.012167539389443052,
+          "stress": -0.017655190353252054,
+          "benchmark": 0.013103167804137159,
+          "trades": 31
+        },
+        {
+          "early": -0.030055959934930182,
+          "validation": 0.04450035820658357,
+          "latest": -0.034167780280678656,
+          "stress": -0.038746018011456954,
+          "benchmark": 0.02214468473096262,
+          "trades": 26
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.08270318767963691,
+          "validation": -0.019523175181969277,
+          "latest": -0.047532497230135085,
+          "stress": -0.06575643825864777,
+          "benchmark": 0.004854270732436244,
+          "trades": 42
+        },
+        {
+          "early": -0.013977348165132561,
+          "validation": -0.07167251386952556,
+          "latest": -0.10629175120549389,
+          "stress": -0.1096503205674567,
+          "benchmark": -0.009691248985766066,
+          "trades": 24
+        },
+        {
+          "early": 0.061005211551713984,
+          "validation": 0.01588408027950329,
+          "latest": 0.005069291094637884,
+          "stress": -0.0010833890434541887,
+          "benchmark": -0.007917891317037545,
+          "trades": 35
+        },
+        {
+          "early": -0.10084273741221926,
+          "validation": -0.057015232438357266,
+          "latest": -0.10095731215009578,
+          "stress": -0.10683253835245873,
+          "benchmark": -0.002605422628364773,
+          "trades": 38
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.12204210926986865,
+          "validation": 0.008225332583523245,
+          "latest": -0.16331031857199835,
+          "stress": -0.20940402319145138,
+          "benchmark": -0.004133984128943544,
+          "trades": 155
+        },
+        {
+          "early": -0.02364383731066516,
+          "validation": -0.24637675762806932,
+          "latest": -0.3102715662903118,
+          "stress": -0.32696580973229766,
+          "benchmark": -0.002697242444909806,
+          "trades": 139
+        },
+        {
+          "early": -0.10432724954492911,
+          "validation": -0.020464327338441418,
+          "latest": -0.20832114793716044,
+          "stress": -0.23512073368386033,
+          "benchmark": -0.007073382383378846,
+          "trades": 137
+        },
+        {
+          "early": 0.023156780897027676,
+          "validation": -0.046748521131452406,
+          "latest": 0.003925270434961561,
+          "stress": -0.020246469291303387,
+          "benchmark": 0.01468662120839212,
+          "trades": 136
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.2617498493002737,
+          "validation": -0.1267631522824845,
+          "latest": -0.20242340667566458,
+          "stress": -0.23960708732797956,
+          "benchmark": 0.012184878004725258,
+          "trades": 205
+        },
+        {
+          "early": 0.3106271677511362,
+          "validation": -0.015452476197992726,
+          "latest": -0.22270149166765174,
+          "stress": -0.2508954512043077,
+          "benchmark": 0.017095150124667183,
+          "trades": 212
+        },
+        {
+          "early": -0.015412149432472974,
+          "validation": -0.03686766145733618,
+          "latest": -0.3239529444617633,
+          "stress": -0.3629426674363737,
+          "benchmark": 0.019866317044046358,
+          "trades": 204
+        },
+        {
+          "early": -0.08936152768461883,
+          "validation": 0.12936176276996397,
+          "latest": -0.2907543353381987,
+          "stress": -0.25505696973059755,
+          "benchmark": 0.022621589825950014,
+          "trades": 201
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.014437657791701156,
+          "validation": 0.04204578705707361,
+          "latest": 0.01135516338170095,
+          "stress": -0.0025428635202882494,
+          "benchmark": -0.0014164996398146196,
+          "trades": 56
+        },
+        {
+          "early": -0.028787852689638946,
+          "validation": 0.08938582903793663,
+          "latest": -0.10954298328917032,
+          "stress": -0.123013172151947,
+          "benchmark": -0.012182940501329176,
+          "trades": 63
+        },
+        {
+          "early": -0.11504735179737437,
+          "validation": 0.03679383682298018,
+          "latest": -0.0829421831964069,
+          "stress": -0.11820236538829364,
+          "benchmark": 0.004361020764727844,
+          "trades": 49
+        },
+        {
+          "early": -0.05617581682692922,
+          "validation": 0.14806560075449926,
+          "latest": -0.023598090011594103,
+          "stress": -0.030909860759367108,
+          "benchmark": -0.012918577363272704,
+          "trades": 49
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.33850152961977936,
+          "validation": -0.09314856094219363,
+          "latest": -0.2712633074093206,
+          "stress": -0.30502318296313136,
+          "benchmark": 0.020564994556702257,
+          "trades": 199
+        },
+        {
+          "early": -0.1547894256512276,
+          "validation": -0.21450998635341612,
+          "latest": -0.14283666991218677,
+          "stress": -0.17223800405825523,
+          "benchmark": -0.005083609695837099,
+          "trades": 195
+        },
+        {
+          "early": -0.07299477343703231,
+          "validation": 0.04132976309374506,
+          "latest": -0.2757331537789259,
+          "stress": -0.3248480044758414,
+          "benchmark": 0.0019530146786695957,
+          "trades": 187
+        },
+        {
+          "early": -0.05671499290039761,
+          "validation": -0.06741934153227469,
+          "latest": -0.04005542251947747,
+          "stress": -0.08958369607831163,
+          "benchmark": 0.015057249349982163,
+          "trades": 183
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.32509344377234467,
+          "validation": -0.176013595040202,
+          "latest": -0.09852633007144285,
+          "stress": -0.13804600746043455,
+          "benchmark": 0.0033221715552401027,
+          "trades": 118
+        },
+        {
+          "early": -0.2835972791040614,
+          "validation": 0.040109809949701314,
+          "latest": 0.1531123684729386,
+          "stress": 0.12209972395890177,
+          "benchmark": 0.04207306574669986,
+          "trades": 132
+        },
+        {
+          "early": -0.3157926386715961,
+          "validation": -0.014132308260111276,
+          "latest": -0.1721535222509174,
+          "stress": -0.2001570466859568,
+          "benchmark": 0.012810383212942297,
+          "trades": 133
+        },
+        {
+          "early": -0.039224627353421165,
+          "validation": 0.2961895000953405,
+          "latest": 0.08053133071195895,
+          "stress": 0.03941660702285313,
+          "benchmark": 0.021680628872895943,
+          "trades": 134
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.29041536054263406,
+          "validation": 0.043571050241649575,
+          "latest": -0.12282876678455318,
+          "stress": -0.15910601509730046,
+          "benchmark": 0.009163663667893257,
+          "trades": 222
+        },
+        {
+          "early": -0.07418909118757264,
+          "validation": -0.011181308035748003,
+          "latest": -0.2668896875975154,
+          "stress": -0.3006924621373789,
+          "benchmark": 0.013848874818440021,
+          "trades": 211
+        },
+        {
+          "early": 0.06384014097278609,
+          "validation": 0.050765180740962396,
+          "latest": -0.3433670633560102,
+          "stress": -0.3682266865472507,
+          "benchmark": 0.003300102918999681,
+          "trades": 209
+        },
+        {
+          "early": -0.23401722660077967,
+          "validation": 0.07919145695302349,
+          "latest": -0.14299668597647264,
+          "stress": -0.17070393683753007,
+          "benchmark": -0.00963985513612585,
+          "trades": 202
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.007685855749554715,
+          "validation": -0.0561259727606771,
+          "latest": -0.08936972835179804,
+          "stress": -0.1273977845731444,
+          "benchmark": 0.0013863865336108394,
+          "trades": 64
+        },
+        {
+          "early": -0.07319284644657532,
+          "validation": -0.11281718298791409,
+          "latest": 0.06573490425899108,
+          "stress": 0.0549761277408571,
+          "benchmark": 0.021200256944612333,
+          "trades": 57
+        },
+        {
+          "early": -0.2616937340162409,
+          "validation": -0.016260281007646968,
+          "latest": -0.06337312954239543,
+          "stress": -0.0764618664707525,
+          "benchmark": 0.007150848534913545,
+          "trades": 77
+        },
+        {
+          "early": -0.19000233911840184,
+          "validation": -0.0023300064193545744,
+          "latest": -0.038999635104788793,
+          "stress": -0.0508117420663729,
+          "benchmark": 0.010612952186788635,
+          "trades": 67
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.16583999903955798,
+          "validation": 0.07708212408475615,
+          "latest": -0.05237746062168351,
+          "stress": -0.06244041245591293,
+          "benchmark": 0.0034905356178526192,
+          "trades": 65
+        },
+        {
+          "early": 0.17404722944414813,
+          "validation": 0.06201737787412913,
+          "latest": -0.1032442095965677,
+          "stress": -0.11253203439935096,
+          "benchmark": 0.006745900257245571,
+          "trades": 62
+        },
+        {
+          "early": -0.018418666279502796,
+          "validation": 0.1528227536892099,
+          "latest": -0.1576247115148104,
+          "stress": -0.16845555667543116,
+          "benchmark": -0.005135509949762251,
+          "trades": 66
+        },
+        {
+          "early": 0.11682283744359466,
+          "validation": -0.09871016408466932,
+          "latest": -0.07117349453041777,
+          "stress": -0.08238686518992559,
+          "benchmark": 0.012731889282248054,
+          "trades": 67
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.07526902782679092,
+          "validation": 0.016299860080901896,
+          "latest": 0.01579462061561604,
+          "stress": -0.006003273310963023,
+          "benchmark": -0.0030796373807481237,
+          "trades": 64
+        },
+        {
+          "early": 0.19173062913242894,
+          "validation": -0.0008873191192513424,
+          "latest": -0.18897001791845253,
+          "stress": -0.19641272495615858,
+          "benchmark": 0.013653977570677128,
+          "trades": 54
+        },
+        {
+          "early": -0.036194501446456376,
+          "validation": 0.049052053482145586,
+          "latest": -0.1855342809834866,
+          "stress": -0.20021492276524097,
+          "benchmark": 0.005115051429612313,
+          "trades": 68
+        },
+        {
+          "early": 0.11865468083507785,
+          "validation": 0.04939777386821377,
+          "latest": -0.024554204570404276,
+          "stress": -0.035164121418506625,
+          "benchmark": 0.02480872650732875,
+          "trades": 62
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.1455798394752767,
+          "validation": -0.05656985809885724,
+          "latest": 0.08491915042315967,
+          "stress": 0.045583129235649056,
+          "benchmark": 0.010039119926365789,
+          "trades": 92
+        },
+        {
+          "early": 0.3331322188152137,
+          "validation": -0.1749023795909232,
+          "latest": -0.10968742057814865,
+          "stress": -0.13465622110889575,
+          "benchmark": 0.03762480164907882,
+          "trades": 101
+        },
+        {
+          "early": 0.06731439399519445,
+          "validation": -0.09795440499617443,
+          "latest": -0.016575212690303112,
+          "stress": -0.03433558117261436,
+          "benchmark": 0.011118715477530239,
+          "trades": 81
+        },
+        {
+          "early": 0.09460072778965313,
+          "validation": -0.1461484257016336,
+          "latest": -0.10580875253413075,
+          "stress": -0.12775167517867853,
+          "benchmark": 0.02920707393572644,
+          "trades": 86
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0602311440961496,
+          "validation": 0.01223377848654189,
+          "latest": -0.05958509675453218,
+          "stress": -0.07726489186014104,
+          "benchmark": 0.009256372056976131,
+          "trades": 67
+        },
+        {
+          "early": 0.06596569438005856,
+          "validation": 0.060255654517483576,
+          "latest": -0.1335755280668099,
+          "stress": -0.14160856738632255,
+          "benchmark": 0.011007733773504128,
+          "trades": 52
+        },
+        {
+          "early": -0.07005304143682124,
+          "validation": -0.08194532876276552,
+          "latest": -0.0015824628779705363,
+          "stress": -0.012091813622673336,
+          "benchmark": 0.009339935514088044,
+          "trades": 63
+        },
+        {
+          "early": 0.002182548689703745,
+          "validation": 0.12289461812652008,
+          "latest": -0.09543058543272323,
+          "stress": -0.10370944297427293,
+          "benchmark": 0.018050337222709323,
+          "trades": 56
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.2052802752122672,
+          "validation": -0.13505970456163416,
+          "latest": -0.27123656923903916,
+          "stress": -0.3180363165825768,
+          "benchmark": 0.01886728565697353,
+          "trades": 175
+        },
+        {
+          "early": 0.10664568684700315,
+          "validation": 0.04087963447757667,
+          "latest": -0.24888869453429607,
+          "stress": -0.27168928375673296,
+          "benchmark": 0.03601499433037621,
+          "trades": 182
+        },
+        {
+          "early": -0.044567750431684525,
+          "validation": 0.08344624804903986,
+          "latest": -0.394303881797509,
+          "stress": -0.41195940547534327,
+          "benchmark": 0.01810492432301157,
+          "trades": 157
+        },
+        {
+          "early": -0.19266543987492024,
+          "validation": 0.10547315202739654,
+          "latest": -0.2798008577343159,
+          "stress": -0.302933869154831,
+          "benchmark": 0.031136954251806306,
+          "trades": 179
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.12521183829742621,
+          "validation": 0.11815071787001923,
+          "latest": 0.29065223096812587,
+          "stress": 0.2611191191001689,
+          "benchmark": 0.007045784670019872,
+          "trades": 52
+        },
+        {
+          "early": -0.0029708167097519805,
+          "validation": 0.2849482681232925,
+          "latest": 0.206599153708383,
+          "stress": 0.19711611367984483,
+          "benchmark": 0.010733684308981584,
+          "trades": 47
+        },
+        {
+          "early": -0.10767251966258481,
+          "validation": 0.078460669932836,
+          "latest": -0.1301834126207127,
+          "stress": -0.1377623572405963,
+          "benchmark": 0.015770196766703617,
+          "trades": 51
+        },
+        {
+          "early": 0.00704240591094292,
+          "validation": 0.1974090637674091,
+          "latest": 0.20673504644094365,
+          "stress": 0.19573159560224695,
+          "benchmark": 0.025143635496481742,
+          "trades": 53
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.21574406334566978,
+          "validation": -0.20895543283784024,
+          "latest": -0.3530391152116413,
+          "stress": -0.39924783543113745,
+          "benchmark": 0.0007915620072888596,
+          "trades": 292
+        },
+        {
+          "early": -0.16377405857227628,
+          "validation": -0.17068139151665987,
+          "latest": -0.017498110775225853,
+          "stress": -0.07495771367113596,
+          "benchmark": 0.012167969275508825,
+          "trades": 291
+        },
+        {
+          "early": -0.15024332389437745,
+          "validation": -0.16657536225090191,
+          "latest": -0.1544369628307686,
+          "stress": -0.21927256104569978,
+          "benchmark": 0.001563329160602242,
+          "trades": 296
+        },
+        {
+          "early": -0.3237386504723456,
+          "validation": -0.1985961258425135,
+          "latest": -0.4126673189902856,
+          "stress": -0.41845521694995447,
+          "benchmark": -0.0011129239471297098,
+          "trades": 271
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.011416471700431918,
+          "validation": -0.06031185092364867,
+          "latest": -0.03717255969507863,
+          "stress": -0.04446109046610762,
+          "benchmark": 0.0024328009899611674,
+          "trades": 41
+        },
+        {
+          "early": 0.002906373225020492,
+          "validation": 0.004287853014524237,
+          "latest": -0.20564751736616094,
+          "stress": -0.21055927905417782,
+          "benchmark": 0.008159519442233587,
+          "trades": 34
+        },
+        {
+          "early": -0.12418755684384197,
+          "validation": -0.051361778313410766,
+          "latest": -0.12950146044319372,
+          "stress": -0.13939904969169697,
+          "benchmark": 0.006080250254500083,
+          "trades": 60
+        },
+        {
+          "early": -0.2565924551335204,
+          "validation": 0.030460862146389586,
+          "latest": -0.044293714159267375,
+          "stress": -0.05410812569353973,
+          "benchmark": 0.011730164381693373,
+          "trades": 54
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.08438196095467032,
+          "validation": 0.19730966610844347,
+          "latest": -0.08132770300324871,
+          "stress": -0.10352601810049286,
+          "benchmark": 0.007821568696934247,
+          "trades": 142
+        },
+        {
+          "early": -0.19958288115786565,
+          "validation": 0.016240722784496578,
+          "latest": -0.01995176377960048,
+          "stress": -0.04233797872628324,
+          "benchmark": 0.02526670416667358,
+          "trades": 140
+        },
+        {
+          "early": 0.10592061477379468,
+          "validation": 0.20082019625003406,
+          "latest": -0.19816295700026576,
+          "stress": -0.21820390398986061,
+          "benchmark": 0.0002634995834303877,
+          "trades": 138
+        },
+        {
+          "early": -0.07583390715037484,
+          "validation": -0.08190986328018254,
+          "latest": -0.09365077233279134,
+          "stress": -0.11588192096178365,
+          "benchmark": 0.025670536050875395,
+          "trades": 136
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.16419804189970663,
+          "validation": -0.012840332913152355,
+          "latest": -0.018989846233045476,
+          "stress": -0.04423185335936411,
+          "benchmark": 0.0004445448652936196,
+          "trades": 46
+        },
+        {
+          "early": 0.06442908778015383,
+          "validation": 0.07388998611596824,
+          "latest": -0.196627846633098,
+          "stress": -0.20206908379392116,
+          "benchmark": 0.01368814947485647,
+          "trades": 39
+        },
+        {
+          "early": 0.09265293051891459,
+          "validation": 0.07053296345362799,
+          "latest": -0.0775892098210652,
+          "stress": -0.09302409019439539,
+          "benchmark": 0.008482414618228878,
+          "trades": 44
+        },
+        {
+          "early": -0.03317890603805258,
+          "validation": -0.04955923765003889,
+          "latest": -0.1957634235988456,
+          "stress": -0.2073507736567455,
+          "benchmark": 0.01383449310086482,
+          "trades": 49
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.27932062443978345,
+          "validation": -0.06113227942730268,
+          "latest": -0.13591867007070543,
+          "stress": -0.18619406438358,
+          "benchmark": -0.0023972791620578277,
+          "trades": 227
+        },
+        {
+          "early": 0.47192833026942504,
+          "validation": 0.06916521427537622,
+          "latest": -0.2647651408489192,
+          "stress": -0.3096281489469532,
+          "benchmark": 0.010699128467885038,
+          "trades": 238
+        },
+        {
+          "early": 0.05722750138703883,
+          "validation": -0.1189137353001487,
+          "latest": -0.4309219600672315,
+          "stress": -0.4606251157636373,
+          "benchmark": 0.011363154708748949,
+          "trades": 231
+        },
+        {
+          "early": -0.17926325709249072,
+          "validation": 0.0029832354427079266,
+          "latest": -0.3771549267608604,
+          "stress": -0.3290004833389171,
+          "benchmark": 0.02109863360368698,
+          "trades": 229
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.16702511014580165,
+          "validation": 0.04384369713873333,
+          "latest": -0.029456801354794837,
+          "stress": -0.04268466785309018,
+          "benchmark": -0.00848939104053012,
+          "trades": 63
+        },
+        {
+          "early": 0.17922032085651843,
+          "validation": 0.03918928315015048,
+          "latest": 0.2043341374748353,
+          "stress": 0.1939223099949841,
+          "benchmark": -0.012809811018628534,
+          "trades": 51
+        },
+        {
+          "early": -0.025562671321201255,
+          "validation": 0.09825047788311352,
+          "latest": -0.07077763114070665,
+          "stress": -0.08417392831037142,
+          "benchmark": 0.011763573505600783,
+          "trades": 65
+        },
+        {
+          "early": 0.06503958875664696,
+          "validation": 0.14719524877019466,
+          "latest": 0.02769627445367255,
+          "stress": 0.018144819921858873,
+          "benchmark": 0.009421427892894962,
+          "trades": 55
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.18512364333991135,
+          "validation": -0.15238383018962462,
+          "latest": -0.01759784396909969,
+          "stress": -0.023471225841930357,
+          "benchmark": 0.011653060498912002,
+          "trades": 97
+        },
+        {
+          "early": 0.040225879441848855,
+          "validation": -0.07925226623182505,
+          "latest": -0.15633380565915206,
+          "stress": -0.1707689332590624,
+          "benchmark": 0.023386233451922978,
+          "trades": 99
+        },
+        {
+          "early": -0.05594420171790379,
+          "validation": -0.07372471857931345,
+          "latest": -0.13191578215412372,
+          "stress": -0.1618555748468669,
+          "benchmark": 0.01008164080423464,
+          "trades": 80
+        },
+        {
+          "early": 0.010387489365388344,
+          "validation": -0.10785777637405358,
+          "latest": -0.17833052961058637,
+          "stress": -0.19797068412277516,
+          "benchmark": 0.022793314621958216,
+          "trades": 80
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.19416666486238107,
+          "validation": -0.100674208276424,
+          "latest": -0.18654133645665694,
+          "stress": -0.20479611621277602,
+          "benchmark": 0.0055855817301816435,
+          "trades": 124
+        },
+        {
+          "early": -0.039184963411998855,
+          "validation": -0.1313542489444096,
+          "latest": -0.17620122024479887,
+          "stress": -0.19404816503695052,
+          "benchmark": 0.012127394405009068,
+          "trades": 123
+        },
+        {
+          "early": -0.13036665436193343,
+          "validation": -0.004067650164820136,
+          "latest": -0.17067706696491886,
+          "stress": -0.20499342116234326,
+          "benchmark": 0.0020549874515508604,
+          "trades": 127
+        },
+        {
+          "early": 0.07607572942310283,
+          "validation": 0.021165733033592815,
+          "latest": 0.1998716813396548,
+          "stress": 0.1723793579761426,
+          "benchmark": 0.0063132058878866,
+          "trades": 116
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.17111473887104395,
+          "validation": -0.031687163357339856,
+          "latest": -0.11185037859011185,
+          "stress": -0.19280102507464836,
+          "benchmark": 0.007910004430245768,
+          "trades": 229
+        },
+        {
+          "early": 0.0069890988073820215,
+          "validation": 0.025856909170756934,
+          "latest": -0.15800971938279443,
+          "stress": -0.17204554643197367,
+          "benchmark": -0.0023169942991546205,
+          "trades": 227
+        },
+        {
+          "early": -0.13553404452316892,
+          "validation": -0.18137871141580153,
+          "latest": -0.37447610504169315,
+          "stress": -0.4186017487419686,
+          "benchmark": 0.010776468224761776,
+          "trades": 230
+        },
+        {
+          "early": -0.20425984939870767,
+          "validation": -0.16602252556614552,
+          "latest": -0.2622550239616557,
+          "stress": -0.2629930099232086,
+          "benchmark": 0.012253253181651491,
+          "trades": 234
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.087172770004475,
+          "validation": -0.044191886375464076,
+          "latest": 0.012839529790870191,
+          "stress": 0.010257629747858502,
+          "benchmark": 0.006231678424571688,
+          "trades": 14
+        },
+        {
+          "early": -0.059088134028466674,
+          "validation": -0.010554559065389518,
+          "latest": -0.008963307559508332,
+          "stress": -0.013463367400743068,
+          "benchmark": 0.025866787164650684,
+          "trades": 22
+        },
+        {
+          "early": -0.05405200864165957,
+          "validation": -0.018661173414660642,
+          "latest": -0.04179740463373406,
+          "stress": -0.04495994249118496,
+          "benchmark": 0.007577680495481243,
+          "trades": 20
+        },
+        {
+          "early": -0.058119396036399804,
+          "validation": 0.041019173011745846,
+          "latest": 0.019510129507294804,
+          "stress": 0.016140048226023898,
+          "benchmark": 0.028326891791459308,
+          "trades": 18
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0319423220577746,
+          "validation": 0.02371869013950828,
+          "latest": -0.19564601839151802,
+          "stress": -0.23008548173223906,
+          "benchmark": -0.008485474051602077,
+          "trades": 154
+        },
+        {
+          "early": -0.29726969087599797,
+          "validation": -0.07235896724637378,
+          "latest": 0.18147683235404571,
+          "stress": 0.15258556839500237,
+          "benchmark": 0.017542860560405105,
+          "trades": 148
+        },
+        {
+          "early": -0.037084736631462945,
+          "validation": 0.10771649300594607,
+          "latest": -0.06566277222274895,
+          "stress": -0.09394409060644937,
+          "benchmark": -0.004478570466992363,
+          "trades": 165
+        },
+        {
+          "early": 0.08627908642764942,
+          "validation": 0.08801036504934898,
+          "latest": 0.04611706089072354,
+          "stress": 0.016330997582040624,
+          "benchmark": 0.00385984296575502,
+          "trades": 164
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.24987474656529618,
+          "validation": 0.11155886722018112,
+          "latest": 0.03091435019624393,
+          "stress": 0.019350099893064826,
+          "benchmark": -0.003297685288085564,
+          "trades": 65
+        },
+        {
+          "early": 0.40392645284969453,
+          "validation": 0.030010793836697053,
+          "latest": -0.0964423859493716,
+          "stress": -0.10408644113841137,
+          "benchmark": 0.007121448466624797,
+          "trades": 56
+        },
+        {
+          "early": -0.067775878146458,
+          "validation": 0.07030535835553157,
+          "latest": -0.15369705175561174,
+          "stress": -0.161650263232941,
+          "benchmark": 0.004021259874664007,
+          "trades": 64
+        },
+        {
+          "early": 0.06930833579876257,
+          "validation": 0.11221036982625697,
+          "latest": 0.009320882834360958,
+          "stress": -0.0029676875004561315,
+          "benchmark": 0.032278896743253974,
+          "trades": 70
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.24017214170135168,
+          "validation": -0.1294809809532141,
+          "latest": 0.015611533361707036,
+          "stress": -0.05999055944752536,
+          "benchmark": 0.007788071293993518,
+          "trades": 227
+        },
+        {
+          "early": 0.018727188593561928,
+          "validation": -0.1258824212360615,
+          "latest": -0.2218525328178852,
+          "stress": -0.2637293924073137,
+          "benchmark": 0.013254534980230048,
+          "trades": 226
+        },
+        {
+          "early": 0.06799051764832795,
+          "validation": 0.004443009398880482,
+          "latest": -0.29964417320356856,
+          "stress": -0.32608012373964707,
+          "benchmark": 0.002921909336948747,
+          "trades": 204
+        },
+        {
+          "early": 0.015326951843801909,
+          "validation": 0.18088285563887568,
+          "latest": -0.2410740391123804,
+          "stress": -0.27502430539501127,
+          "benchmark": 0.013588888122533338,
+          "trades": 220
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.0046701306392882835,
+          "validation": -0.049968024882506526,
+          "latest": -0.02284401855823133,
+          "stress": -0.024749769490767168,
+          "benchmark": 0.0010614374115959085,
+          "trades": 11
+        },
+        {
+          "early": 0.07466221494739948,
+          "validation": -0.1240053941169774,
+          "latest": -0.074438141676307,
+          "stress": -0.07622408435968707,
+          "benchmark": -0.002425283967740527,
+          "trades": 13
+        },
+        {
+          "early": -0.05225614064813677,
+          "validation": -0.04175450124017428,
+          "latest": -0.037262851954133355,
+          "stress": -0.040241090762411766,
+          "benchmark": 0.0035909472444641405,
+          "trades": 19
+        },
+        {
+          "early": 0.009236877597945559,
+          "validation": -0.02675020605360119,
+          "latest": -0.06311141398660011,
+          "stress": -0.06559740799193389,
+          "benchmark": 0.003280496573018238,
+          "trades": 16
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.24708134888398098,
+          "validation": 0.0398762993425098,
+          "latest": -0.27355222780356553,
+          "stress": -0.3044061143951955,
+          "benchmark": 0.01097826173587238,
+          "trades": 167
+        },
+        {
+          "early": 0.017387007760104323,
+          "validation": -0.021597679072083237,
+          "latest": -0.3853755165870831,
+          "stress": -0.4035301414380016,
+          "benchmark": 0.02561363073250135,
+          "trades": 177
+        },
+        {
+          "early": 0.1034829627847815,
+          "validation": -0.015698981741329457,
+          "latest": -0.36857337206726215,
+          "stress": -0.38270218482403445,
+          "benchmark": 0.0163785416749848,
+          "trades": 148
+        },
+        {
+          "early": -0.10145582870864753,
+          "validation": 0.053259615438468175,
+          "latest": -0.42410825071158764,
+          "stress": -0.44315572075617965,
+          "benchmark": 0.04802952949470782,
+          "trades": 186
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.12290097066521719,
+          "validation": 0.028067519917929287,
+          "latest": 0.0574573349114548,
+          "stress": 0.03852456755154497,
+          "benchmark": -0.0037034644775411074,
+          "trades": 80
+        },
+        {
+          "early": 0.041859757456217825,
+          "validation": 0.2573107603930852,
+          "latest": 0.0618004862737524,
+          "stress": 0.049006521286584157,
+          "benchmark": 0.008940547980478455,
+          "trades": 75
+        },
+        {
+          "early": -0.022531297531543815,
+          "validation": 0.11236619351293164,
+          "latest": -0.22748014633744829,
+          "stress": -0.24397788172381518,
+          "benchmark": 0.008628938069088585,
+          "trades": 87
+        },
+        {
+          "early": -0.06690784077127608,
+          "validation": 0.3302432832972748,
+          "latest": 0.15018127598820719,
+          "stress": 0.13447335438251393,
+          "benchmark": 0.01669828390904393,
+          "trades": 75
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.1618141887402112,
+          "validation": 0.14438043806301545,
+          "latest": 0.010834775282995451,
+          "stress": -0.008189866811609811,
+          "benchmark": 0.018758263809679,
+          "trades": 114
+        },
+        {
+          "early": 0.0023555617410571245,
+          "validation": 0.2552475613966765,
+          "latest": -0.09406125164079768,
+          "stress": -0.10173035157014454,
+          "benchmark": 0.010358176740569255,
+          "trades": 118
+        },
+        {
+          "early": 0.03701131721996023,
+          "validation": -0.0450334116591406,
+          "latest": -0.14373793624522269,
+          "stress": -0.18234746409644287,
+          "benchmark": 0.01896792523468656,
+          "trades": 117
+        },
+        {
+          "early": -0.23187555093615098,
+          "validation": -0.014381666523331782,
+          "latest": -0.221514248274088,
+          "stress": -0.1833934908188103,
+          "benchmark": 0.04105262661805931,
+          "trades": 110
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.009983348588571597,
+          "validation": -0.009750463380057028,
+          "latest": -0.03172345736776089,
+          "stress": -0.03706255956068616,
+          "benchmark": -0.0012250838321865437,
+          "trades": 32
+        },
+        {
+          "early": 0.09873152239208895,
+          "validation": -0.1910136273411695,
+          "latest": -0.1585630340057714,
+          "stress": -0.16202860944694267,
+          "benchmark": 0.020583107867561443,
+          "trades": 25
+        },
+        {
+          "early": -0.13343624990805258,
+          "validation": -0.05630427197023155,
+          "latest": -0.041244759051995414,
+          "stress": -0.04722009197608694,
+          "benchmark": 0.004991763124950102,
+          "trades": 34
+        },
+        {
+          "early": 0.012915323493217362,
+          "validation": 0.007872264370058668,
+          "latest": -0.11957966266420039,
+          "stress": -0.12406839378698262,
+          "benchmark": 0.012520476665989405,
+          "trades": 27
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0742533102529751,
+          "validation": 0.17852152805403407,
+          "latest": 0.0181851158314965,
+          "stress": -0.008864943214536486,
+          "benchmark": -0.0038045811338680707,
+          "trades": 118
+        },
+        {
+          "early": -0.18892773813664698,
+          "validation": 0.03430378023289328,
+          "latest": -0.03591871766869788,
+          "stress": -0.054919608524638897,
+          "benchmark": -0.012289234521426148,
+          "trades": 106
+        },
+        {
+          "early": 0.034243378001526936,
+          "validation": 0.1444429697911374,
+          "latest": -0.24789745836907268,
+          "stress": -0.2661106239996804,
+          "benchmark": -0.013575459486663388,
+          "trades": 135
+        },
+        {
+          "early": -0.24621543350700573,
+          "validation": -0.03169840714195529,
+          "latest": 0.03336797920718994,
+          "stress": 0.008111097221674038,
+          "benchmark": -0.004465320938305192,
+          "trades": 146
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.03295911410681046,
+          "validation": -0.012459424734439922,
+          "latest": -0.0259190913426999,
+          "stress": -0.07858277052903523,
+          "benchmark": -0.00014252959216635996,
+          "trades": 151
+        },
+        {
+          "early": 0.3231885390384825,
+          "validation": 0.1101733817345303,
+          "latest": -0.060086525326247434,
+          "stress": -0.08934947426793584,
+          "benchmark": 0.0057684214884643065,
+          "trades": 148
+        },
+        {
+          "early": -0.016029114850037315,
+          "validation": 0.11225940897574035,
+          "latest": -0.15636280234277977,
+          "stress": -0.19157128707481053,
+          "benchmark": -0.001374260854818482,
+          "trades": 143
+        },
+        {
+          "early": -0.09617471453916429,
+          "validation": 0.10330279460246229,
+          "latest": 0.0792895315226846,
+          "stress": 0.05571495032850811,
+          "benchmark": 0.010449848410192766,
+          "trades": 130
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.31324374224104645,
+          "validation": -0.3410922835983428,
+          "latest": -0.21650549968683885,
+          "stress": -0.28648462224512194,
+          "benchmark": 0.0007308405840785182,
+          "trades": 295
+        },
+        {
+          "early": 0.06490824365343278,
+          "validation": -0.3250431174874319,
+          "latest": -0.11872798937341816,
+          "stress": -0.1720010011441364,
+          "benchmark": 0.015015305661525855,
+          "trades": 296
+        },
+        {
+          "early": -0.192706225174015,
+          "validation": -0.16738372046460592,
+          "latest": -0.2483286305418922,
+          "stress": -0.3133542177201529,
+          "benchmark": 0.012499296392057782,
+          "trades": 315
+        },
+        {
+          "early": -0.10209682773014336,
+          "validation": -0.049986451581293806,
+          "latest": -0.09907009271534933,
+          "stress": -0.1470887586534855,
+          "benchmark": 0.004749012556009083,
+          "trades": 282
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → five-bar high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "channel",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.25947484267627713,
+          "validation": 0.13065110140977174,
+          "latest": 0.11170890100781726,
+          "stress": 0.08765056848312633,
+          "benchmark": -0.012610124033602177,
+          "trades": 110
+        },
+        {
+          "early": 0.11310892260475604,
+          "validation": 0.038031913575367074,
+          "latest": 0.12240459417478786,
+          "stress": 0.06365713224802867,
+          "benchmark": -0.030477746638366776,
+          "trades": 97
+        },
+        {
+          "early": -0.21494717073864317,
+          "validation": -0.018586618241171707,
+          "latest": -0.10636451535563683,
+          "stress": -0.124839610221218,
+          "benchmark": 0.00676557164508676,
+          "trades": 103
+        },
+        {
+          "early": 0.03484971930014637,
+          "validation": 0.05981586348332668,
+          "latest": -0.018141341630043925,
+          "stress": -0.032423282498527634,
+          "benchmark": -0.013830315752466835,
+          "trades": 99
+        }
+      ]
+    },
+    {
+      "name": "Narrowest range in seven bars → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "coil",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.22254930594920713,
+          "validation": -0.0559329833134275,
+          "latest": -0.2485200154459298,
+          "stress": -0.30525990196038716,
+          "benchmark": -0.0020190975642357667,
+          "trades": 203
+        },
+        {
+          "early": -0.26136749454191077,
+          "validation": -0.019695677117278043,
+          "latest": -0.22770445722074345,
+          "stress": -0.26187110853051515,
+          "benchmark": 0.0028046762032349626,
+          "trades": 213
+        },
+        {
+          "early": 0.03081412815782228,
+          "validation": 0.09699117140239577,
+          "latest": -0.3026605583577346,
+          "stress": -0.33871717076744057,
+          "benchmark": -0.003914644149717719,
+          "trades": 205
+        },
+        {
+          "early": -0.2702362265255886,
+          "validation": 0.19781827096779886,
+          "latest": -0.265079754992214,
+          "stress": -0.29435574635436124,
+          "benchmark": -0.009346461693570604,
+          "trades": 198
+        }
+      ]
+    },
+    {
+      "name": "Retracement in a rising trend → bullish outside bar",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "pullback",
+          "trigger": "outside",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.08088087014798094,
+          "validation": -0.031085992750254532,
+          "latest": 0.026442769182181636,
+          "stress": 0.01954997170657896,
+          "benchmark": 0.005954600244133329,
+          "trades": 40
+        },
+        {
+          "early": -0.006189282821118483,
+          "validation": 0.058969767260330166,
+          "latest": -0.0661986900507175,
+          "stress": -0.07854804091258508,
+          "benchmark": 0.018887453675315483,
+          "trades": 43
+        },
+        {
+          "early": 0.09285930437330048,
+          "validation": 0.028542283815116712,
+          "latest": -0.08018129287335451,
+          "stress": -0.09634321694310369,
+          "benchmark": 0.006188112990154787,
+          "trades": 33
+        },
+        {
+          "early": 0.08925066666132817,
+          "validation": 0.22631265049111865,
+          "latest": -0.06036220103740966,
+          "stress": -0.06784849775711743,
+          "benchmark": 0.02813491310302521,
+          "trades": 45
+        }
+      ]
+    },
+    {
+      "name": "Inside bar → engulfing reversal",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "balance",
+          "trigger": "engulf",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.21357152025749448,
+          "validation": -0.08546694284123078,
+          "latest": -0.25538372432127626,
+          "stress": -0.3023320083813055,
+          "benchmark": 0.01103972210250706,
+          "trades": 226
+        },
+        {
+          "early": 0.1704011194468249,
+          "validation": -0.2776090350653471,
+          "latest": -0.3240121414397662,
+          "stress": -0.3482558502245723,
+          "benchmark": 0.003684616284348574,
+          "trades": 209
+        },
+        {
+          "early": -0.1444157180089268,
+          "validation": -0.039406652857801164,
+          "latest": -0.2308597088637364,
+          "stress": -0.27258638993663936,
+          "benchmark": -0.003158501057274554,
+          "trades": 201
+        },
+        {
+          "early": -0.06258563138085682,
+          "validation": -0.2539363225341431,
+          "latest": -0.3080259586470293,
+          "stress": -0.3315473841896173,
+          "benchmark": 0.005650992015722778,
+          "trades": 193
+        }
+      ]
+    },
+    {
+      "name": "Two-range selloff → confirmed swing-high break",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "washout",
+          "trigger": "pivot",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.0019963666451279366,
+          "validation": -0.06435562687283007,
+          "latest": -0.02446265765891946,
+          "stress": -0.025890245627879116,
+          "benchmark": -0.003442863313660685,
+          "trades": 9
+        },
+        {
+          "early": 0.08958353618573643,
+          "validation": -0.006233389323900385,
+          "latest": -0.034035766947843576,
+          "stress": -0.0352724536757035,
+          "benchmark": 0.010942144881051039,
+          "trades": 7
+        },
+        {
+          "early": -0.031136376126496335,
+          "validation": -0.016117234900993288,
+          "latest": 0.0034954785279874556,
+          "stress": 0.001893921015835548,
+          "benchmark": 0.00131523867927405,
+          "trades": 11
+        },
+        {
+          "early": 0.06557023863882994,
+          "validation": 0.018393887894737754,
+          "latest": -0.029537455552363312,
+          "stress": -0.030847569369039998,
+          "benchmark": 0.006363563402754152,
+          "trades": 9
+        }
+      ]
+    },
+    {
+      "name": "Rejected ten-bar low → accelerating two-bar advance",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "sweep",
+          "trigger": "acceleration",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.07642302509823518,
+          "validation": 0.07328467979221964,
+          "latest": -0.022854402921794942,
+          "stress": -0.03095337558222125,
+          "benchmark": 0.011727210573525104,
+          "trades": 50
+        },
+        {
+          "early": -0.06353377731126784,
+          "validation": -0.021212869529144418,
+          "latest": -0.006951994736183312,
+          "stress": -0.01818445761846857,
+          "benchmark": 0.035565419695599454,
+          "trades": 62
+        },
+        {
+          "early": -0.08214077312865217,
+          "validation": 0.066822982677751,
+          "latest": -0.11151176596808626,
+          "stress": -0.14411675259213647,
+          "benchmark": 0.00459201455670516,
+          "trades": 57
+        },
+        {
+          "early": -0.11320891947772742,
+          "validation": -0.00039351967992742876,
+          "latest": -0.04474880007057179,
+          "stress": -0.05542791089573673,
+          "benchmark": 0.037005819555065586,
+          "trades": 61
+        }
+      ]
+    },
+    {
+      "name": "Three falling closes → prior midpoint reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "fade",
+          "trigger": "midpoint",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.08278127894869328,
+          "validation": -0.10123735972270562,
+          "latest": -0.25749530886077343,
+          "stress": -0.31772550171914904,
+          "benchmark": -0.007890513480133782,
+          "trades": 204
+        },
+        {
+          "early": -0.10559031296476099,
+          "validation": -0.29018292581109373,
+          "latest": -0.10276953203277257,
+          "stress": -0.13253071290205093,
+          "benchmark": -0.028529233952903424,
+          "trades": 208
+        },
+        {
+          "early": -0.26919235666023833,
+          "validation": 0.09801777722313577,
+          "latest": -0.22992169987741748,
+          "stress": -0.2773147174200927,
+          "benchmark": -0.006176557323877299,
+          "trades": 222
+        },
+        {
+          "early": -0.32449327751134366,
+          "validation": 0.12389110932718361,
+          "latest": -0.26191341555591163,
+          "stress": -0.2951232796674234,
+          "benchmark": -0.005608727370842656,
+          "trades": 221
+        }
+      ]
+    },
+    {
+      "name": "Three higher lows → strong close near the high",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "shelf",
+          "trigger": "thrust",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": -0.19799556719531028,
+          "validation": -0.17916690767606627,
+          "latest": -0.05549588727858322,
+          "stress": -0.1535590497874692,
+          "benchmark": 0.00046397591316822695,
+          "trades": 249
+        },
+        {
+          "early": 0.045076887499020946,
+          "validation": -0.1390147068337459,
+          "latest": -0.3953347519275888,
+          "stress": -0.4139782200025872,
+          "benchmark": 0.00789839590500746,
+          "trades": 257
+        },
+        {
+          "early": -0.045514914999546796,
+          "validation": -0.16106296855944377,
+          "latest": -0.3300772142023949,
+          "stress": -0.3798529200383704,
+          "benchmark": 0.007280690160332476,
+          "trades": 260
+        },
+        {
+          "early": -0.13255620506646695,
+          "validation": -0.11861381592133138,
+          "latest": -0.3075502426359353,
+          "stress": -0.3302923821365734,
+          "benchmark": 0.00623399440478295,
+          "trades": 255
+        }
+      ]
+    },
+    {
+      "name": "Wide bullish impulse → ten-bar mean reclaim",
+      "rule": {
+        "family": "sequence",
+        "side": "long",
+        "setting": 10,
+        "recipe": {
+          "setup": "impulse",
+          "trigger": "reclaim",
+          "within": 4
+        },
+        "trend": 0,
+        "volume": 0,
+        "stop": 1.75,
+        "reward": 1.8,
+        "maxBars": 12
+      },
+      "baskets": [
+        {
+          "early": 0.1069057932105366,
+          "validation": 0.07333549563782654,
+          "latest": -0.019163016415452594,
+          "stress": -0.02709768292320397,
+          "benchmark": 0.00028968364768512667,
+          "trades": 45
+        },
+        {
+          "early": 0.10522169208087279,
+          "validation": -0.06274557191377753,
+          "latest": 0.057356078170079344,
+          "stress": 0.04683759450550436,
+          "benchmark": 0.008591460309746585,
+          "trades": 49
+        },
+        {
+          "early": 0.013529635992916622,
+          "validation": 0.06287190187029479,
+          "latest": 0.006598437013389691,
+          "stress": -0.0022416683116767977,
+          "benchmark": 0.006582466916762231,
+          "trades": 45
+        },
+        {
+          "early": 0.004853331583829515,
+          "validation": 0.05935764362402507,
+          "latest": 0.0033233585653383163,
+          "stress": -0.004765648169382061,
+          "benchmark": 0.011130547236803748,
+          "trades": 46
+        }
+      ]
+    }
+  ]
+}
