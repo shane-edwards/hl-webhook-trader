@@ -6,6 +6,8 @@ import { runUpkeep } from '@/lib/upkeep';
 import { alertOnStalePeers, heartbeat } from '@/lib/health';
 import { cronAuthorized } from '@/lib/cron-auth';
 import { notify } from '@/lib/notify';
+import { automationDecision, sameAutomationProfile, type AutomationDecision } from '@/lib/automation/policy';
+import { controlledCryptoConfig } from '@/lib/automation/trading';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,9 +39,18 @@ export async function GET(request: Request) {
     const entry: (typeof summary)[number] = {};
     const wallet = (() => { try { return hlClientFromSettings(settings); } catch { return null; } })();
 
-    const cfg = configFromSettings(settings);
+    let policy: AutomationDecision;
+    try { policy = await automationDecision(supabase, settings.user_id, 'crypto'); }
+    catch {
+      policy = { decision: 'paused', detail: 'Could not verify automation settings', profile: null, candidate: null, results: null };
+      failures.push(policy.detail);
+    }
+    const legacy = configFromSettings(settings);
+    const controlled = controlledCryptoConfig(legacy, policy, process.env.HL_TESTNET === 'true' || settings.is_testnet === true);
+    const cfg = controlled ?? legacy;
+    const entries = !!controlled || (policy.decision === 'legacy' && settings.autopilot_enabled === true);
     const modes = new Set<Mode>();
-    if (settings.autopilot_enabled) modes.add(cfg.mode);
+    if (entries) modes.add(cfg.mode);
     for (const book of books ?? []) {
       if (book.user_id === settings.user_id) modes.add(book.mode === 'live' ? 'live' : 'paper');
     }
@@ -51,10 +62,11 @@ export async function GET(request: Request) {
         const result = await runAutopilot(hl, supabase, settings.user_id, { ...cfg, mode }, Date.now(), async () => {
           const { data: current, error } = await supabase.from('settings').select('*').eq('user_id', settings.user_id).single();
           if (error || !current || current.updated_at !== settings.updated_at) throw new Error('Trading settings changed during scan. The next scan will use the new settings.');
-          const manageOnly = current.autopilot_enabled !== true || mode !== cfg.mode;
+          const manageOnly = !entries || mode !== cfg.mode || !await sameAutomationProfile(supabase, policy.profile, settings.user_id, 'crypto');
           return { ...cfg, mode, manageOnly, symbols: manageOnly ? [] : cfg.symbols, checkEntries: async () => {
             const latest = await supabase.from('settings').select('updated_at, autopilot_enabled').eq('user_id', settings.user_id).single();
-            return !latest.error && latest.data.autopilot_enabled === true && latest.data.updated_at === current.updated_at;
+            return !latest.error && (!!controlled || latest.data.autopilot_enabled === true) && latest.data.updated_at === current.updated_at &&
+              await sameAutomationProfile(supabase, policy.profile, settings.user_id, 'crypto');
           } };
         });
         entry.autopilot = result.mode; entry.events = (entry.events ?? 0) + result.events.length;

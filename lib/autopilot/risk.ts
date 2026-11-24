@@ -34,6 +34,11 @@ export function sizeNotional(equity: number, stopPct: number, cfg: RiskConfig): 
   return Math.min(byRisk, equity * cfg.maxLeveragePerPosition);
 }
 
+export function capAutomationNotional(notional: number, stopPct: number, lossBudget: number | undefined, maxOrder: number | undefined) {
+  const adverseMove = stopPct + 0.0075; // fees, execution and a modeled gap through the stop
+  return Math.min(notional, maxOrder ?? Infinity, lossBudget == null ? Infinity : lossBudget / adverseMove);
+}
+
 export interface RiskState {
   /** UTC date the day-start figure belongs to. */
   dayKey: string;

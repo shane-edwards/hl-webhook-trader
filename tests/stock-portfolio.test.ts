@@ -70,11 +70,12 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
       CREATE TABLE auth.users (id uuid PRIMARY KEY);
       CREATE SCHEMA cron;
       CREATE TABLE cron.job (jobname text, command text);
+      CREATE TABLE public.autopilot_positions (id uuid PRIMARY KEY);
       CREATE ROLE anon;
       CREATE ROLE authenticated;
       CREATE ROLE service_role;
     `);
-    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio', '016_stock_execution_research', '017_stock_catalysts_and_guards']) {
+    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio', '016_stock_execution_research', '017_stock_catalysts_and_guards', '018_automation_center']) {
       await db.exec(readFileSync(`supabase/migrations/${path}.sql`, 'utf8'));
     }
     const user = '00000000-0000-4000-8000-000000000001';
@@ -120,6 +121,17 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
     assert.equal((await nextDay()).rows[0].id, null);
     await db.exec("UPDATE stock_guard_state SET halted_at=null, reason=null");
     assert.ok((await nextDay()).rows[0].id);
+    await db.exec(`
+      INSERT INTO automation_profiles (user_id, market, mode, entries_paused) VALUES ('${user}', 'stocks', 'paper', false);
+      INSERT INTO automation_runs (user_id, market, kind, source, schedule_key, as_of, plan)
+        VALUES ('${user}', 'stocks', 'daily', 'schedule', '2026-11-23', now(), '["SPY"]');
+    `);
+    const claimed = await db.query<{ attempts: number; lease_token: string }>('SELECT attempts, lease_token FROM claim_automation_run()');
+    assert.equal(claimed.rows[0].attempts, 1);
+    assert.ok(claimed.rows[0].lease_token);
+    assert.equal((await db.query('SELECT id FROM claim_automation_run()')).rows.length, 0);
+    await db.exec("UPDATE automation_runs SET lease_until=now() - interval '1 second'");
+    assert.equal((await db.query<{ attempts: number }>('SELECT attempts FROM claim_automation_run()')).rows[0].attempts, 2);
   } finally {
     await db.close();
   }

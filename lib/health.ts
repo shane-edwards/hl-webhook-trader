@@ -14,6 +14,7 @@ const ALERT_EVERY_MS = 60 * 60_000;
 export const CHECKS = {
   scan: 'Trading scan (Autopilot, stops, limit orders, reconcile)',
   market: 'Market scan (trade ideas, scorecard)',
+  automation: 'Automation Center (tests and scheduled research)',
 } as const;
 export type CheckKey = keyof typeof CHECKS;
 

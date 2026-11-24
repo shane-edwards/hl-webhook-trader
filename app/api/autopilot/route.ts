@@ -1,5 +1,6 @@
 import { withTradingLock } from '@/lib/trading-lock';
 import { NextResponse } from 'next/server';
+import { readAutomationProfile } from '@/lib/automation/policy';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { configFromSettings, runAutopilot } from '@/lib/autopilot/run';
@@ -147,6 +148,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
     if (body?.action === 'scan' || body?.action === 'manual_entry') {
+      if (body.action === 'scan') {
+        const profile = await readAutomationProfile(service, user.id, 'crypto');
+        if (profile?.entries_paused || (profile && profile.mode !== 'research')) {
+          return NextResponse.json({ error: 'Automated entries are controlled in Automation Center.' }, { status: 409 });
+        }
+      }
       const manual = body.action === 'manual_entry' ? body.signal : null;
       if (body.mode !== cfg.mode || (cfg.mode === 'live' && body.isTestnet !== (process.env.HL_TESTNET === 'true' || settings.is_testnet === true))) {
         return NextResponse.json({ error: 'Trading mode changed. Refresh and review again.' }, { status: 409 });

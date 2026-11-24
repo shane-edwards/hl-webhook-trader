@@ -3,13 +3,12 @@ import { z } from 'zod';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { etoroFromConnection } from '@/lib/stocks/connection';
 import { EtoroError } from '@/lib/stocks/etoro';
-import { regularStockSessions } from '@/lib/stocks/intraday';
-import { LAB_SYMBOLS, LAB_VERSION, replayLabMarket, stockLabWindows, type StockLabReport } from '@/lib/stocks/intraday-lab';
+import { LAB_SYMBOLS, LAB_VERSION, type StockLabReport } from '@/lib/stocks/intraday-lab';
+import { loadLabMarket } from '@/lib/stocks/intraday-lab-data';
 import { stockMarketClock } from '@/lib/stocks/session';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
-const DAY = 86_400_000;
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
 const costs = z.object({ slipBps: z.number().min(0).max(100), fee: z.number().min(0).max(30) });
 const input = costs.extend({ symbol: z.enum(LAB_SYMBOLS), asOf: z.iso.date() });
@@ -41,20 +40,8 @@ export async function GET(request: Request) {
   if (connection.error || !connection.data) return fail('Connect eToro to run the study.', 409);
   const broker = etoroFromConnection(connection.data);
   try {
-    const asset = await broker.instrument(symbol, 15_000);
-    if (!asset) return fail('eToro could not resolve this US ticker.', 404);
-    const { from } = stockLabWindows(asOf);
-    const first = Date.parse(from), end = Date.parse(asOf);
-    const history = [];
-    for (let start = 0; start < 5; start += 2) {
-      const batch = Array.from({ length: Math.min(2, 5 - start) }, (_, offset) => {
-        const i = start + offset;
-        return broker.intradayCandles(asset.instrumentId, first + i * 28 * DAY, Math.min(end, first + (i + 1) * 28 * DAY), undefined, '5m', false, 15_000);
-      });
-      history.push(...await Promise.all(batch));
-    }
-    const sessions = regularStockSessions(history.flat());
-    return NextResponse.json(replayLabMarket(symbol, sessions.sessions, asOf, options));
+    const result = await loadLabMarket(broker, symbol, asOf, options);
+    return result ? NextResponse.json(result) : fail('eToro could not resolve this US ticker.', 404);
   } catch (error) {
     return error instanceof EtoroError && error.status === 429 ? fail('Waiting for the eToro data quota.', 429)
       : fail('Could not load paired five-minute bars.', 503);

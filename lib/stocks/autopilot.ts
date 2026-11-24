@@ -6,15 +6,16 @@ import { freshStockAsk, previousStockSession, stockMarketClock } from './session
 import { currentStockEntry, dailyTradeSignal, stockEntryWindow, stockTradeDailyBars } from './trade-signals';
 import { STOCK_INSTRUMENTS, type StockTradeRule, type StockTradeSymbol } from './trade-rules';
 import { prepareStockOrder, stockOrderFees, StockSizingError, type StockLeverage } from './leverage';
-import { stockPortfolioEntry, stockPortfolioRisk, stockPortfolioSchema, type StockPortfolio } from './portfolio';
+import { stockGroupExposure, stockPortfolioEntry, stockPortfolioRisk, stockPortfolioSchema, type StockPortfolio } from './portfolio';
 import { estimatedStockEntryCost, scanStockSetups } from './setups';
 import { journalQuote, readStockCloseExecution, stockCalibrations, stockJournalFill, type StockJournalClose, type StockJournalCost, type StockJournalOrder, type StockJournalQuote } from './execution-journal';
 import { blockedStockStrategies } from './strategy-guard-data';
+import type { AutomationDecision } from '@/lib/automation/policy';
 
 export type StockEnvironment = 'demo' | 'real';
 export type StockAutoConfig = {
   user_id: string; symbol: StockTradeSymbol; strategy: StockTradeRule; amount: number; active_environment: StockEnvironment | null; updated_at: string;
-  leverage: StockLeverage; stop_margin_pct: number | null; portfolio?: StockPortfolio | null;
+  leverage: StockLeverage; stop_margin_pct: number | null; portfolio?: StockPortfolio | null; automation_version?: string | null;
 };
 type AutoOrder = { id: string; environment: StockEnvironment; connection_version: string; state: string; position_ids: number[]; request: StockOrder; strategy: StockTradeRule; signal_day: string | null; strategy_exit_at: string | null; updated_at: string; close_requests: Record<string, string>; protection_state: string | null; close_execution?: Record<string, StockJournalClose> };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,7 +62,7 @@ export async function submitStockOrder(db: Db, broker: EtoroClient, userId: stri
   }
 }
 
-export async function scanStockAutopilot(db: Db, userId: string, config?: StockAutoConfig, now = Date.now()) {
+export async function scanStockAutopilot(db: Db, userId: string, config?: StockAutoConfig, now = Date.now(), policy?: AutomationDecision) {
   const session = stockMarketClock(now);
   const previous = previousStockSession(now);
   if (!session.open || !previous) return 'Waiting for the US market';
@@ -102,26 +103,47 @@ export async function scanStockAutopilot(db: Db, userId: string, config?: StockA
     const [options, quotes, portfolio] = await Promise.all([broker.stockOrderOptions(instrumentId), broker.quotes([instrumentId]), broker.portfolio()]);
     const quote = quotes.find(q => q.instrumentId === instrumentId);
     const ask = freshStockAsk(quote, Date.now());
-    const amount = Number(config.amount);
+    const automation = config.automation_version ? policy?.profile : null;
+    if (config.automation_version && (!automation || policy?.candidate?.version !== config.automation_version ||
+        (environment === 'real' ? policy.decision !== 'live' : policy.decision !== 'paper'))) continue;
+    const budget = automation && environment === 'real' ? Number(automation.loss_budget_usd) : Infinity;
+    const risk = automation ? stockPortfolioRisk(portfolio) : null;
+    if (automation && (!risk || risk.positions.has(instrumentId))) { messages.push('Skipped while exposure is unresolved or the ticker is already held'); continue; }
+    const room = risk && automation && environment === 'real' ? Number(automation.max_order_usd) - stockGroupExposure(risk.group, instrumentId) : Infinity;
+    let amount = Math.floor(Math.min(Number(config.amount), budget, room, automation ? portfolio.availableCash : Infinity) * 100) / 100;
     if (!ask || !quote?.bid || (ask - quote.bid) / ask > signal.maxSpread) { messages.push('No fresh quote within the spread limit'); continue; }
+    if (amount <= 0) { messages.push('No buying power or group exposure available for this version'); continue; }
     let request: StockOrder;
+    const quotePrices = { ask, bid: quote.bid };
+    const size = (amount: number) => prepareStockOrder(instrumentId, quotePrices, options, { amount, leverage: config.leverage, stopMarginPct: config.stop_margin_pct });
     try {
-      request = prepareStockOrder(instrumentId, { ask, bid: quote.bid }, options, { amount, leverage: config.leverage, stopMarginPct: config.stop_margin_pct });
+      request = size(amount);
     } catch (error) {
       if (!(error instanceof StockSizingError)) throw error;
       messages.push(error.message);
       continue;
     }
     const estimate = await broker.stockOrderCosts(request);
-    if (portfolio.availableCash < amount + stockOrderFees(estimate)) { messages.push('Buying power is below the order and estimated fees'); continue; }
+    if (automation) {
+      const roundTripFees = 2 * Math.max(1, stockOrderFees(estimate) + estimate.filter(cost => cost.costType === 'markup' && cost.currency.toUpperCase() === 'USD')
+        .reduce((total, cost) => total + Math.max(0, cost.value), 0));
+      amount = Math.floor(Math.min(amount, budget - roundTripFees, portfolio.availableCash - roundTripFees) * 100) / 100;
+      try { request = size(amount); }
+      catch (error) {
+        if (!(error instanceof StockSizingError)) throw error;
+        messages.push('The loss budget or buying power is below eToro’s minimum after fees'); continue;
+      }
+    } else if (portfolio.availableCash < amount + stockOrderFees(estimate)) { messages.push('Buying power is below the order and estimated fees'); continue; }
     const checked = Date.now();
     if (!freshStockAsk(quote, checked) || checked >= signal.validUntil || !stockEntryWindow(config.strategy, checked, true)) { messages.push('Entry window or quote expired'); continue; }
-    const reserved = await db.rpc('reserve_stock_autopilot_order', {
+    const reservation = {
       account: userId, mode: environment, config_version: config.updated_at, key_version: connection.updated_at, session_day: session.day,
       instrument: instrumentId, price: ask, signal_expiry: new Date(signal.validUntil).toISOString(),
       timed_exit: signal.exitAt == null ? null : new Date(signal.exitAt).toISOString(),
-      stop_rate: request.settlementType === 'cfd' ? request.stopLossRate : null,
-    });
+    };
+    const reserved = automation ? await db.rpc('reserve_automated_stock_entry', { ...reservation,
+      order_amount: amount, approved_version: config.automation_version, approval_updated_at: automation.updated_at })
+      : await db.rpc('reserve_stock_autopilot_order', { ...reservation, stop_rate: request.settlementType === 'cfd' ? request.stopLossRate : null });
     if (reserved.error) throw new Error('Could not reserve the strategy order');
     if (reserved.data) {
       const baseline = journalQuote(quote.bid, ask, quote.date);

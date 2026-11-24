@@ -19,19 +19,21 @@ export interface Run { trades: SimTrade[]; hourly: Array<{ date: string; r: numb
 
 /** Fixed coin quantity, sized at 1x equity at entry. Completed-bar signal,
  * next-bar execution. Hourly returns reconcile to the same cash P&L as trades. */
-export function simulate(bars: Bar[], s: StrategyDef, allowShort: boolean, funding: Map<string, number>, from = WARMUP_BARS): Run {
+export function simulate(bars: Bar[], s: StrategyDef, allowShort: boolean, funding: Map<string, number>, from = WARMUP_BARS,
+  options: { cost?: number; stopSlippage?: number; hourlyFunding?: Map<number, number> } = {}): Run {
   const ind = computeIndicators(bars);
   let pos: -1 | 0 | 1 = 0;
   let equity = 1, entry = 0, entryNotional = 0, reference = 0, stop = 0;
   let held = 0, costs = 0, entryT = 0, stopPct = 0;
   const trades: SimTrade[] = [];
   const hourly: Run['hourly'] = [];
+  const cost = options.cost ?? COST;
   for (let i = Math.max(from, WARMUP_BARS); i < bars.length; i++) {
     const b = bars[i];
     const date = new Date(b.t).toISOString().slice(0, 10);
     const before = equity;
     const close = (px: number, extraCost = 0) => {
-      const exitCost = (COST + extraCost) * px / entry;
+      const exitCost = (cost + extraCost) * px / entry;
       equity += entryNotional * (pos * (px - reference) / entry - exitCost);
       costs += exitCost;
       const gross = pos * (px / entry - 1);
@@ -44,13 +46,14 @@ export function simulate(bars: Bar[], s: StrategyDef, allowShort: boolean, fundi
     if (!wasOpen && sig.target !== 0 && equity > 0) {
       pos = sig.target; entry = b.o; reference = entry; entryNotional = equity;
       stop = entry * (1 - pos * sig.stopPct); held = 0; entryT = b.t; stopPct = sig.stopPct;
-      costs = COST; equity -= entryNotional * COST;
+      costs = cost; equity -= entryNotional * cost;
     }
     if (pos !== 0) {
       const hit = pos === 1 ? b.l <= stop : b.h >= stop;
-      if (hit) close(pos === 1 ? Math.min(stop, b.o) : Math.max(stop, b.o), STOP_SLIPPAGE);
+      if (hit) close(pos === 1 ? Math.min(stop, b.o) : Math.max(stop, b.o), options.stopSlippage ?? STOP_SLIPPAGE);
       else {
-        const fund = pos * (funding.get(date) ?? 0.0003) / 24 * b.c / entry;
+        const rate = options.hourlyFunding ? options.hourlyFunding.get(b.t + 3_600_000) ?? 0 : (funding.get(date) ?? 0.0003) / 24;
+        const fund = pos * rate * b.c / entry;
         equity += entryNotional * (pos * (b.c - reference) / entry - fund);
         costs += fund; reference = b.c; held++;
       }

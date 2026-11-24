@@ -16,7 +16,8 @@ export { isLiveEligible } from './signals';
 import { MOMENTUM_ID, MOMENTUM_STOP_PCT, runMomentumPaper } from './momentum';
 import { runMomentumLive } from './momentum-live';
 import { portfolioLimitsFromSettings, type PortfolioLimits } from '@/lib/risk/portfolio';
-import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional, type RiskConfig, type RiskState } from './risk';
+import { canOpenPosition, capAutomationNotional, checkRisk, DEFAULT_RISK, sizeNotional, type RiskConfig, type RiskState } from './risk';
+import { estimateFill, liquidityVerdict } from '@/lib/liquidity';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any, any, any>;
@@ -38,6 +39,9 @@ export interface AutopilotConfig {
   portfolio?: PortfolioLimits;
   manageOnly?: boolean;
   liveRulesConfirmed?: boolean;
+  automationVersion?: string;
+  maxOrderUsd?: number;
+  dollarLossBudget?: number;
   checkEntries?: () => Promise<boolean>;
   manualEntry?: { id: string; symbol: string; side: 'long' | 'short'; barT: number; plan?: string };
 }
@@ -259,17 +263,27 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
         const { side, barT } = sig;
         if (cfg.checkEntries && !await cfg.checkEntries()) break;
 
-        const notional = sizeNotional(equity, sig.stopPct, cfg.risk);
+        const notional = capAutomationNotional(sizeNotional(equity, sig.stopPct, cfg.risk), sig.stopPct, cfg.dollarLossBudget, cfg.maxOrderUsd);
         const gate = canOpenPosition(open.size + basketPositions.length, notional, cfg.risk);
         if (!gate.ok) { log({ level: 'info', symbol, strategyId: id, message: `Signal skipped: ${gate.reason}` }); break; }
 
         const reason = manual ? `Manual entry · ${sig.reason}` : sig.reason;
         try {
+          const entrySlippage = cfg.automationVersion ? Math.min(cfg.slippagePercent, .35) : cfg.slippagePercent;
+          if (cfg.automationVersion && mode === 'live') {
+            const liquidity = liquidityVerdict(estimateFill(await hl.getBook(symbol), side === 'long' ? 'buy' : 'sell', notional), entrySlippage);
+            if (liquidity.level === 'block') {
+              log({ level: 'info', symbol, strategyId: id, message: `Signal skipped: ${liquidity.message}` });
+              break;
+            }
+            if (cfg.checkEntries && !await cfg.checkEntries()) break;
+          }
           // Reserve the signal bar first; the unique index makes a second scan of the same bar a no-op.
           const price = manual && mode === 'paper' ? Number((await hl.getAllMids())[symbol]) : m.bars[m.last].c;
           if (!Number.isFinite(price) || price <= 0) throw new Error('Current price unavailable');
           const { data: row, error } = await db.from('autopilot_positions').insert({
             user_id: userId, mode, symbol, strategy_id: id, side, status: 'open',
+            ...(cfg.automationVersion ? { automation_version: cfg.automationVersion } : {}),
             entry_price: price, size: notional / price, notional_usd: notional,
             stop_price: price * (1 - sig.target * sig.stopPct), entry_bar_t: barT, entry_reason: reason,
           }).select('*').single();
@@ -281,7 +295,7 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
               const opened = await openPosition(hl, db, {
                 userId, symbol, side, sizeUsd: notional,
                 leverage: Math.max(1, Math.ceil(cfg.risk.maxLeveragePerPosition)),
-                slippagePercent: cfg.slippagePercent, stopLossPct: sig.stopPct * 100, takeProfitPct: null,
+                slippagePercent: entrySlippage, stopLossPct: sig.stopPct * 100, takeProfitPct: null,
                 source: 'autopilot', payload: { strategy: id, reason, manual: !!manual }, limits: cfg.portfolio,
               });
               entry = opened.fillPrice; size = opened.size; stop = opened.stopLossPx ?? stop;

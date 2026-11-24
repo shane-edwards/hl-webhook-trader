@@ -39,6 +39,9 @@ export async function PUT(request: Request) {
   const value = parsed.data;
   const now = new Date().toISOString();
   if (value.action === 'pause') {
+    const paused = await db.from('automation_profiles').update({ entries_paused: true, updated_at: now }).eq('user_id', user.id).eq('market', 'stocks')
+      .neq('mode', 'research');
+    if (paused.error) return fail('Could not pause Automation Center entries.', 503);
     const { data, error } = await db.from('stock_autopilot').update({ active_environment: null, updated_at: now }).eq('user_id', user.id).select(settingFields).maybeSingle();
     return error ? fail('Could not pause stock Autopilot.', 503) : NextResponse.json({ settings: data });
   }
@@ -66,10 +69,13 @@ export async function PUT(request: Request) {
     if (error instanceof StockSizingError) return fail(error.message, 422);
     return fail('Could not check eToro eligibility.', 503);
   }
+  const released = await db.from('automation_profiles').update({ mode: 'research', live_version: null, loss_budget_usd: null,
+    max_order_usd: null, entries_paused: false, updated_at: now }).eq('user_id', user.id).eq('market', 'stocks').neq('mode', 'research');
+  if (released.error) return fail('Could not hand control to the manual Autopilot setup.', 503);
   const { data, error } = await db.from('stock_autopilot').upsert({
     user_id: user.id, symbol: value.symbol, strategy: value.strategy, amount, active_environment: value.environment,
     leverage: value.leverage, stop_margin_pct: value.leverage === 1 ? null : value.stopMarginPct,
-    updated_at: now, last_run_at: null, last_message: null, portfolio: value.portfolio ?? null,
+    updated_at: now, last_run_at: null, last_message: null, portfolio: value.portfolio ?? null, automation_version: null,
   }).select(settingFields).single();
   return error ? fail('Could not start stock Autopilot.', 503) : NextResponse.json({ settings: data });
 }

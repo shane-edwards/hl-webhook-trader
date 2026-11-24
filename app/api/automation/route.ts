@@ -1,0 +1,112 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { AUTOMATION_MARKETS } from '@/lib/automation/model';
+import { automationDecision, latestCandidates, readAutomationProfile, readPaperResults } from '@/lib/automation/policy';
+import { enqueueResearch } from '@/lib/automation/queue';
+import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
+import { STOCK_INSTRUMENTS, isStockTradeSymbol } from '@/lib/stocks/trade-rules';
+import { etoroFromConnection } from '@/lib/stocks/connection';
+import { readHealth } from '@/lib/health';
+
+const market = z.enum(AUTOMATION_MARKETS);
+const command = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('run'), market, kind: z.enum(['daily', 'weekly']).default('daily') }),
+  z.object({ action: z.literal('mode'), market, mode: z.enum(['research', 'paper']) }),
+  z.object({ action: z.literal('schedule'), market, enabled: z.boolean() }),
+  z.object({ action: z.literal('entries'), market, paused: z.boolean() }),
+  z.object({ action: z.literal('approve'), market, version: z.string().max(140), confirmed: z.literal(true),
+    budget: z.number().min(1).max(10_000), maxOrder: z.number().min(10).max(10_000) }),
+]);
+const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
+
+async function context() {
+  const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+  return user ? { id: user.id, db: createServiceClient() } : null;
+}
+
+export async function GET() {
+  const ctx = await context();
+  if (!ctx) return fail('Unauthorized', 401);
+  try {
+    const [markets, health, shadow, cryptoShadow, stockSettings, cryptoSettings] = await Promise.all([
+      Promise.all(AUTOMATION_MARKETS.map(async market => {
+        const [policy, evidence, history] = await Promise.all([
+          automationDecision(ctx.db, ctx.id, market), latestCandidates(ctx.db, ctx.id, market),
+          ctx.db.from('automation_runs').select('id, kind, source, status, cursor, plan, detail, report, created_at, completed_at, as_of')
+            .eq('user_id', ctx.id).eq('market', market).order('created_at', { ascending: false }).limit(8),
+        ]);
+        if (history.error) throw new Error('Could not read automation run history.');
+        const candidate = policy.candidate ?? evidence[0] ?? null;
+        const paper = policy.results ?? (candidate ? await readPaperResults(ctx.db, ctx.id, candidate) : null);
+        return { market, policy, candidate, paper, runs: history.data };
+      })),
+      readHealth(ctx.db),
+      ctx.db.from('stock_catalyst_sessions').select('session_day, completed_at, summary').eq('user_id', ctx.id).not('completed_at', 'is', null)
+        .order('completed_at', { ascending: false }).limit(1).maybeSingle(),
+      ctx.db.from('automation_crypto_shadow').select('symbol, strategy, signal_bar, decision, detail, outcome')
+        .order('signal_bar', { ascending: false }).limit(12),
+      ctx.db.from('stock_autopilot').select('active_environment, automation_version').eq('user_id', ctx.id).maybeSingle(),
+      ctx.db.from('settings').select('autopilot_enabled, autopilot_mode').eq('user_id', ctx.id).maybeSingle(),
+    ]);
+    const legacy = { stocks: stockSettings.data?.automation_version ? null : stockSettings.data?.active_environment ?? null,
+      crypto: cryptoSettings.data?.autopilot_enabled ? cryptoSettings.data?.autopilot_mode : null };
+    return NextResponse.json({ markets, health: health.checks, shadow: shadow.data, cryptoShadow: cryptoShadow.data ?? [], legacy, asOf: new Date().toISOString() });
+  } catch { return fail('Could not load the Automation Center.', 503); }
+}
+
+export async function POST(request: Request) {
+  const ctx = await context();
+  if (!ctx) return fail('Unauthorized', 401);
+  const parsed = command.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return fail('Choose a valid automation action.', 400);
+  const input = parsed.data;
+  const key = { user_id: ctx.id, market: input.market };
+  try {
+    const current = await readAutomationProfile(ctx.db, ctx.id, input.market);
+    if (!current) {
+      const seeded = await ctx.db.from('automation_profiles').upsert(key, { onConflict: 'user_id,market', ignoreDuplicates: true });
+      if (seeded.error) throw new Error('Could not initialize automation.');
+    }
+    const now = new Date().toISOString();
+    if (input.action === 'run') {
+      const id = await enqueueResearch(ctx.db, ctx.id, input.market, input.kind, now);
+      return NextResponse.json({ message: id ? 'Research queued. It runs in the background.' : 'A research run is already queued or running.' });
+    }
+    let patch: object;
+    if (input.action === 'approve') {
+      const candidate = (await latestCandidates(ctx.db, ctx.id, input.market)).find(item => item.version === input.version);
+      if (!candidate || !(await readPaperResults(ctx.db, ctx.id, candidate)).passed) {
+        return fail('This exact strategy version must pass research and Paper before Live.', 409);
+      }
+      if (input.market === 'crypto') {
+        const settings = await ctx.db.from('settings').select('*').eq('user_id', ctx.id).maybeSingle();
+        const wallet = settings.data ? hlClientFromSettings(settings.data) : null;
+        if (settings.error || !wallet || settings.data?.is_testnet || process.env.HL_TESTNET === 'true') return fail('Connect a Live Hyperliquid wallet first.', 409);
+        await wallet.getAccountSummary();
+      } else {
+        const connection = await ctx.db.from('etoro_connections').select('environment, credentials_encrypted').eq('user_id', ctx.id)
+          .eq('environment', 'real').maybeSingle();
+        if (connection.error || !connection.data || !isStockTradeSymbol(candidate.symbol)) return fail('Connect eToro Real first.', 409);
+        const broker = etoroFromConnection(connection.data);
+        const options = await broker.stockOrderOptions(STOCK_INSTRUMENTS[candidate.symbol]);
+        const cash = options.find(option => option.leverage === 1);
+        if (!cash || cash.minimum > Math.min(input.budget, input.maxOrder)) return fail('The Live loss budget is below the broker’s minimum cash order.', 422);
+      }
+      patch = { mode: 'live', enabled: true, entries_paused: false, live_version: candidate.version, loss_budget_usd: input.budget, max_order_usd: input.maxOrder };
+    } else if (input.action === 'mode') {
+      patch = { mode: input.mode, live_version: null, loss_budget_usd: null, max_order_usd: null,
+        ...(input.mode === 'research' ? { entries_paused: true } : {}) };
+    } else if (input.action === 'schedule') {
+      patch = { enabled: input.enabled };
+    } else {
+      patch = { entries_paused: input.paused };
+    }
+    const change = ctx.db.from('automation_profiles').update({ ...patch, updated_at: now }).match(key);
+    const saved = await (current ? change.eq('updated_at', current.updated_at) : change).select('market').maybeSingle();
+    if (saved.error) throw new Error('Could not save automation settings.');
+    if (!saved.data) return fail('The settings changed. Refresh and try again.', 409);
+    return NextResponse.json({ message: 'Automation settings saved.' });
+  } catch { return fail('Could not update automation. Try again shortly.', 503); }
+}

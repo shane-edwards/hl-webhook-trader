@@ -5,19 +5,20 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { APP_NAME } from '@/lib/brand';
 import {
-  LogOut, CandlestickChart, Landmark, ChevronRight,
+  LogOut, CandlestickChart, Landmark, ChevronRight, Workflow,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isStocksPath } from './workspaces';
 
 const workspaces = [
+  { id: 'automation', href: '/automation', label: 'Automation', icon: Workflow },
   { id: 'crypto', href: '/dashboard', label: 'Crypto', icon: CandlestickChart },
   { id: 'stocks', href: '/stocks', label: 'Stocks', icon: Landmark },
 ] as const;
 
 export function Sidebar() {
   const pathname = usePathname();
-  const workspace = isStocksPath(pathname) ? 'stocks' : 'crypto';
+  const workspace = pathname === '/automation' ? 'automation' : isStocksPath(pathname) ? 'stocks' : 'crypto';
   const router = useRouter();
   const supabase = createClient();
 
@@ -75,12 +76,12 @@ export function Sidebar() {
 // Mobile bottom nav
 export function MobileNav() {
   const pathname = usePathname();
-  const workspace = isStocksPath(pathname) ? 'stocks' : 'crypto';
+  const workspace = pathname === '/automation' ? 'automation' : isStocksPath(pathname) ? 'stocks' : 'crypto';
 
   return (
     <nav
       aria-label="Workspaces"
-      className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-2 gap-2 border-t border-border bg-card/95 backdrop-blur-xl px-3 pt-1.5 pb-safe"
+      className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-3 gap-1 border-t border-border bg-card/95 backdrop-blur-xl px-2 pt-1.5 pb-safe"
     >
       {workspaces.map(({ id, href, label, icon: Icon }) => {
         const active = workspace === id;

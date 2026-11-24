@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { cryptoActivity, cryptoResearch, cryptoSections, isStocksPath, stockHref, stockResearch, stockSection, stockSections } from './workspaces';
 
 const pageTitles: Record<string, string> = {
+  '/automation': 'Automation Center',
   '/dashboard': 'Trade crypto',
   '/autopilot': 'Crypto Autopilot',
   '/trades': 'Trade history',
@@ -36,7 +37,8 @@ export function Header({ onRefresh, refreshing }: HeaderProps) {
   const pathname = usePathname();
   const query = useSearchParams();
   const stocks = isStocksPath(pathname);
-  const workspace = stocks ? 'Stocks' : 'Crypto';
+  const shared = pathname === '/automation';
+  const workspace = shared ? APP_NAME : stocks ? 'Stocks' : 'Crypto';
   const stockTab = pathname === '/stocks' ? stockSection(query.get('tab')) : 'research';
   const cryptoTab = pathname === '/analytics' ? '/trades' : pathname === '/lab/scalping' ? '/lab' : pathname;
   const title = pathname === '/stocks' ? stockSections.find(section => section.id === stockTab)!.title : pageTitles[pathname] ?? APP_NAME;
@@ -62,14 +64,14 @@ export function Header({ onRefresh, refreshing }: HeaderProps) {
               </Button>
             )}
           </div>
-          <nav aria-label={`${workspace} sections`} className="grid grid-cols-3 gap-1 sm:flex sm:flex-wrap pb-2">
+          {!shared && <nav aria-label={`${workspace} sections`} className="grid grid-cols-3 gap-1 sm:flex sm:flex-wrap pb-2">
             {sections.map(({ label, href, active }) => (
               <Link key={href} href={href} aria-current={active ? 'location' : undefined} className={cn(
                 'flex min-h-10 sm:min-h-9 items-center justify-center px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-colors',
                 active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}>{label}</Link>
             ))}
-          </nav>
+          </nav>}
         </div>
       </header>
       {subnav.length > 0 && (
