@@ -169,11 +169,13 @@ function search(group: Market[], reserve: Market[], index: StockSession[]) {
 
 const spy = read('SPY', true);
 const ETFsData = ETFs.map(symbol => prepare(symbol, read(symbol, true), spy));
-const stocks = GAP_SYMBOLS.every(symbol => existsSync(join(GAP_DIR, `${symbol}.json`)))
-  ? GAP_SYMBOLS.map(symbol => prepare(symbol, read(symbol, false), spy)) : [];
+const stocks = GAP_SYMBOLS.flatMap(symbol => existsSync(join(GAP_DIR, `${symbol}.json`)) ? [prepare(symbol, read(symbol, false), spy)] : []);
+const primary = stocks.filter(row => GAP_SYMBOLS.indexOf(row.symbol as typeof GAP_SYMBOLS[number]) < 8);
+const reserve = stocks.filter(row => GAP_SYMBOLS.indexOf(row.symbol as typeof GAP_SYMBOLS[number]) >= 8);
 const etfs = search(ETFsData, stocks, spy);
-const shares = stocks.length ? search(stocks.slice(0, 8), stocks.slice(8), spy) : null;
+const shares = primary.length >= 4 ? search(primary, reserve, spy) : null;
 writeFileSync(join('backtest', 'stock-gap-results.json'), JSON.stringify({ periods: PERIODS, costs: COSTS,
+  equityFit: primary.map(row => row.symbol), equityTransfer: reserve.map(row => row.symbol),
   coverage: [...ETFsData, ...stocks].map(row => ({ symbol: row.symbol, days: row.days.length })), etfs, shares }, null, 2) + '\n');
 console.log('Stock gap tests', etfs.rules, etfs.earlyPasses, shares?.rules ?? 0, shares?.earlyPasses ?? 0);
 for (const config of [etfs, shares]) for (const row of config?.results ?? []) {

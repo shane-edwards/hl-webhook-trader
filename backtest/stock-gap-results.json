@@ -23,6 +23,14 @@
       "stop": 0.0008
     }
   ],
+  "equityFit": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "META"
+  ],
+  "equityTransfer": [],
   "coverage": [
     {
       "symbol": "QQQ",
@@ -39,6 +47,26 @@
     {
       "symbol": "XLF",
       "days": 930
+    },
+    {
+      "symbol": "AAPL",
+      "days": 934
+    },
+    {
+      "symbol": "MSFT",
+      "days": 933
+    },
+    {
+      "symbol": "NVDA",
+      "days": 933
+    },
+    {
+      "symbol": "AMZN",
+      "days": 934
+    },
+    {
+      "symbol": "META",
+      "days": 934
     }
   ],
   "etfs": {
@@ -340,5 +368,343 @@
     ],
     "results": []
   },
-  "shares": null
+  "shares": {
+    "rules": 48,
+    "earlyPasses": 0,
+    "ranked": [
+      {
+        "rule": {
+          "event": "opening-gap",
+          "kind": "follow",
+          "threshold": 1.9,
+          "confirm": true,
+          "exitBar": 7
+        },
+        "early": {
+          "net": -0.014362838524617172,
+          "drawdown": 0.019050146553918124,
+          "days": 22,
+          "weeks": 17,
+          "trades": 24,
+          "score": -1.19269576089286,
+          "averageBps": -29.896355910534933,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "net": -0.019528597714329576,
+              "count": 6
+            },
+            {
+              "symbol": "MSFT",
+              "net": -0.03576725703610262,
+              "count": 3
+            },
+            {
+              "symbol": "NVDA",
+              "net": 0.027150597155571,
+              "count": 7
+            },
+            {
+              "symbol": "AMZN",
+              "net": -0.022778875738656,
+              "count": 4
+            },
+            {
+              "symbol": "META",
+              "net": -0.020890059289568774,
+              "count": 4
+            }
+          ]
+        },
+        "validation": {
+          "net": -0.015309572756193934,
+          "drawdown": 0.020668104846358393,
+          "days": 15,
+          "weeks": 13,
+          "trades": 16,
+          "score": -1.2217822985125821,
+          "averageBps": -48.87712980348194,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "net": 0.03690909652385965,
+              "count": 4
+            },
+            {
+              "symbol": "MSFT",
+              "net": 0.00439415425508094,
+              "count": 1
+            },
+            {
+              "symbol": "NVDA",
+              "net": -0.03765993421044256,
+              "count": 4
+            },
+            {
+              "symbol": "AMZN",
+              "net": -0.025953482632002478,
+              "count": 2
+            },
+            {
+              "symbol": "META",
+              "net": -0.054237697717466116,
+              "count": 5
+            }
+          ]
+        },
+        "ready": false,
+        "rank": -1.2217822985125821
+      },
+      {
+        "rule": {
+          "event": "late-selloff",
+          "kind": "follow",
+          "threshold": 1.9,
+          "confirm": true,
+          "exitBar": 1
+        },
+        "early": {
+          "net": -0.002303205553349841,
+          "drawdown": 0.021738096244144134,
+          "days": 42,
+          "weeks": 36,
+          "trades": 50,
+          "score": -0.11337567907419259,
+          "averageBps": -1.8315325908823121,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "net": -0.006327471961648623,
+              "count": 11
+            },
+            {
+              "symbol": "MSFT",
+              "net": -0.017833139755938032,
+              "count": 7
+            },
+            {
+              "symbol": "NVDA",
+              "net": 0.05788659868326085,
+              "count": 8
+            },
+            {
+              "symbol": "AMZN",
+              "net": -0.029504494226587186,
+              "count": 14
+            },
+            {
+              "symbol": "META",
+              "net": -0.01573752050583832,
+              "count": 10
+            }
+          ]
+        },
+        "validation": {
+          "net": -0.06601526303618144,
+          "drawdown": 0.08195633816943781,
+          "days": 20,
+          "weeks": 15,
+          "trades": 27,
+          "score": -1.3206693806995704,
+          "averageBps": -124.12995108595433,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "net": -0.009225563987304453,
+              "count": 5
+            },
+            {
+              "symbol": "MSFT",
+              "net": -0.0752915418826724,
+              "count": 7
+            },
+            {
+              "symbol": "NVDA",
+              "net": -0.015546375206009988,
+              "count": 3
+            },
+            {
+              "symbol": "AMZN",
+              "net": -0.12699903913815913,
+              "count": 5
+            },
+            {
+              "symbol": "META",
+              "net": -0.10301379496676144,
+              "count": 7
+            }
+          ]
+        },
+        "ready": false,
+        "rank": -1.3206693806995704
+      },
+      {
+        "rule": {
+          "event": "late-selloff",
+          "kind": "reverse",
+          "threshold": 1.9,
+          "confirm": true,
+          "exitBar": 1
+        },
+        "early": {
+          "net": -0.07101080960637274,
+          "drawdown": 0.07445686524643846,
+          "days": 18,
+          "weeks": 17,
+          "trades": 22,
+          "score": -1.4474650736051218,
+          "averageBps": -163.53094642722004,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "net": 0.0012257863755027465,
+              "count": 4
+            },
+            {
+              "symbol": "MSFT",
+              "net": -0.02526147505330867,
+              "count": 5
+            },
+            {
+              "symbol": "NVDA",
+              "net": -0.11321642852473823,
+              "count": 7
+            },
+            {
+              "symbol": "AMZN",
+              "net": -0.05722710674831122,
+              "count": 3
+            },
+            {
+              "symbol": "META",
+              "net": -0.16057482408100698,
+              "count": 3
+            }
+          ]
+        },
+        "validation": {
+          "net": -0.012272670365208738,
+          "drawdown": 0.01639449169134921,
+          "days": 8,
+          "weeks": 8,
+          "trades": 10,
+          "score": -1.4562588400668963,
+          "averageBps": -61.53621008681309,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "net": -0.03271398916268076,
+              "count": 2
+            },
+            {
+              "symbol": "MSFT",
+              "net": 0.0071248641396932655,
+              "count": 2
+            },
+            {
+              "symbol": "NVDA",
+              "net": -0.036399249999999994,
+              "count": 1
+            },
+            {
+              "symbol": "AMZN",
+              "net": 0.009650473119211966,
+              "count": 2
+            },
+            {
+              "symbol": "META",
+              "net": -0.00902544992226828,
+              "count": 3
+            }
+          ]
+        },
+        "ready": false,
+        "rank": -1.4562588400668963
+      },
+      {
+        "rule": {
+          "event": "opening-gap",
+          "kind": "reverse",
+          "threshold": 1.9,
+          "confirm": true,
+          "exitBar": 12
+        },
+        "early": {
+          "net": -0.013515883118800698,
+          "drawdown": 0.01839243301783333,
+          "days": 26,
+          "weeks": 23,
+          "trades": 33,
+          "score": -0.8790934512659354,
+          "averageBps": -20.362255323071068,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "net": -0.03133166115957686,
+              "count": 10
+            },
+            {
+              "symbol": "MSFT",
+              "net": -0.0028676214190155314,
+              "count": 6
+            },
+            {
+              "symbol": "NVDA",
+              "net": -0.04800453410719108,
+              "count": 6
+            },
+            {
+              "symbol": "AMZN",
+              "net": -0.02012433084100007,
+              "count": 5
+            },
+            {
+              "symbol": "META",
+              "net": 0.03474873193277794,
+              "count": 6
+            }
+          ]
+        },
+        "validation": {
+          "net": -0.044181531080684566,
+          "drawdown": 0.04604110889836266,
+          "days": 16,
+          "weeks": 11,
+          "trades": 19,
+          "score": -2.259515527438312,
+          "averageBps": -118.00519472760449,
+          "markets": [
+            {
+              "symbol": "AAPL",
+              "net": -0.053228884936463494,
+              "count": 4
+            },
+            {
+              "symbol": "MSFT",
+              "net": -0.007988772431140156,
+              "count": 3
+            },
+            {
+              "symbol": "NVDA",
+              "net": -0.045594720884504,
+              "count": 6
+            },
+            {
+              "symbol": "AMZN",
+              "net": -0.07171213639231577,
+              "count": 4
+            },
+            {
+              "symbol": "META",
+              "net": -0.04238314075900029,
+              "count": 2
+            }
+          ]
+        },
+        "ready": false,
+        "rank": -2.259515527438312
+      }
+    ],
+    "results": []
+  }
 }
