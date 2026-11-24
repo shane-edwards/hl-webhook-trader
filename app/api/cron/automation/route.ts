@@ -8,6 +8,7 @@ import { stockMarketClock } from '@/lib/stocks/session';
 import { notify } from '@/lib/notify';
 import { updateCryptoShadow } from '@/lib/automation/crypto-shadow';
 import { watchFundingHedges } from '@/lib/hedge-research/watch';
+import { watchDiffusion } from '@/lib/automation/diffusion-shadow';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -35,18 +36,24 @@ export async function GET(request: Request) {
     const now = Date.now();
     const [scheduled] = await Promise.all([queueScheduledResearch(db, now), checkShadow(db, now)]);
     const minute = new Date(now).getUTCMinutes();
-    const [result, hedge, searches] = await Promise.all([
+    const [result, hedge, searches, diffusion] = await Promise.all([
       minute >= 10 && minute <= 12 ? updateCryptoShadow(db, now).then(() => 'shadow recorded') : processResearchStep(db),
       minute % 5 === 4 ? watchFundingHedges(db, now) : null,
       minute % 5 === 3 ? queueMarketSearches(db, now).catch(error => {
         console.error('[automation] strategy search queue', error);
         return null;
       }) : 0,
+      minute % 15 === 1 ? watchDiffusion(db, now).catch(error => {
+        console.error('[automation] retail-flow research', error);
+        return null;
+      }) : undefined,
     ]);
     const watch = hedge?.failures ? ' · funding hedge needs attention' : hedge?.captured ? ` · ${hedge.captured} hedge observations` : '';
     const research = searches === null ? ' · strategy search needs attention' : searches ? ` · ${searches} strategy tests queued` : '';
-    await heartbeat(db, 'automation', searches !== null, `${scheduled} queued · ${result}${research}${watch}`);
-    return NextResponse.json({ scheduled, result, hedge, searches });
+    const flows = diffusion === null ? ' · retail flow needs attention' :
+      diffusion?.scanned ? ` · retail flow checked · ${diffusion.signals} signals · ${diffusion.settled} closed` : '';
+    await heartbeat(db, 'automation', searches !== null, `${scheduled} queued · ${result}${research}${watch}${flows}`);
+    return NextResponse.json({ scheduled, result, hedge, searches, diffusion });
   } catch {
     await heartbeat(db, 'automation', false, 'The research worker could not finish.');
     return NextResponse.json({ error: 'The research worker could not finish.' }, { status: 503 });

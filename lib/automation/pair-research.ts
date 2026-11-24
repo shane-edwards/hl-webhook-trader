@@ -2,7 +2,7 @@ import type { createServiceClient } from '@/lib/supabase/server';
 import { ideaId, ideasForPair } from './ideas';
 import type { RunReport } from './model';
 import { enqueueIdea } from './queue';
-import { marketSearchPairs, searchDue, searchKey, RECOMMENDATION_FRESH_MS, SEARCH_RETRY_MS, SEARCH_REVISION,
+import { marketSearchPairs, searchDue, searchKey, searchRevision, RECOMMENDATION_FRESH_MS, SEARCH_RETRY_MS,
   type SearchJob, type SearchMarket, type SearchPair } from '@/lib/strategy-search/model';
 
 type Db = ReturnType<typeof createServiceClient>;
@@ -46,12 +46,13 @@ async function loadWork(db: Db, user: string, market: SearchMarket, now: number,
 
 function dueTargets(pair: SearchPair, work: Awaited<ReturnType<typeof loadWork>>, now: number) {
   const key = searchKey(pair);
-  return pairTargets(pair).filter(id => (id === key || !work.evidence.has(id)) && searchDue(work.latest.get(id), now, id === key));
+  return pairTargets(pair).filter(id => (id === key || !work.evidence.has(id)) &&
+    searchDue(work.latest.get(id), now, id === key, searchRevision(pair.market)));
 }
 
 function queueTarget(db: Db, user: string, pair: SearchPair, id: string, now: number, selected: boolean) {
   const cycle = Math.floor(now / SEARCH_RETRY_MS);
-  const key = `${selected ? 'selection' : 'rotation'}:${SEARCH_REVISION}:${cycle}:${id}`;
+  const key = `${selected ? 'selection' : 'rotation'}:${searchRevision(pair.market)}:${cycle}:${id}`;
   return enqueueIdea(db, user, { id, market: pair.market, symbol: pair.symbol }, new Date(now).toISOString(), key);
 }
 

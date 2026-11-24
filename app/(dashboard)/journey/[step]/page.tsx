@@ -203,6 +203,18 @@ export default function JourneyPage() {
       {notice && <p role="status" className="text-sm">{notice}</p>}
       {step === 'find' ? <>
         <MarketRecommendations market={market} />
+        {market === 'crypto' && <details className="surface p-4">
+          <summary className="cursor-pointer text-sm font-medium">Research watchlist</summary>
+          <div className="mt-3 space-y-1 text-sm">
+            <p className="font-medium">Retail-led rally · BTC, ETH, SOL</p>
+            <p className="text-xs text-muted-foreground">24-hour long · Automatic forward test</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-primary">
+              <Link href="/automation">View observations</Link>
+              <a href="https://github.com/shane-edwards/hl-webhook-trader/blob/research/directional-setups/backtest/MARKET-SIGNALS.md"
+                target="_blank" rel="noreferrer">View study</a>
+            </div>
+          </div>
+        </details>}
         <details id="asset-research" key={linkedPair ? `${market}:${linkedPair.symbol}:${linkedPair.frame}` : market}
           open={!!linkedPair || undefined} onToggle={event => setOpenedResearch(event.currentTarget.open ? market : null)}
           className="surface scroll-mt-20 p-4">

@@ -98,7 +98,7 @@ export function StrategySearch({ market, symbol, frame, active = true, compact =
         {report.holdout && <p>{report.holdout.trades} later trades · {pct(report.holdout.net)} after costs · {pct(report.stress?.net ?? 0)} with higher costs · {pct(report.stress?.drawdown ?? 0)} drawdown</p>}
         {report.venue && <p>Hyperliquid check · {report.venue.trades} trades · {pct(report.venue.net)} after costs and funding</p>}
         {report.note && <p>{report.note}</p>}
-        {report.verdict === 'paper-candidate' && report.rule && <p>{report.rule.setting}-bar setting · {report.rule.stop}× ATR stop · {report.rule.reward}× risk target · {report.rule.maxBars} bars max</p>}
+        {report.verdict === 'paper-candidate' && report.rule && <p>{report.rule.side === 'short' ? 'Short' : 'Long'} · {report.rule.setting}-bar setting · {report.rule.stop}× ATR stop · {report.rule.reward}× risk target · {report.rule.maxBars} bars max</p>}
       </div>
     </details>}
   </section>;

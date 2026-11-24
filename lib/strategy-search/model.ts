@@ -7,6 +7,7 @@ export const RECOMMENDATION_FRESH_MS = 4 * 86_400_000;
 export const BAR_MS = { '5m': 300_000, '15m': 900_000, '30m': 1_800_000, '1h': 3_600_000, '4h': 14_400_000, '1d': 86_400_000 } as const;
 export type SearchFrame = keyof typeof BAR_MS;
 export type SearchMarket = 'stocks' | 'crypto';
+export const searchRevision = (market: SearchMarket) => market === 'crypto' ? SEARCH_REVISION + 1 : SEARCH_REVISION;
 export const SEARCH_FRAMES = { stocks: ['5m', '30m', '1d'], crypto: ['5m', '15m', '1h', '4h', '1d'] } as const;
 export const SEARCH_ASSETS = {
   stocks: STOCK_TRADE_SYMBOLS,
@@ -34,8 +35,10 @@ export const FAMILIES = {
   band: 'Bollinger Band recovery', macd: 'MACD crossover', squeeze: 'Volatility squeeze release', supertrend: 'Supertrend reversal',
 } as const;
 export type Family = keyof typeof FAMILIES;
-export type Rule = { family: Family; setting: number; trend: number; volume: number; stop: number; reward: number; maxBars: number };
-export type SearchBar = { t: number; o: number; h: number; l: number; c: number; v: number; ask?: number; session?: string; funding?: number };
+export type SearchSide = 'long' | 'short';
+export type Rule = { family: Family; setting: number; trend: number; volume: number; stop: number; reward: number; maxBars: number; side?: SearchSide };
+export type SearchBar = { t: number; o: number; h: number; l: number; c: number; v: number; ask?: number; session?: string;
+  funding?: number; shortFunding?: number };
 export type Performance = { trades: number; groups: number; net: number; average: number; drawdown: number; score: number | null };
 export type SearchReport = {
   revision: number; pair: SearchPair; source: string; bars: number; from: string; through: string;
@@ -47,12 +50,12 @@ export type SearchReport = {
 
 export type SearchJob = { status: string; as_of: string; revision?: number | null };
 
-export function searchDue(job: SearchJob | undefined, now: number, search: boolean) {
+export function searchDue(job: SearchJob | undefined, now: number, search: boolean, revision = SEARCH_REVISION) {
   if (!job) return true;
   if (job.status === 'queued' || job.status === 'running') return false;
   const age = now - Date.parse(job.as_of);
   if (job.status === 'failed') return age >= SEARCH_RETRY_MS;
-  if (search && job.revision !== SEARCH_REVISION) return true;
+  if (search && job.revision !== revision) return true;
   return age >= (search ? SEARCH_REFRESH_MS : RECOMMENDATION_FRESH_MS);
 }
 

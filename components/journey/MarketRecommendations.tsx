@@ -16,7 +16,7 @@ function ResultRow({ setup }: { setup: MarketSetup }) {
     `/journey/find?${new URLSearchParams({ market, asset: symbol, frame })}#asset-research`;
   return <li className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
     <div className="min-w-0">
-      <p className="mb-1 text-xs font-medium text-muted-foreground">{symbol} · {frameNames[frame]}</p>
+      <p className="mb-1 text-xs font-medium text-muted-foreground">{symbol} · {frameNames[frame]} · {setup.side === 'short' ? 'Short' : 'Long'}</p>
       <h3 className="font-semibold tracking-tight">{setup.name}</h3>
       <p className="mt-1 text-xs text-muted-foreground">
         <span className="font-medium text-profit">+{(setup.stressedReturn * 100).toFixed(2)}%</span> at higher costs

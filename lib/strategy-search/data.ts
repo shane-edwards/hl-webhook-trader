@@ -100,19 +100,23 @@ export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: st
   const frame = pair.frame === '30m' ? '15m' : pair.frame;
   try {
     const client = marketDataClient();
-    const since = Math.max(now - 120 * DAY, now - 4980 * BAR_MS[frame]);
+    // Daily rules need enough actual perpetual sessions to satisfy the same venue sample gate.
+    const since = Math.max(now - (frame === '1d' ? 900 : 120) * DAY, now - 4980 * BAR_MS[frame]);
     const [bars, funding] = await Promise.all([
       client.getCandles(pair.symbol, frame, since, now),
       client.getFundingRates(pair.symbol, since, now),
     ]);
     const expected = Math.floor((now - since) / HOUR);
     if (new Set(funding.map(row => Math.round(row.time / HOUR))).size < .95 * expected) throw new Error('Incomplete funding history');
-    const bucket = new Map<number, number>();
+    const bucket = new Map<number, { funding: number; shortFunding: number }>();
     for (const payment of funding) {
       const t = Math.floor(Math.round(payment.time / HOUR) * HOUR / BAR_MS[frame]) * BAR_MS[frame];
-      bucket.set(t, (bucket.get(t) ?? 0) + Math.max(0, payment.rate));
+      const costs = bucket.get(t) ?? { funding: 0, shortFunding: 0 };
+      costs.funding += Math.max(0, payment.rate);
+      costs.shortFunding += Math.max(0, -payment.rate);
+      bucket.set(t, costs);
     }
-    return checkPerpVenue(report, bars.filter(row => row.t + BAR_MS[frame] <= now).map(row => ({ ...row, funding: bucket.get(row.t) ?? 0 })));
+    return checkPerpVenue(report, bars.filter(row => row.t + BAR_MS[frame] <= now).map(row => ({ ...row, ...bucket.get(row.t) })));
   } catch {
     return { ...report, verdict: 'venue-failed' as const, note: 'Hyperliquid prices or funding are unavailable' };
   }

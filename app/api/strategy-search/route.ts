@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { initializeMarketResearch, pairAccess, queueSelectedPair } from '@/lib/automation/pair-research';
 import { readMarketResearch } from '@/lib/automation/market-research';
-import { isSearchMarket, SEARCH_REFRESH_MS, SEARCH_REVISION, searchDue, searchKey, searchPair, type SearchPair, type SearchReport } from '@/lib/strategy-search/model';
+import { isSearchMarket, SEARCH_REFRESH_MS, searchRevision, searchDue, searchKey, searchPair, type SearchPair, type SearchReport } from '@/lib/strategy-search/model';
 
 async function currentUser() {
   const { data: { user } } = await (await createClient()).auth.getUser();
@@ -20,8 +20,9 @@ async function searchStatus(db: ReturnType<typeof createServiceClient>, user: st
   const latest = result.data[0];
   const completed = result.data.find(row => row.status === 'completed' && row.report?.data?.search);
   const report: SearchReport | null = completed?.report?.data?.search ?? null;
-  const fresh = report?.revision === SEARCH_REVISION && now - Date.parse(completed!.as_of) < SEARCH_REFRESH_MS;
-  const due = searchDue(latest && { ...latest, revision: latest.report?.data?.search?.revision }, now, true);
+  const revision = searchRevision(pair.market);
+  const fresh = report?.revision === revision && now - Date.parse(completed!.as_of) < SEARCH_REFRESH_MS;
+  const due = searchDue(latest && { ...latest, revision: latest.report?.data?.search?.revision }, now, true, revision);
   const status = access.paused ? 'paused' : !access.connected ? 'connect' : latest?.status === 'running' || latest?.status === 'queued'
     ? latest.status : waitingForCapacity && due ? 'busy' : latest?.status ?? 'new';
   return { status, report, fresh, completedAt: completed?.completed_at ?? null, detail: latest?.detail ?? null,

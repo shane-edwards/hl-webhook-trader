@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { automationSchedule, automationVersion, paperThreshold, studyEvidence } from '../lib/automation/model';
 import { capAutomationNotional } from '../lib/autopilot/risk';
 import { settleCryptoShadow } from '../lib/automation/crypto-shadow';
+import { settleDiffusion, standardizedMove } from '../lib/automation/diffusion-shadow';
 
 test('automated research follows the US close for Stocks and the UTC day for Crypto', () => {
   assert.equal(automationSchedule('stocks', Date.parse('2026-11-24T21:14Z')).length, 0);
@@ -50,4 +51,23 @@ test('Crypto shadow settlement uses later hourly bars and actual funding, and re
   assert.ok(settleCryptoShadow(signal, bars, new Map([...rates].map(([key]) => [key, 0])))!.netBps > paid!.netBps);
   assert.equal(settleCryptoShadow(signal, bars.filter((_, i) => i !== 11), rates), null);
   assert.equal(settleCryptoShadow(signal, bars, new Map()), null);
+});
+
+test('retail-flow forward tests use completed input bars and actual funding after entry', () => {
+  const frame = 900_000;
+  const time = Date.parse('2026-11-24T09:15Z');
+  const input = Array.from({ length: 7 }, (_, i) => ({ t: time - (6 - i) * frame, c: 100 * Math.exp(i / 100) }));
+  assert.ok(Math.abs(standardizedMove(input, time, 4)! - 1) < 1e-8);
+  assert.equal(standardizedMove(input, time - frame, 4), null);
+  assert.equal(standardizedMove(input.filter((_, i) => i !== 2), time, 4), null);
+
+  const bars = Array.from({ length: 97 }, (_, i) => ({ t: time + i * frame, o: 100 + i * .04, h: 101 + i * .04,
+    l: 99 + i * .04, c: 100 + i * .04 }));
+  const hour = 3_600_000;
+  const funding = new Map(bars.filter(bar => bar.t % hour === 0).map(bar => [bar.t, .0001]));
+  const result = settleDiffusion(time, .04, bars, funding);
+  assert.equal(result?.exit, '24-hour exit');
+  assert.ok(result && result.netBps > 0);
+  assert.equal(settleDiffusion(time, .04, bars.filter((_, i) => i !== 55), funding), null);
+  assert.equal(settleDiffusion(time, .04, bars, new Map()), null);
 });
