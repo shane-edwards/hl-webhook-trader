@@ -8,8 +8,9 @@ const ETF_FOLDER = join('backtest', 'data', 'intraday', 'etf-strategies');
 const ETFs = ['QQQ', 'IWM', 'XLK', 'XLF'];
 const DAY = 86_400_000;
 const COSTS = [{ fill: .0003, stop: .0004 }, { fill: .00065, stop: .0008 }];
+const SHORT_COSTS = [{ fill: .0018, borrow: .15 }, { fill: .00215, borrow: .30 }];
 type Period = typeof PERIODS[number];
-type Setup = { event: 'opening-gap' | 'late-selloff'; kind: 'reverse' | 'follow'; threshold: number;
+type Setup = { event: 'opening-gap' | 'late-selloff'; kind: 'reverse' | 'follow'; side: 1 | -1; threshold: number;
   confirm: boolean; exitBar: number };
 
 function read(symbol: string, etf: boolean) {
@@ -50,7 +51,8 @@ function prepare(symbol: string, sessions: StockSession[], spy: StockSession[]) 
 }
 type Market = ReturnType<typeof prepare>;
 
-function replay(market: Market, rule: Setup, [from, to]: Period, cost: typeof COSTS[number], adjusted = true) {
+function replay(market: Market, rule: Setup, [from, to]: Period, stress: boolean, adjusted = true) {
+  const cost = COSTS[stress ? 1 : 0], shortCost = SHORT_COSTS[stress ? 1 : 0];
   let equity = 1, available = '';
   const fills: { day: string; net: number; change: number }[] = [];
   const marks: { day: string; change: number }[] = [];
@@ -62,15 +64,15 @@ function replay(market: Market, rule: Setup, [from, to]: Period, cost: typeof CO
     if (overnight && (!next || next.day >= to)) continue;
     const adjustedMove = overnight ? date.cash - (adjusted ? date.spyCash : 0) : date.gap - (adjusted ? date.spyGap : 0);
     const scale = (overnight ? date.cashScale : date.gapScale)[adjusted ? 0 : 1];
-    const magnitude = rule.kind === 'reverse' ? -adjustedMove : adjustedMove;
+    const magnitude = rule.side * (rule.kind === 'reverse' ? -adjustedMove : adjustedMove);
     if (magnitude < Math.max(overnight ? .007 : .005, scale * rule.threshold)) continue;
     const bars = session.bars;
     const confirm = overnight ? bars[11].bidClose / bars[11].bidOpen - 1 : bars[0].bidClose / bars[0].bidOpen - 1;
-    if (rule.confirm && confirm <= 0) continue;
+    if (rule.confirm && rule.side * confirm <= 0) continue;
     const start = overnight ? 12 : 1;
     const quote = bars[start];
     if (!(quote.askOpen >= quote.bidOpen && quote.bidOpen > 0) || quote.askOpen / quote.bidOpen - 1 > .005) continue;
-    const entry = quote.askOpen * (1 + cost.fill);
+    const entry = rule.side === 1 ? quote.askOpen * (1 + cost.fill) : quote.bidOpen * (1 - shortCost.fill);
     const stop = entry * (overnight ? .965 : .98);
     const ending = overnight ? next! : session;
     const trail = overnight ? [...bars.slice(12), ...ending.bars.slice(0, rule.exitBar)].map((bar, i) => ({ bar, schedule: i === 0 ? date.day : ending.day })) :
@@ -79,7 +81,9 @@ function replay(market: Market, rule: Setup, [from, to]: Period, cost: typeof CO
     const capital = equity;
     let lastMark = 0, closed = false;
     const record = (price: number, day: string, stopped: boolean, final: boolean) => {
-      const net = price * (1 - cost.fill - (stopped ? cost.stop : 0)) / entry - 1;
+      const borrow = shortCost.borrow * (Date.parse(day) - Date.parse(date.day)) / DAY / 365;
+      const net = rule.side === 1 ? price * (1 - cost.fill - (stopped ? cost.stop : 0)) / entry - 1 :
+        1 - price * (1 + shortCost.fill) / entry - borrow;
       const change = capital * (net - lastMark);
       equity += change;
       marks.push({ day, change });
@@ -87,16 +91,16 @@ function replay(market: Market, rule: Setup, [from, to]: Period, cost: typeof CO
       lastMark = net;
     };
     for (const { bar, schedule } of trail) {
-      if (bar.bidLow <= stop) {
+      if (rule.side === 1 && bar.bidLow <= stop) {
         record(Math.min(stop, bar.bidOpen), schedule, true, true);
         closed = true;
         break;
       }
-      record(bar.bidClose, schedule, false, false);
+      record(rule.side === 1 ? bar.bidClose : bar.askOpen, schedule, false, false);
     }
     if (!closed) {
-      const endingOpen = ending.bars[rule.exitBar].bidOpen;
-      record(endingOpen, ending.day, endingOpen < stop, true);
+      const timed = ending.bars[rule.exitBar];
+      record(rule.side === 1 ? timed.bidOpen : timed.askOpen, ending.day, rule.side === 1 && timed.bidOpen < stop, true);
     }
     if (overnight) available = ending.day;
   }
@@ -131,12 +135,12 @@ function summarize(parts: ReturnType<typeof replay>[], period: Period, spy: Stoc
 function search(group: Market[], reserve: Market[], index: StockSession[]) {
   const rules: Setup[] = [];
   for (const event of ['opening-gap', 'late-selloff'] as const) for (const kind of ['reverse', 'follow'] as const) {
-    for (const threshold of [1.25, 1.9]) for (const confirm of [false, true]) {
-      for (const exitBar of event === 'opening-gap' ? [3, 7, 12] : [0, 1, 3]) rules.push({ event, kind, threshold, confirm, exitBar });
+    for (const side of [1, -1] as const) for (const threshold of [1.25, 1.9]) for (const confirm of [false, true]) {
+      for (const exitBar of event === 'opening-gap' ? [3, 7, 12] : [0, 1, 3]) rules.push({ event, kind, side, threshold, confirm, exitBar });
     }
   }
   const evaluate = (rule: Setup, group: Market[], w: number, stress: boolean, adjusted = true) =>
-    summarize(group.map(input => replay(input, rule, PERIODS[w], COSTS[stress ? 1 : 0], adjusted)), PERIODS[w], index);
+    summarize(group.map(input => replay(input, rule, PERIODS[w], stress, adjusted)), PERIODS[w], index);
   const accepts = (stats: ReturnType<typeof summarize>) => stats.net > 0 && stats.days >= 30 && stats.weeks >= 15 &&
     stats.drawdown < .2 && stats.markets.filter(s => s.net > 0).length >= Math.ceil(stats.markets.length / 2);
   let earlyPasses = 0;
@@ -147,7 +151,7 @@ function search(group: Market[], reserve: Market[], index: StockSession[]) {
     const rank = Math.min(early.score, validation.score);
     const ready = rank > 1.25 && accepts(early) && accepts(validation);
     if (ready) earlyPasses++;
-    const key = `${rule.event}:${rule.kind}`;
+    const key = `${rule.event}:${rule.kind}:${rule.side}`;
     const previous = picks.get(key);
     if (!previous || ready && !previous.ready || ready === previous.ready && rank > previous.rank) {
       picks.set(key, { rule, early, validation, ready, rank });
@@ -174,7 +178,7 @@ const primary = stocks.filter(row => GAP_SYMBOLS.indexOf(row.symbol as typeof GA
 const reserve = stocks.filter(row => GAP_SYMBOLS.indexOf(row.symbol as typeof GAP_SYMBOLS[number]) >= 8);
 const etfs = search(ETFsData, stocks, spy);
 const shares = primary.length >= 4 ? search(primary, reserve, spy) : null;
-writeFileSync(join('backtest', 'stock-gap-results.json'), JSON.stringify({ periods: PERIODS, costs: COSTS,
+writeFileSync(join('backtest', 'stock-gap-results.json'), JSON.stringify({ periods: PERIODS, costs: COSTS, shortCosts: SHORT_COSTS,
   equityFit: primary.map(row => row.symbol), equityTransfer: reserve.map(row => row.symbol),
   coverage: [...ETFsData, ...stocks].map(row => ({ symbol: row.symbol, days: row.days.length })), etfs, shares }, null, 2) + '\n');
 console.log('Stock gap tests', etfs.rules, etfs.earlyPasses, shares?.rules ?? 0, shares?.earlyPasses ?? 0);

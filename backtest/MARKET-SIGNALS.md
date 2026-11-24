@@ -18,12 +18,12 @@ The best three-day fade returned +21.60% in the 2026 Binance replay, with a 22.3
 
 ## Stock and ETF tests
 
-The opening and late-session study grouped real eToro bid/ask quotes into regular 30-minute sessions. It tested entering after a large relative opening gap or after a large move by 15:30 New York time. Each trigger was compared with the asset's prior gap variation and SPY's contemporaneous move. A separate study used Cboe VIX, VIX9D and VIX3M closes observed before entering the following regular session. It tested equity ETF trades held one to ten sessions during volatility shocks and subsequent cooling.
+The opening and late-session study grouped real eToro bid/ask quotes into regular 30-minute sessions. It tested both directions after a large relative opening gap or after a large move by 15:30 New York time. Each trigger was compared with the asset's prior gap variation and SPY's contemporaneous move. Shorts sell on the bid, cover at a recorded ask, and apply a CFD charge, slippage and an overnight borrow allowance. The short study uses timed exits because the archived sample contains opening asks but lacks intrabar ask ranges. A separate study used Cboe VIX, VIX9D and VIX3M closes observed before entering the following regular session. It tested equity ETF trades held one to ten sessions during volatility shocks and subsequent cooling.
 
 | Research | Rules | Outcome |
 | --- | ---: | --- |
 | Crypto cross-market diffusion | 240 | Positive leads and venue checks shown above. Zero early qualifiers. |
-| Cash equity gaps and late moves | 48 ETF rules plus 48 individual-stock rules | Zero early qualifiers. The individual-stock results use the verified sessions available in the report. |
+| Equity gaps and late moves | 96 ETF rules plus 96 individual-stock rules | Zero early qualifiers. The sample included four ETFs and nine individual stocks. |
 | Cboe volatility inputs on equity ETF trades | 64 | Zero early qualifiers across the six discovery ETFs. |
 
 Samples are ordered chronologically. The two earlier windows choose fixed rules before measurement on later data, with separate receiving assets and venue pricing where available. Cash-stock legs use actual historical opening ask and bid quotes. Crypto stop and execution costs are modeled. The historical dataset overlaps earlier Tideframe research, so future observations are still needed.
