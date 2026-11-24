@@ -242,7 +242,7 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
   const contexts: Partial<Record<ContextFactor, number>> = {};
   const stats = { tried: 0, validated: 0, uniquePairs: 0, contexts, exactRepeats: 0, similar: 0 };
   report.generation = stats;
-  const supported: ContextFactor[] = pair.market === 'stocks' ? ['sector','earnings'] : ['fundingChange','openInterest'];
+  const supported: ContextFactor[] = pair.market === 'stocks' ? ['sector','earnings'] : ['venueFunding','binanceInterest'];
   const early = bars.slice(WARMUP, cut);
   const covered = (rows: SearchBar[], f: ContextFactor) => rows.filter(b => Number.isFinite(b[f])).length >= .95 * rows.length;
   const factors = supported.filter(f => covered(early, f));

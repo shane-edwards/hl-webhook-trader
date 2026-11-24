@@ -89,7 +89,8 @@ export async function processResearchStep(db: Db) {
       : finishResearch(run.market, run.kind, run.as_of, work);
     const noData = work.every(item => item.problem);
     // Save experiment fingerprints atomically with the report, outside the user-facing report payload.
-    const experiments = work.filter(s => s.experiments?.length).map(s => ({ symbol: s.symbol, experiments: s.experiments, discoveryThrough: s.discoveryThrough }));
+    const experiments = work.filter(s => s.experiments?.length || s.positioning?.length)
+      .map(s => ({ symbol: s.symbol, experiments: s.experiments, discoveryThrough: s.discoveryThrough, positioning: s.positioning }));
     const finished = await save({ status: noData ? 'failed' : 'completed', cursor: run.plan.length, work: experiments, report,
       detail: noData ? 'Research did not receive usable market data.' : report.summary, completed_at: new Date().toISOString() });
     if (finished && (noData || work.some(item => item.problem))) {

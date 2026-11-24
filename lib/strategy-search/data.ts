@@ -11,6 +11,7 @@ import type { EtoroClient } from '@/lib/stocks/etoro';
 import { BAR_MS, searchKey, type Experiment, type ForwardBook, type SearchBar, type SearchPair } from './model';
 import { attachContext, stockContext, type DailyContext, type EpsFact } from './context';
 import { positioningContext } from './crypto-context';
+import { archivePositioning, type PositionDay } from './positioning';
 import { advanceForward, checkPerpVenue, searchHistory } from './engine';
 
 type Db = ReturnType<typeof createServiceClient>;
@@ -167,17 +168,26 @@ async function perpetualBars(pair: SearchPair, now: number): Promise<SearchBar[]
 
 export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: string) {
   const now = Date.parse(asOf);
-  const [last, history, context] = await Promise.all([
+  async function loadPositioning() {
+    if (pair.market !== 'crypto') return { context:new Map() as DailyContext, tail:undefined };
+    const { data, error } = await db.from('automation_runs').select('tail:work->0->positioning')
+      .eq('user_id',user).eq('market','crypto').eq('kind','focused').eq('status','completed')
+      .like('idea_id',`search:crypto:${pair.symbol}:%`).not('work->0->positioning','is',null)
+      .order('completed_at',{ascending:false}).limit(1).maybeSingle();
+    if (error) throw new Error('Could not read positioning history.');
+    return archivePositioning(pair.symbol,now,(data?.tail ?? []) as unknown as PositionDay[]);
+  }
+  const [last, history, positioning] = await Promise.all([
     db.from('automation_runs').select('books:report->data->search->forward,experiments:work->0->experiments,cutoff:work->0->discoveryThrough').eq('user_id', user)
       .eq('market', pair.market).eq('kind', 'focused').eq('idea_id', searchKey(pair)).eq('status', 'completed')
       .order('completed_at', { ascending: false }).limit(8),
     pair.market === 'stocks' ? stockHistory(db, user, pair, now) : binanceArchive(pair, now),
-    pair.market === 'crypto' ? positioningContext(pair.symbol, now) : new Map() as DailyContext,
+    loadPositioning(),
   ]);
   if (last.error) throw new Error('Could not read frozen forward strategies.');
   const previous = (last.data[0]?.books ?? []) as unknown as ForwardBook[];
   if (!Array.isArray(previous)) throw new Error('Invalid forward simulation checkpoint.');
-  if (pair.market === 'crypto') attachContext(history, context);
+  if (pair.market === 'crypto') attachContext(history, positioning.context);
   const discoveryThrough = history[Math.floor(history.length * .44) - 1]?.t ?? 0;
   const archive = last.data.flatMap(r => Number(r.cutoff) <= discoveryThrough && Array.isArray(r.experiments) ? r.experiments : []) as unknown as Experiment[];
   const experiments: Experiment[] = [];
@@ -185,8 +195,12 @@ export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: st
     { previous: archive, record: experiments });
   let forwardBars = history;
   if (pair.market === 'crypto' && (report.verdict === 'paper-candidate' || previous.some(b => b.state === 'tracking' || b.state === 'data-gap'))) {
-    forwardBars = attachContext(await perpetualBars(pair, now), context);
+    forwardBars = attachContext(await perpetualBars(pair, now), positioning.context);
+    // Preserve the data source of any frozen rule from the original Bybit release.
+    if (previous.some(b => ['tracking','data-gap'].includes(b.state) && ['fundingChange','openInterest'].includes(b.rule.recipe?.context ?? '')))
+      attachContext(forwardBars, await positioningContext(pair.symbol,now));
     report = checkPerpVenue(report, forwardBars);
   }
-  return { search: { ...report, forward: advanceForward(report, previous, forwardBars, Date.now()) }, experiments, discoveryThrough };
+  return { search: { ...report, forward: advanceForward(report, previous, forwardBars, Date.now()) }, experiments, discoveryThrough,
+    positioning:positioning.tail };
 }

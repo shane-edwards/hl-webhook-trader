@@ -9,7 +9,7 @@ export const RECOMMENDATION_FRESH_MS = 4 * 86_400_000;
 export const BAR_MS = { '5m': 300_000, '15m': 900_000, '30m': 1_800_000, '1h': 3_600_000, '4h': 14_400_000, '1d': 86_400_000 } as const;
 export type SearchFrame = keyof typeof BAR_MS;
 export type SearchMarket = 'stocks' | 'crypto';
-export const searchRevision = (market: SearchMarket) => market === 'crypto' ? SEARCH_REVISION + 1 : SEARCH_REVISION;
+export const searchRevision = (market: SearchMarket) => market === 'crypto' ? SEARCH_REVISION + 2 : SEARCH_REVISION;
 export const SEARCH_FRAMES = { stocks: ['5m', '30m', '1d'], crypto: ['5m', '15m', '1h', '4h', '1d'] } as const;
 export const SEARCH_ASSETS = {
   stocks: STOCK_TRADE_SYMBOLS,
@@ -47,7 +47,7 @@ export const TRIGGERS = {
   thrust: 'strong close near the high', pivot: 'confirmed swing-high break', reclaim: 'ten-bar mean reclaim',
   acceleration: 'accelerating two-bar advance', outside: 'bullish outside bar',
 } as const;
-export type ContextFactor = 'sector' | 'earnings' | 'fundingChange' | 'openInterest';
+export type ContextFactor = 'sector' | 'earnings' | 'fundingChange' | 'openInterest' | 'venueFunding' | 'binanceInterest';
 export type Recipe = { setup: keyof typeof SETUPS; trigger: keyof typeof TRIGGERS; within: number; context?: ContextFactor };
 export type Experiment = { key: string; entries: number; sketch: number[]; fitness: number | null };
 export type SearchSide = 'long' | 'short';
@@ -67,7 +67,8 @@ export function ruleName(rule: Rule) {
   if (rule.family !== 'sequence') return FAMILIES[rule.family];
   const short = rule.side === 'short';
   const context = { sector: short ? 'sector laggard' : 'sector leader', earnings: short ? 'falling quarterly EPS' : 'rising quarterly EPS',
-    fundingChange: short ? 'rising funding' : 'falling funding', openInterest: 'rising open interest' };
+    fundingChange: short ? 'rising Bybit funding' : 'falling Bybit funding', openInterest: 'rising Bybit open interest',
+    venueFunding: short ? 'rising Hyperliquid funding' : 'falling Hyperliquid funding', binanceInterest: 'rising Binance open interest' };
   const name = `${(short ? SHORT_SETUPS : SETUPS)[rule.recipe.setup]} → ${(short ? SHORT_TRIGGERS : TRIGGERS)[rule.recipe.trigger]}`;
   return rule.recipe.context ? `${name} · ${context[rule.recipe.context]}` : name;
 }

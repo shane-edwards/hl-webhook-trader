@@ -59,7 +59,9 @@ export function sequenceFeatures(bars: SearchBar[], atr: number[], side: SearchS
       while (index + 1 < context.length && context[index + 1] < i) index++;
       if (recipe.context) {
         const value = bars[i][recipe.context];
-        const sign = recipe.context === 'openInterest' ? 1 : (side === 'long' ? 1 : -1) * (recipe.context === 'fundingChange' ? -1 : 1);
+        const interest = recipe.context === 'openInterest' || recipe.context === 'binanceInterest';
+        const funding = recipe.context === 'fundingChange' || recipe.context === 'venueFunding';
+        const sign = interest ? 1 : (side === 'long' ? 1 : -1) * (funding ? -1 : 1);
         if (value === undefined || !(sign * value > 0)) return false;
       }
       return i >= 110 && index >= 0 && i - context[index] <= recipe.within;
