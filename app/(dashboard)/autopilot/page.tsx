@@ -27,7 +27,7 @@ interface Evidence {
 interface StrategyInfo { id: string; name: string; style: string; description: string; horizon: string; evidence: Evidence[] }
 interface Position {
   id: string; symbol: string; strategy_id: string; side: 'long' | 'short'; status: 'open' | 'closed';
-  entry_price: number; notional_usd: number; stop_price: number; entry_time: string; entry_reason: string | null;
+  recovery_pending?: boolean; entry_price: number; notional_usd: number; stop_price: number; entry_time: string; entry_reason: string | null;
   exit_price: number | null; exit_time: string | null; exit_reason: string | null; pnl: number | null;
 }
 interface EventRow { id: string; mode: string; level: 'info' | 'trade' | 'warn' | 'error'; symbol: string | null; message: string; created_at: string }
@@ -427,17 +427,17 @@ export default function AutopilotPage() {
                       {(data.positions ?? []).map(p => {
                         const isOpen = p.status === 'open';
                         const price = data.prices?.[p.symbol];
-                        const live = isOpen ? unrealised(p, price) : null;
+                        const live = isOpen && !p.recovery_pending ? unrealised(p, price) : null;
                         const pnl = isOpen ? live?.usd ?? null : p.pnl == null ? null : Number(p.pnl);
                         return (
                           <tr key={p.id}>
-                            <td><span className="font-medium text-foreground">{p.symbol}</span>{isOpen && <Badge variant="open" className="ml-2 text-[10px] py-0">OPEN</Badge>}</td>
+                            <td><span className="font-medium text-foreground">{p.symbol}</span>{isOpen && <Badge variant={p.recovery_pending ? 'warning' : 'open'} className="ml-2 text-[10px] py-0">{p.recovery_pending ? 'RECOVERING' : 'OPEN'}</Badge>}</td>
                             <td className="text-xs text-muted-foreground whitespace-nowrap">{strategyName(p.strategy_id)}</td>
                             <td className={p.side === 'long' ? 'text-profit' : 'text-loss'}>{p.side}</td>
                             <td className="num hidden sm:table-cell">{formatCurrency(Number(p.notional_usd), 0)}</td>
                             <td className="num">${formatPrice(Number(p.entry_price))}</td>
                             <td className="num">{isOpen ? (price ? `$${formatPrice(price)}` : '—') : <span className="text-muted-foreground">${formatPrice(Number(p.exit_price ?? 0))}</span>}</td>
-                            <td className="num text-muted-foreground hidden lg:table-cell">{!isOpen || !Number(p.stop_price) ? '—' : `$${formatPrice(Number(p.stop_price))}`}</td>
+                            <td className="num text-muted-foreground hidden lg:table-cell">{!isOpen || p.recovery_pending || !Number(p.stop_price) ? '—' : `$${formatPrice(Number(p.stop_price))}`}</td>
                             <td className="hidden xl:table-cell text-xs text-muted-foreground max-w-[240px] truncate">{isOpen ? p.entry_reason : p.exit_reason}</td>
                             <td className={cn('num whitespace-nowrap', pnl == null ? 'text-muted-foreground' : pnl >= 0 ? 'text-profit' : 'text-loss')}>
                               {pnl == null ? '—' : formatCurrency(pnl)}

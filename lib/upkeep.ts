@@ -1,3 +1,4 @@
+import { closeUnverifiedEntry } from '@/lib/autopilot/recovery';
 import { APP_NAME } from '@/lib/brand';
 import { haltAndFlatten } from '@/lib/risk/flatten';
 import { withTradingLock } from '@/lib/trading-lock';
@@ -111,6 +112,14 @@ async function runFastPassLocked(hl: HyperliquidClient, db: Db, settings: Settin
   };
   const slippage = Number(settings.slippage_percent ?? 2);
 
+  await step('Autopilot recovery', async () => {
+    const pending = await db.from('autopilot_positions').select('symbol, side, account_resource')
+      .eq('user_id', userId).eq('mode', 'live').eq('status', 'open').eq('recovery_pending', true);
+    if (pending.error) throw new Error(pending.error.message);
+    for (const row of pending.data) {
+      if (await closeUnverifiedEntry(hl, db, userId, row, slippage)) out.notes.push(`${row.symbol} recovery verified flat; settlement pending`);
+    }
+  });
   await step('limit orders', async () => {
     for (const e of await managePending(hl, db, userId, now, { slippagePercent: slippage })) (e.level === 'error' ? out.errors : out.notes).push(e.message);
   });

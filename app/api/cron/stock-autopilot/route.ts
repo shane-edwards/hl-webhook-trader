@@ -15,17 +15,14 @@ export async function GET(request: Request) {
   if (!clock.open) return NextResponse.json({ scanned: 0, market: 'closed' });
 
   const db = createServiceClient();
-  const [config, positions, automation] = await Promise.all([
-    db.from('stock_autopilot').select('*').order('last_run_at', { nullsFirst: true }),
-    db.from('etoro_stock_orders').select('user_id').or('signal_day.not.is.null,strategy_exit_at.not.is.null,protection_state.in.(unverified,exit_required)').is('closed_at', null).not('state', 'in', '(draft,rejected)'),
-    db.from('automation_profiles').select('user_id').eq('market', 'stocks').neq('mode', 'research').eq('enabled', true),
-  ]);
-  if (config.error || positions.error) return NextResponse.json({ error: 'Could not read stock Autopilot queue' }, { status: 503 });
-  const settings = new Map<string, StockAutoConfig>((config.data ?? []).map(row => [row.user_id, row]));
-  const users = new Set<string>(positions.data?.map(row => row.user_id));
-  for (const [userId, row] of settings) if (row.active_environment) users.add(userId);
-  for (const profile of automation.data ?? []) users.add(profile.user_id);
-  const results = await Promise.allSettled([...users].slice(0, 2).map(async userId => {
+  const claim = await db.rpc('claim_stock_scan_accounts');
+  if (claim.error) return NextResponse.json({ error: 'Could not claim stock accounts' }, { status: 503 });
+  const users = (claim.data ?? []) as string[];
+  if (!users.length) return NextResponse.json({ scanned: 0, failed: 0 });
+  const config = await db.from('stock_autopilot').select('*').in('user_id', users);
+  if (config.error) return NextResponse.json({ error: 'Could not read stock settings' }, { status: 503 });
+  const settings = new Map<string, StockAutoConfig>(config.data.map(row => [row.user_id, row]));
+  const results = await Promise.allSettled(users.map(async userId => {
     const initial = settings.get(userId);
     let user = initial;
     let message: string;

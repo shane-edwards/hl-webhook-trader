@@ -1,3 +1,4 @@
+import { withWalletChange } from '@/lib/wallet/change';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { accountResource, withTradingLock } from '@/lib/trading-lock';
 import { NextResponse } from 'next/server';
@@ -184,6 +185,7 @@ export async function PUT(request: Request) {
   const autoChange = Object.keys(update).some(field => field.startsWith('autopilot_'));
   const walletChange = ['is_testnet', 'hl_wallet_address', 'hl_private_key_encrypted'].some(field => field in update);
   let expectedVersion: string | null = null;
+  let previousWallet: Parameters<typeof withWalletChange>[2] | undefined;
   if (autoChange || walletChange) {
     const { data: current, error } = await serviceClient.from('settings').select('*').eq('user_id', user.id).single();
     if (error || !current) return bad('Could not verify the current Autopilot settings');
@@ -192,12 +194,7 @@ export async function PUT(request: Request) {
     expectedVersion = current.updated_at;
     if (autoChange && body.expectedAutopilotMode !== expectedMode) return bad('Autopilot mode changed. Refresh and review again.');
     const exchangeChanged = walletChange && ['is_testnet', 'hl_wallet_address', 'hl_private_key_encrypted'].some(key => key in update && update[key] !== current[key]);
-    if (exchangeChanged) {
-      const open = await serviceClient.from('autopilot_positions').select('id').eq('user_id', user.id).eq('mode', 'live').eq('status', 'open').limit(1);
-      if (open.error) return bad('Could not verify live Autopilot positions');
-      if (open.data.length) return bad('Close managed Autopilot positions before changing the exchange connection');
-      if (expectedMode === 'live' && current.autopilot_enabled) return bad('Pause Live Autopilot before changing the exchange connection');
-    }
+    if (exchangeChanged) previousWallet = current;
     const ruleChange = Object.keys(update).some(field => field.startsWith('autopilot_') && !['autopilot_enabled', 'autopilot_mode'].includes(field));
     if (cfg.mode !== expectedMode || (expectedMode === 'live' && ruleChange)) {
       update.autopilot_enabled = false;
@@ -219,7 +216,11 @@ export async function PUT(request: Request) {
     .update(update)
     .eq('user_id', user.id);
   if (expectedVersion) query = query.eq('updated_at', expectedVersion);
-  const { data, error } = await query.select().single();
+  const save = async () => query.select().single();
+  const result = await (previousWallet ? withWalletChange(serviceClient, user.id, previousWallet, save) : save())
+    .catch(problem => ({ data: null, error: { code: 'wallet', message: problem instanceof Error ? problem.message : 'Wallet change failed' } }));
+  const { data, error } = result;
+  if (error?.code === 'wallet') return bad(error.message);
 
   if (error) {
     if (expectedVersion && error.code === 'PGRST116') return bad('Trading settings changed. Refresh and try again.');

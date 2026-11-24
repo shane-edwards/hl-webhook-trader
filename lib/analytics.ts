@@ -56,7 +56,7 @@ export function calculateAnalytics(trades: Trade[]): TradeStats {
     profitFactor: grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0,
     expectancy: closed.length ? totalPnl / closed.length : 0,
     avgWin, avgLoss, avgWinLossRatio: avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0,
-    largestWin: wins.length ? Math.max(...wins) : 0, largestLoss: losses.length ? Math.min(...losses) : 0,
+    largestWin: wins.reduce((max, value) => Math.max(max, value), 0), largestLoss: losses.reduce((min, value) => Math.min(min, value), 0),
     maxConsecutiveWins: maxWins, maxConsecutiveLosses: maxLosses,
     avgTradeDurationHours: durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length / 3600 : 0,
     totalFees: closed.reduce((a, t) => a + Number(t.fees ?? 0), 0),

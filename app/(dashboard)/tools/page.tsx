@@ -1,3 +1,4 @@
+import { SignOutButton } from '@/components/layout/Sidebar';
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -20,6 +21,7 @@ const groups = [
 
 export default function ToolsPage() {
   return <><Header /><div className="mx-auto max-w-6xl p-4 lg:p-8 grid gap-4 md:grid-cols-2">
+    <div className="lg:hidden md:col-span-2"><SignOutButton /></div>
     {groups.map(group => <section key={group.name} className="surface p-4 lg:p-5 self-start">
       <h2 className="font-semibold mb-2">{group.name}</h2>
       <ul className="divide-y divide-border">{group.links.map(link => <li key={link.href}>

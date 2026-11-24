@@ -4,11 +4,11 @@ Market research and strategy automation for Hyperliquid crypto perps and US stoc
 
 ## US Stocks and eToro
 
-Open **US Stocks → eToro account** and connect an eToro Demo or Real key pair with Read access. Keys are verified before they replace an existing connection, and are encrypted in each user's own server-only record. The connection reads eToro data and does not expose order endpoints. Apply `009_etoro_connections.sql` before deploying. Where `hl-autopilot` already exists, the migration also schedules weekday stock discovery at 15:00 UTC with two follow-up slots for other accounts. Set an identifying contact in `SEC_USER_AGENT` when operating the SEC filing client.
+Open **Tools and settings → eToro connections** and connect the key pair for the intended Demo or Real account. Read permission supports market research and portfolio views. Submitting or closing orders also requires Write permission for that environment. Tideframe verifies the connection and encrypts its credentials in a server-only record. Set an identifying contact in `SEC_USER_AGENT` for the SEC filing client. [eToro key permissions](https://api-portal.etoro.com/getting-started/authentication)
 
 **Discover** scans 12 selected US stocks. Its 100-point grade combines technical and relative strength (against SPY), market risk, spread and annual SEC filing metrics. Expand a result to see every factor, its score and data coverage. Strong buy also requires a recent quote, acceptable spread, positive SPY-relative performance and annual filing coverage. The scores are research rankings. Annual point-in-time figures support the current screen and are not used by the historical technical strategy replay.
 
-**Simulate** tests two native technical strategies with no TradingView input. Signals are evaluated on completed daily candles and filled on the next session's opening bid or ask with configurable extra slippage and commission. The final 30% starts flat, is reported separately and is replayed with doubled additional costs. Results use the broker's price series and exclude dividends. The stock strategies are research-only. Crypto Autopilot and the market scanner already run natively on Hyperliquid and retain their own execution controls.
+**Simulate** tests two native technical strategies with no TradingView input. Signals are evaluated on completed daily candles and filled on the next session's opening bid or ask with configurable extra slippage and commission. The final 30% starts flat, is reported separately and is replayed with doubled additional costs. Results use the broker's price series and exclude dividends. Supported stock strategies have separate manual and Autopilot order controls. Confirm the Demo or Real environment when reviewing an order.
 
 **Intraday research** compares five fixed opening, VWAP, and SPY momentum rules on five-minute eToro candles. It separates the regular New York session from extended hours, reports historical results across three chronological periods, and replays recent data on demand. See [the research protocol](backtest/STOCK-INTRADAY.md).
 
@@ -69,7 +69,7 @@ npm install
 ### 2. Create a Supabase project
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Go to **SQL Editor** and run the migrations in order from `001_initial.sql` through `009_etoro_connections.sql` (all in `supabase/migrations/`)
+2. Enable pg_cron and pg_net. Apply the numbered files in `supabase/migrations/` in order. After 004, configure the authenticated `hl-autopilot` job using its example before continuing. Later migrations derive their job definitions from that job. The current final migration is `022_execution_recovery.sql`. It links older open Live positions to their original wallet when a matching confirmed exchange order is available. If an older position has no verified wallet, review its original Hyperliquid fill and account before setting its `account_resource` to `mainnet:<lowercase address>` or `testnet:<lowercase address>` in Supabase. A disconnected account with verified open positions can reconnect its original wallet.
 3. Copy your project URL, anon key, and service role key
 
 ### 3. Environment variables
@@ -155,30 +155,28 @@ Add all environment variables from `.env.local` to your Vercel project settings.
 
 The autopilot looks at each market you list, on completed hourly candles, and trades when a strategy's rule fires and the risk limits allow it.
 
-**Strategies and the live gate.** The rules live in `lib/autopilot/strategies.ts`; the same code is backtested by `npm run backtest:autopilot`, which writes [`backtest/AUTOPILOT.md`](backtest/AUTOPILOT.md) and `lib/autopilot/evidence.json`. A strategy may trade real money only if that evidence shows it profitable in both 2020–2022 and 2023+, with an average trade that clears costs by more than 15 basis points. Today one of six variants passes (trend breakout, long only). The two short-horizon, scalp-style rules lost money after fees and are locked to paper mode. The gate is code, not a setting.
+**Live approval depends on the workflow.** Automation Center requires qualifying research and a qualifying paper record for the approved version. Crypto paper entries use a current order book, and only entries recorded with that pricing count toward live qualification. Existing paper history remains visible. In the standalone Crypto Autopilot, older live configurations retain their historical evidence limits. Explicitly confirming Start live permits the selected experimental rules as well. Review the strategy list, network, and risk settings in the confirmation dialog.
 
 **Scalping search.** `npm run backtest:scalp` tests 517 short-term configurations in five families on 15-minute data, selecting on 2020–2024 and checking once on 2025 onward. None passed, with or without fees; see [`backtest/SCALPING.md`](backtest/SCALPING.md). No scalping strategy has been added to the autopilot for that reason. The search is there to test new ideas the same way.
 
 **Other studies.** [`backtest/UNIVERSE.md`](backtest/UNIVERSE.md) tests the eligible strategy on 22 coins and 16 cross-coin ranking rules. [`backtest/POPULAR.md`](backtest/POPULAR.md) tests eight strategies taken from TradingView's public community scripts plus the common indicator strategies (26 variants). The pattern across all of them: long-only trend rules made money through 2024 and nothing in 2025–2026, when the market fell.
 
-**MACD trend, 4-hour (paper only, on probation).** Buys when MACD crosses up above the 200-period average on 4-hour bars, shorts the opposite cross below it, exits when MACD crosses back. Its backtest passes the live gate, but it was chosen after its recent results were known, so that backtest is not an independent test. It stays on paper until it has a track record.
+**MACD trend and cross-coin momentum** carry experimental labels. MACD trades a four-hour crossover with a 200-period filter. The weekly momentum basket ranks coins by 90-day return and holds long and short positions. Their research results influenced their selection. Both can be selected explicitly in standalone Crypto Autopilot.
 
-**Cross-coin momentum (paper only).** Once a week it ranks 19 large coins by 90-day return and holds the strongest quarter long and the weakest quarter short in equal size. It was the one ranking rule that held up on unseen data, which may be luck, so it cannot trade real money. Select it on the Autopilot page to start a paper record.
-
-**Long and short.** "Allow shorts" is on by default. On paper every selected strategy may short. With real money a strategy shorts only if its long-and-short version passed the gate; otherwise it trades long-only.
+**Long and short.** The standalone Autopilot uses the selected direction setting for Paper and explicitly confirmed live rules. Older live configurations retain their evidence-based direction checks.
 
 **Risk rules** (all adjustable on the Autopilot page):
 - Position size is set so a stopped-out trade loses a fixed share of equity (default 0.5%), capped at a leverage limit per position.
-- Every live position gets a stop-loss on the exchange. If the stop cannot be placed, the position is closed immediately.
+- Every live position gets a stop-loss on the exchange. If the stop cannot be verified, the worker attempts a close and keeps the position in recovery until the exchange confirms the outcome.
 - A cap on simultaneous positions, a daily loss limit that blocks new entries until the next UTC day, and a drawdown limit that pauses the autopilot until you reset it.
 - It never touches a position it did not open, and it skips the market the built-in daily strategy is trading.
 
 **Paper mode** (the default) runs the identical logic on live prices and records what it would have done, with fees charged, starting from $10,000. It needs no wallet.
 
 **To run it:**
-1. Run `supabase/migrations/004_autopilot.sql`.
+1. Complete the database setup through migration 022, including the scheduler configuration after 004.
 2. Set `CRON_SECRET` in Vercel.
-3. Schedule the scan. Vercel's free plan only allows daily cron jobs, so use Supabase: the last section of `004_autopilot.sql` has a ready-made `pg_cron` statement that calls `/api/cron/autopilot` every five minutes. (On Vercel Pro you can add it to `vercel.json` instead.)
+3. Verify that the Supabase job `hl-autopilot` calls `/api/cron/autopilot` every five minutes.
 4. Open **Autopilot**, choose markets and strategies, and switch it on. Leave it on Paper until its record matches the backtest.
 
 "Scan now" on the page runs one pass immediately, in whichever mode is selected.
@@ -187,17 +185,20 @@ The autopilot looks at each market you list, on completed hourly candles, and tr
 
 ## Scheduled jobs and database migrations
 
-Run the files in `supabase/migrations/` in order from 001 through 009 before deploying. Trading writes require the coordination functions in 008. The US Stocks connection and weekday scans use 009.
+Apply all numbered migrations before deploying the matching app. Migration 022 adds durable live-entry recovery, wallet-change guards, stock exit attempts, and fair stock scan scheduling. An uncertain stock close keeps its broker reference for reconciliation. A confirmed rejection schedules another attempt with backoff.
 
 | Job | Endpoint | Scheduler | What it does |
 |---|---|---|---|
 | Trading scan | `/api/cron/autopilot` | Supabase `pg_cron`, every 5 minutes (see 004) | Autopilot, limit-order follow-up, moving managed stops, reconciling the trade log with the exchange, daily summary |
 | Market scan | `/api/cron/market` | Supabase `pg_cron`, every 5 minutes (see 006) | Trade ideas for every liquid market, alerts on changes, scoring earlier ideas |
-| Fast scan | `/api/cron/fast` | Supabase `pg_cron`, every 10 seconds, only while a trade, exit plan or resting entry is open (see 007) | Moves trailing and break-even stops, follows limit and chase entries, settles a trade the moment its position closes |
+| Fast scan | `/api/cron/fast` | Supabase `pg_cron`, every 10 seconds, while trades, pending orders, recovery or webhook jobs need attention (see 022) | Moves trailing and break-even stops, follows limit and chase entries, settles a trade the moment its position closes |
 | Daily strategy | `/api/cron/strategy` | Supabase `pg_cron`, daily (see 007) | The BTC trend strategy; also checks that the scans and the database are alive |
+| Stock discovery | `/api/cron/stocks` | Supabase weekday schedule | Refreshes stock research |
+| Stock Autopilot | `/api/cron/stock-autopilot` | Every two minutes during the configured US trading window | Claims accounts in rotation, giving overdue exits an earlier turn |
+| Opening shadow study | `/api/cron/stock-catalysts` | Supabase weekday schedule | Records opening-session observations |
+| Automation Center | `/api/cron/automation` | Supabase minute schedule | Processes scheduled research jobs |
 
-No Vercel cron jobs are used, so the free plan is enough. All four require `Authorization: Bearer $CRON_SECRET`. Each scan records a heartbeat and alerts if the other has not
-succeeded for 20 minutes.
+Check the installed jobs in Supabase after setup. Each HTTP job uses `Authorization: Bearer $CRON_SECRET`.
 
 ## Checking changes
 
@@ -225,7 +226,7 @@ Research results are not live features: the spot-first and funding-capture ideas
 
 ## Built-in BTC strategy (optional)
 
-A daily trend-following strategy that runs by itself on a Vercel Cron job — no TradingView required.
+A daily trend-following strategy that runs on a Supabase pg_cron schedule — no TradingView required.
 
 - **Rule:** long BTC in proportion to how many of its 50/100/150/200-day moving averages it is above, sized to a volatility target (default 40% annualised), capped at a max leverage (default 2x), flat when below all four.
 - **Backtest:** [`backtest/RESULTS.md`](backtest/RESULTS.md), 2014 → today, with fees, slippage, real Hyperliquid funding and intraday liquidation checks. Read it before enabling anything. It has losing years and a ~40% historical drawdown at the defaults. **It is not a guarantee of profit; nothing is.**
@@ -233,9 +234,9 @@ A daily trend-following strategy that runs by itself on a Vercel Cron job — no
 
 To enable:
 
-1. Run migration `002_strategy_and_hardening.sql`.
-2. Set a `CRON_SECRET` env var in Vercel (any long random string). Vercel Cron sends it automatically; the endpoint refuses to run without it.
-3. Deploy. `vercel.json` schedules `/api/cron/strategy` at 00:10 UTC daily.
+1. Complete the database setup through migration 022. Migration 002 creates the daily strategy settings.
+2. Set `CRON_SECRET` on the app and configure the matching bearer token in the scheduler.
+3. Verify the `hl-strategy` Supabase job calls `/api/cron/strategy` at 00:10 UTC daily.
 4. In **Settings → Built-in BTC Trend Strategy**, turn it on. It starts in **dry run**: each day it logs what it would do without sending orders. Use **Preview today's decision** to check it any time.
 5. Run it in dry run, then on testnet, before turning dry run off on mainnet.
 
@@ -271,14 +272,14 @@ This software is for educational and personal use only. Trading cryptocurrencies
 
 ## Trading safety update
 
-Apply `supabase/migrations/008_trading_safety.sql` before deploying this version. The migration adds account execution leases, a shared signer nonce counter, durable exchange action records, a webhook queue, recovery state and per-user alerts. It extends the existing `hl-fast` schedule to wake for queued signals and account recovery. Verify that `hl-autopilot` exists before applying the scheduling block.
+The account coordination introduced in migration 008 adds account execution leases, a shared signer nonce counter, durable exchange action records, a webhook queue, recovery state and per-user alerts. It extends the existing `hl-fast` schedule to wake for queued signals and account recovery. Verify that `hl-autopilot` exists before applying the scheduling block.
 
 TradingView payloads now require `signal_id`. Use a unique value for each original alert and preserve it when retrying delivery. The example above combines TradingView's order ID and alert time. Plain alerts also need a unique ID. A successful webhook response is HTTP 202 after durable queue acceptance. Execution follows on the next fast scan, typically within ten seconds. Signals expire after three minutes in the queue. Duplicate delivery does not execute a second trade.
 
-The kill switch disables all automation, cancels entry orders, closes positions and verifies the account is flat. A failed recovery remains scheduled for another attempt. New exposure stays halted until **Settings → Account limits → Resume trading after account check** succeeds. That check requires a flat account with no resting entries. Enable the automation you want afterward.
+The Hyperliquid kill switch halts new live exposure on that account, cancels its entry orders, closes its positions and verifies the account is flat. A failed recovery remains scheduled for another attempt. New exposure stays halted until **Settings → Account limits → Resume trading after account check** succeeds. That check requires a flat account with no resting entries. Enable the automation you want afterward.
 
 Set alert destinations in the Account limits card. Topics, Telegram chat IDs and email recipients belong to each user. Deployment-level Telegram and email service credentials provide delivery. Existing global alert destinations receive operational messages. Account alerts use their saved user destinations.
 
 Daily entry limits use exchange equity history around UTC midnight, current account value and ledger cash movements. The baseline can precede midnight by up to one hour because the exchange samples its portfolio history. Missing or incomplete history blocks new exposure. Deposits and withdrawals are excluded from the loss calculation.
 
-Autopilot evidence has been regenerated using fixed coin quantities and reconciled trade and equity accounting. Newly qualifying short variants remain on paper pending forward validation. Paper risk includes open-position P&L, estimated closing costs and accrued exchange funding. The current historical study continues to show weak recent results for the live long-only strategy.
+Autopilot evidence has been regenerated using fixed coin quantities and reconciled trade and equity accounting. Automation Center checks version-specific forward evidence before Live approval. Paper risk includes open-position P&L, estimated closing costs and accrued exchange funding. The current historical study continues to show weak recent results for the live long-only strategy.

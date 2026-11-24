@@ -23,13 +23,16 @@ export async function GET(request: Request) {
   const supabase = createServiceClient();
   const webhookJobs = await processWebhookQueue();
 
-  const [plans, pending, open, recovery] = await Promise.all([
+  const [plans, pending, open, recovery, unprotected] = await Promise.all([
     supabase.from('position_plans').select('user_id').eq('status', 'active'),
     supabase.from('pending_orders').select('user_id').eq('status', 'resting'),
     supabase.from('trades').select('user_id').eq('status', 'open'),
     supabase.from('settings').select('user_id').eq('flatten_pending', true),
+    supabase.from('autopilot_positions').select('user_id').eq('mode', 'live').eq('status', 'open').eq('recovery_pending', true),
   ]);
-  const users = [...new Set([...(plans.data ?? []), ...(pending.data ?? []), ...(open.data ?? []), ...(recovery.data ?? [])].map(r => r.user_id as string))];
+  if ([plans, pending, open, recovery, unprotected].some(result => result.error))
+    return NextResponse.json({ error: 'Could not identify accounts needing upkeep' }, { status: 503 });
+  const users = [...new Set([...(plans.data ?? []), ...(pending.data ?? []), ...(open.data ?? []), ...(recovery.data ?? []), ...(unprotected.data ?? [])].map(r => r.user_id as string))];
   if (!users.length) return NextResponse.json({ ran: 0, webhookJobs });
 
   const { data: rows, error } = await supabase.from('settings').select('*').in('user_id', users);
@@ -37,11 +40,16 @@ export async function GET(request: Request) {
 
   let notes = 0, errors = 0;
   for (const settings of rows ?? []) {
-    const hl = (() => { try { return hlClientFromSettings(settings); } catch { return null; } })();
-    if (!hl) continue;
-    const r = await runFastPass(hl, supabase, settings);
-    notes += r.notes.length; errors += r.errors.length;
-    if (r.errors.length) console.error('[fast]', r.errors.join(' | '));
+    try {
+      const hl = hlClientFromSettings(settings);
+      if (!hl) { errors++; continue; }
+      const r = await runFastPass(hl, supabase, settings);
+      notes += r.notes.length; errors += r.errors.length;
+      if (r.errors.length) console.error('[fast]', r.errors.join(' | '));
+    } catch (error) {
+      errors++;
+      console.error('[fast]', error instanceof Error ? error.message : 'Account upkeep failed');
+    }
   }
   return NextResponse.json({ ran: rows?.length ?? 0, notes, errors, webhookJobs });
 }

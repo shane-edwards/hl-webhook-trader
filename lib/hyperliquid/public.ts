@@ -106,7 +106,8 @@ export interface Fill {
  */
 export async function getUserFills(address: string, startTime: number, isTestnet: boolean): Promise<{ fills: Fill[]; truncated: boolean }> {
   const raw = await info<Array<Record<string, unknown>> | null>({ type: 'userFillsByTime', user: address, startTime }, isTestnet);
-  const fills = (raw ?? []).map(f => ({
+  if (!Array.isArray(raw)) throw new Error('Exchange fill history is unavailable');
+  const fills = raw.map(f => ({
     coin: String(f.coin), px: num(f.px), sz: num(f.sz), time: num(f.time), oid: String(f.oid ?? ''),
     dir: String(f.dir ?? ''), closedPnl: num(f.closedPnl), fee: num(f.fee),
   })).sort((a, b) => a.time - b.time);

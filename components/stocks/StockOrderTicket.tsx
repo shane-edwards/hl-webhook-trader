@@ -18,7 +18,7 @@ import { frameNames, StrategySearch } from '@/components/journey/StrategySearch'
 import { SEARCH_FRAMES, type SearchFrame } from '@/lib/strategy-search/model';
 
 export type StockEnvironment = 'demo' | 'real';
-type Order = { id: string; symbol: string; state: string; broker_order_id: number | null; strategy_exit_at?: string | null; closed_at?: string | null; leverage?: StockLeverage; protection_state?: string | null };
+type Order = { close_attempts?: Record<string, { state: string; retryAt?: number; detail?: string }>; id: string; symbol: string; state: string; broker_order_id: number | null; strategy_exit_at?: string | null; closed_at?: string | null; leverage?: StockLeverage; protection_state?: string | null };
 type Cost = { costType: string; value: number; currency: string };
 type Review = { review: Order; amount: number; ask: number; name: string; signal?: string; costs: Cost[];
   leverage: StockLeverage; exposure: number; stopPrice: number | null; estimatedStopLoss: number | null };
@@ -256,6 +256,9 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
           <h3 className="text-sm font-semibold">Recent orders</h3>
           {orders.map(order => <div key={order.id} className="flex items-center flex-wrap justify-between gap-2 text-sm">
             <span>{order.symbol} {order.leverage && order.leverage > 1 ? `· ${order.leverage}× CFD ` : ''}· {order.closed_at ? 'Closed' : statusLabel[order.state] ?? order.state}{order.broker_order_id ? ` · #${order.broker_order_id}` : ''}
+              {!order.closed_at && Object.entries(order.close_attempts ?? {}).map(([id, attempt]) =>
+                <span key={id} className="block text-xs text-muted-foreground">Position {id} · Exit {attempt.state}
+                  {attempt.retryAt && ` · Next retry ${nyTime.format(new Date(attempt.retryAt))} ET`}{attempt.detail && ` · ${attempt.detail}`}</span>)}
               {order.protection_state === 'exit_required' && !order.closed_at && <span className="block text-xs text-loss">Stop unconfirmed · Tideframe is checking the position for closure</span>}
               {order.strategy_exit_at && !order.closed_at && order.state !== 'rejected' && <span className="block text-xs text-muted-foreground">Exit scheduled for {nyTime.format(new Date(order.strategy_exit_at))} ET</span>}
             </span>

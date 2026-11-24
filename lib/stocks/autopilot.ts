@@ -17,7 +17,8 @@ export type StockAutoConfig = {
   user_id: string; symbol: StockTradeSymbol; strategy: StockTradeRule; amount: number; active_environment: StockEnvironment | null; updated_at: string;
   leverage: StockLeverage; stop_margin_pct: number | null; portfolio?: StockPortfolio | null; automation_version?: string | null;
 };
-type AutoOrder = { id: string; environment: StockEnvironment; connection_version: string; state: string; position_ids: number[]; request: StockOrder; strategy: StockTradeRule; signal_day: string | null; strategy_exit_at: string | null; updated_at: string; close_requests: Record<string, string>; protection_state: string | null; close_execution?: Record<string, StockJournalClose> };
+type CloseAttempt = { state: 'uncertain' | 'submitted' | 'rejected' | 'filled'; count: number; retryAt?: number; detail?: string };
+type AutoOrder = { id: string; environment: StockEnvironment; connection_version: string; state: string; position_ids: number[]; request: StockOrder; strategy: StockTradeRule; signal_day: string | null; strategy_exit_at: string | null; updated_at: string; close_requests: Record<string, string>; close_attempts?: Record<string, CloseAttempt>; protection_state: string | null; close_execution?: Record<string, StockJournalClose> };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any, any, any>;
 
@@ -39,7 +40,7 @@ export async function reconcileStockOrder(broker: EtoroClient, id: string, reque
 
 type AutoExecution = { decision: StockJournalQuote; submission: StockJournalQuote; costs: StockJournalCost[]; slipBps?: number; plannedNetBps?: number };
 export async function submitStockOrder(db: Db, broker: EtoroClient, userId: string, id: ReturnType<typeof randomUUID>, request: StockOrder, execution?: AutoExecution) {
-  const update = (patch: object) => db.from('etoro_stock_orders').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', userId).eq('id', id).eq('state', 'sending');
+  const update = (patch: object) => db.from('etoro_stock_orders').update({ updated_at: new Date().toISOString(), ...patch }).eq('user_id', userId).eq('id', id).eq('state', 'sending');
   if (execution) {
     const saved = await update({ decision_quote: execution.decision, submission_quote: execution.submission,
       estimated_costs: execution.costs, planned_slippage_bps: execution.slipBps ?? 3, planned_net_bps: execution.plannedNetBps ?? null }).select('id').maybeSingle();
@@ -269,9 +270,9 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
   }
 }
 
-async function manageStockOrder(db: Db, broker: EtoroClient, userId: string, row: AutoOrder, connectionVersion: string, previous: string, now: number,
+export async function manageStockOrder(db: Db, broker: EtoroClient, userId: string, row: AutoOrder, connectionVersion: string, previous: string, now: number,
   sharedBook?: ReturnType<EtoroClient['portfolio']>) {
-  const update = (patch: object) => db.from('etoro_stock_orders').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', userId).eq('id', row.id);
+  const update = (patch: object) => db.from('etoro_stock_orders').update({ updated_at: new Date().toISOString(), ...patch }).eq('user_id', userId).eq('id', row.id);
   if (row.state !== 'filled') {
     try {
       const { message, ...summary } = await reconcileStockOrder(broker, row.id, row.request);
@@ -292,15 +293,23 @@ async function manageStockOrder(db: Db, broker: EtoroClient, userId: string, row
     if (connectionVersion !== row.connection_version) return 'The key changed and the tracked position is missing. Check the original eToro account.';
     // A newly filled order can reach order history before the portfolio feed.
     if (now - Date.parse(row.updated_at) < 10 * 60_000) return 'Waiting for the filled position to appear in the portfolio';
-    await Promise.all(Object.entries(closeExecution).map(async ([id, closing]) => {
-      closeExecution[id] = await readStockCloseExecution(broker, row.request.instrumentId, id, closing).catch(() => closing);
-    }));
-    const saved = await update({ closed_at: new Date(now).toISOString(), close_execution: closeExecution });
-    if (saved.error) throw new Error('Could not finalize stock exits');
+    const attempts = { ...row.close_attempts };
+    for (const [id, reference] of Object.entries(row.close_requests)) {
+      if (attempts[id]?.state === 'rejected') continue;
+      const orderId = closeExecution[id]?.orderId ?? (await broker.stockOrderStatus(reference).catch(() => null))?.orderId;
+      if (!orderId) return 'Portfolio is flat. Waiting for eToro to resolve the exit reference.';
+      const receipt = closeExecution[id] ?? { orderId, quote: null };
+      closeExecution[id] = await readStockCloseExecution(broker, row.request.instrumentId, id, receipt);
+      if (!closeExecution[id].complete) return 'Portfolio is flat. Waiting for eToro exit execution details.';
+      attempts[id] = { state: 'filled', count: attempts[id]?.count ?? 1 };
+    }
+    const saved = await update({ closed_at: new Date(now).toISOString(), close_execution: closeExecution, close_attempts: attempts })
+      .eq('updated_at', row.updated_at).select('id').maybeSingle();
+    if (saved.error || !saved.data) throw new Error('Could not finalize stock exits');
     return 'Managed position closed';
   }
   // An unconfirmed stop triggers the existing exit workflow before applying the strategy's exit rules.
-  if (row.protection_state !== 'exit_required') {
+  if (row.protection_state !== 'exit_required' && !Object.keys(row.close_requests).length) {
     if (row.strategy_exit_at) {
       if (now < Date.parse(row.strategy_exit_at)) return 'Holding until the scheduled exit';
     } else if (row.signal_day && row.strategy !== 'earnings-rebound') {
@@ -312,31 +321,83 @@ async function manageStockOrder(db: Db, broker: EtoroClient, userId: string, row
       return 'Managed exit data is missing. Check the position in eToro.';
     }
   }
-  const [quote] = await broker.quotes([row.request.instrumentId]);
-  if (!freshStockAsk(quote, Date.now())) return 'Waiting for a real-time quote to send the exit';
+  let quotes: ReturnType<EtoroClient['quotes']> | undefined;
   const pending = { ...row.close_requests };
+  const attempts = { ...row.close_attempts };
+  const messages: string[] = [];
   let version = row.updated_at;
+  async function save() {
+    const next = new Date(Math.max(Date.now(), Date.parse(version) + 1)).toISOString();
+    const saved = await update({ close_requests: pending, close_attempts: attempts, close_execution: closeExecution,
+      updated_at: next }).eq('updated_at', version).select('updated_at').maybeSingle();
+    if (saved.error || !saved.data) throw new Error('Another scan is handling the exit or the exit journal is unavailable');
+    version = saved.data.updated_at;
+  }
+  function reject(id: number, detail: string, count: number) {
+    attempts[id] = { state: 'rejected', count, detail, retryAt: now + Math.min(30, 2 ** Math.min(count, 5)) * 60_000 };
+    messages.push(`eToro declined the exit for position ${id}. ${detail}. Retry scheduled.`);
+  }
   for (const position of positions) {
-    if (pending[position.id]) continue;
+    const id = position.id;
+    const previous = attempts[id];
+    if (pending[id] && previous?.state !== 'rejected') {
+      // An interrupted request (including a reference saved by older versions)
+      // is reconciled before another close can be submitted for this position.
+      let orderId: number | undefined = closeExecution[id]?.orderId;
+      if (!orderId) {
+        const lookup = await broker.stockOrderStatus(pending[id]).catch(() => null);
+        orderId = lookup?.orderId;
+      }
+      if (!orderId) { messages.push(`Exit submission unconfirmed for position ${id}. Check eToro; reconciliation continues.`); continue; }
+      const status = await broker.stockCloseStatus(orderId).catch(() => null);
+      if (!status || status.orderID !== orderId || status.instrumentID !== row.request.instrumentId ||
+          (status.positions?.length && !status.positions.some(item => item.positionID === id))) {
+        messages.push(`Exit submission unconfirmed for position ${id}. Waiting for broker status.`); continue;
+      }
+      closeExecution[id] ??= { orderId, quote: null };
+      if ([9, 10].includes(status.statusID)) {
+        // Preserve partial fills separately, since a retry receives a different broker order ID.
+        const partial = await readStockCloseExecution(broker, row.request.instrumentId, String(id), closeExecution[id]);
+        if (!partial.complete) { messages.push('Waiting for partial exit execution details.'); continue; }
+        closeExecution[`${id}:${orderId}`] = partial;
+        delete closeExecution[id];
+      }
+      if ([4, 7, 8, 9, 10].includes(status.statusID)) {
+        reject(id, `Broker status ${status.statusID}`, previous?.count ?? 1);
+      } else {
+        const filled = status.statusID === 3;
+        attempts[id] = { state: filled ? 'filled' : 'submitted', count: previous?.count ?? 1 };
+        messages.push(filled ? 'Exit filled. Waiting for portfolio confirmation.' : 'Exit submitted. Waiting for eToro execution.');
+      }
+      if (!previous || previous.state !== attempts[id].state || !row.close_execution?.[id]) await save();
+      continue;
+    }
+    if (previous?.retryAt && previous.retryAt > now) {
+      messages.push(`Exit retry scheduled for ${new Date(previous.retryAt).toISOString()}.`); continue;
+    }
+    quotes ??= broker.quotes([row.request.instrumentId]);
+    const quote = (await quotes).find(item => item.instrumentId === row.request.instrumentId);
+    if (!freshStockAsk(quote, Date.now())) { messages.push('Waiting for a real-time quote to send the exit'); continue; }
     const reference = randomUUID();
-    const next = new Date().toISOString();
-    pending[position.id] = reference;
-    const claim = await db.from('etoro_stock_orders').update({ close_requests: pending, updated_at: next }).eq('user_id', userId).eq('id', row.id).eq('updated_at', version).select('id').maybeSingle();
-    if (claim.error || !claim.data) return 'Another scan is handling the exit';
-    version = next;
+    const count = (previous?.count ?? 0) + 1;
+    pending[id] = reference;
+    attempts[id] = { state: 'uncertain', count };
+    delete closeExecution[id];
+    await save();
     try {
-      const receipt = await broker.closeStock(position.id, row.request.instrumentId, reference);
+      const receipt = await broker.closeStock(id, row.request.instrumentId, reference);
       const orderId = receipt.orderForClose?.orderID;
       if (orderId && Number.isSafeInteger(orderId)) {
-        const observed = quote?.ask && quote.bid ? journalQuote(quote.bid, quote.ask, quote.date) : null;
-        closeExecution[position.id] = { orderId, quote: observed };
-        await db.from('etoro_stock_orders').update({ close_execution: closeExecution }).eq('user_id', userId).eq('id', row.id).eq('updated_at', version);
-      }
+        closeExecution[id] = { orderId, quote: journalQuote(quote!.bid!, quote!.ask!, quote!.date) };
+        attempts[id] = { state: 'submitted', count };
+        messages.push('Exit submitted. Waiting for eToro execution.');
+      } else messages.push('Exit submission unconfirmed. Checking eToro.');
     } catch (error) {
-      // Preserve the durable request reference. A network error can happen after eToro accepted the order.
-      if (!(error instanceof EtoroError) || error.status >= 500) return 'Exit submission unconfirmed. Check the position in eToro.';
-      return `eToro declined the exit (HTTP ${error.status}). Check the position in eToro.`;
+      if (error instanceof EtoroError && [400, 401, 403, 404, 422, 429].includes(error.status))
+        reject(id, `HTTP ${error.status}`, count);
+      else messages.push('Exit submission unconfirmed. Checking eToro before retrying.');
     }
+    await save();
   }
-  return 'Exit sent or awaiting confirmation in eToro';
+  return [...new Set(messages)].join(' · ');
 }

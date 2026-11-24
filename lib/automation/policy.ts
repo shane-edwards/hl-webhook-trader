@@ -74,7 +74,7 @@ export async function liveOpportunityCandidates(db: Db, userId: string, market: 
 export async function readPaperResults(db: Db, userId: string, candidate: Evidence) {
   if (candidate.market === 'crypto') {
     const result = await db.from('autopilot_positions').select('pnl, exit_time').eq('user_id', userId).eq('mode', 'paper')
-      .eq('automation_version', candidate.version).eq('status', 'closed').not('pnl', 'is', null).not('exit_time', 'is', null)
+      .eq('automation_version', candidate.version).eq('paper_book_fill', true).eq('status', 'closed').not('pnl', 'is', null).not('exit_time', 'is', null)
       .order('exit_time', { ascending: false }).limit(30);
     if (result.error) throw new Error('Could not read the versioned crypto Paper book.');
     return paperThreshold(result.data.map(row => ({ at: row.exit_time, pnl: Number(row.pnl) })));
