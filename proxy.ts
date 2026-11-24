@@ -1,7 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const MACHINE_PATHS = new Set(['/api/webhook', '/api/cron/strategy', '/api/cron/autopilot', '/api/cron/market', '/api/cron/fast', '/api/cron/stocks', '/api/cron/stock-autopilot', '/api/health']);
+const MACHINE_PATHS = new Set([
+  '/api/webhook', '/api/health', '/api/cron/strategy', '/api/cron/autopilot', '/api/cron/market',
+  '/api/cron/fast', '/api/cron/stocks', '/api/cron/stock-autopilot', '/api/cron/stock-catalysts', '/api/cron/automation',
+]);
 
 // Next 16 calls this file proxy.ts (it was middleware.ts before).
 export async function proxy(request: NextRequest) {
