@@ -1,6 +1,6 @@
 import { findIdea, ideaId, ideaSearchFrame } from '@/lib/automation/ideas';
 import { automationVersion, type Evidence } from '@/lib/automation/model';
-import { ruleName, marketSearchPairs, RECOMMENDATION_FRESH_MS, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
+import { ruleKey, ruleName, RULE_INTERPRETER_VERSION, marketSearchPairs, RECOMMENDATION_FRESH_MS, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
   searchOutcomes, searchRevision, searchKey, searchPair, type SearchMarket, type SearchPair, type SearchReport, type SearchSide } from './model';
 
 export type SearchRecord = { id: string; status: string; asOf: string; completedAt: string | null; report: SearchReport | null };
@@ -8,6 +8,7 @@ export type EvidenceRecord = { evidence: Evidence; asOf: string };
 export type MarketSetup = {
   id: string; pair: SearchPair; name: string; through: string; stressedReturn: number;
   drawdown: number; trades: number; benchmark: number; kind: 'trade' | 'research'; side: SearchSide; ideaId?: string;
+  ruleKey?: string; trial?: { count: number; net: number; complete: boolean };
 };
 
 function fresh(asOf: string, now: number, maxAge: number) {
@@ -15,7 +16,7 @@ function fresh(asOf: string, now: number, maxAge: number) {
   return age >= 0 && age < maxAge;
 }
 
-function rank(setup: MarketSetup) {
+export function researchRank(setup: Pick<MarketSetup, 'stressedReturn' | 'benchmark' | 'drawdown' | 'trades'>) {
   return (setup.stressedReturn - Math.max(0, setup.benchmark)) / Math.max(.02, setup.drawdown) *
     Math.sqrt(setup.trades / (setup.trades + 25));
 }
@@ -57,7 +58,12 @@ export function summarizeMarketResearch(market: SearchMarket, searches: SearchRe
       if (outcome.verdict !== 'paper-candidate' || !outcome.rule || !outcome.stress || !(outcome.stress.net > 0) ||
         market === 'crypto' && !(outcome.venue && outcome.venue.net > 0)) continue;
       const side = outcome.rule.side ?? 'long';
-      setups.push({ id: `${id}:${side}${outcome.rule.recipe ? ':generated' : ''}`, pair, name: ruleName(outcome.rule), through: report.through,
+      const key = ruleKey(outcome.rule);
+      const book = report.forward?.find(b => b.version === RULE_INTERPRETER_VERSION && ruleKey(b.rule) === key);
+      if (book && (book.state === 'stopped' || book.state === 'archived' || book.state === 'data-gap' ||
+        (book.state === 'completed' && book.equity <= 1))) continue;
+      setups.push({ id: `${id}:${key}`, ruleKey: key, pair, name: ruleName(outcome.rule), through: report.through,
+        trial: book ? { count: book.count, net: book.equity - 1, complete: book.state === 'completed' } : undefined,
         stressedReturn: outcome.stress.net, drawdown: outcome.stress.drawdown, trades: outcome.stress.trades,
         benchmark: outcome.benchmark ?? 0, kind: 'research', side });
     }
@@ -78,7 +84,7 @@ export function summarizeMarketResearch(market: SearchMarket, searches: SearchRe
     setups.push({ id: idea.id, pair, name: idea.name, through: row.through, stressedReturn: row.stress,
       drawdown: row.drawdown, trades: row.holdoutTrades, benchmark: row.benchmark, kind: idea.executable ? 'trade' : 'research', side: 'long', ideaId: idea.id });
   }
-  setups.sort((a, b) => Number(a.kind === 'research') - Number(b.kind === 'research') || rank(b) - rank(a) || a.id.localeCompare(b.id));
+  setups.sort((a, b) => researchRank(b) - researchRank(a) || a.id.localeCompare(b.id));
   return { setups, coverage: { symbols: SEARCH_ASSETS[market].length, timeframes: SEARCH_FRAMES[market].length,
     total: catalog.length, scanned, queued, limited, lastChecked } };
 }

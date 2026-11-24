@@ -51,8 +51,25 @@ export type Recipe = { setup: keyof typeof SETUPS; trigger: keyof typeof TRIGGER
 export type SearchSide = 'long' | 'short';
 export type Rule = ({ family: Family; recipe?: never } | { family: 'sequence'; recipe: Recipe }) &
   { setting: number; trend: number; volume: number; stop: number; reward: number; maxBars: number; side?: SearchSide };
-export const ruleName = (rule: Rule) => rule.family === 'sequence'
-  ? `${SETUPS[rule.recipe.setup]} → ${TRIGGERS[rule.recipe.trigger]}` : FAMILIES[rule.family];
+const SHORT_SETUPS: Record<Recipe['setup'], string> = {
+  coil: 'Narrowest range in seven bars', washout: 'Two-range rally', shelf: 'Three lower highs',
+  pullback: 'Bounce in a falling trend', sweep: 'Rejected ten-bar high', impulse: 'Wide bearish impulse',
+  balance: 'Inside bar', fade: 'Three rising closes',
+};
+const SHORT_TRIGGERS: Record<Recipe['trigger'], string> = {
+  midpoint: 'break below prior midpoint', engulf: 'bearish engulfing reversal', channel: 'five-bar low break',
+  thrust: 'weak close near the low', pivot: 'confirmed swing-low break', reclaim: 'break below ten-bar mean',
+  acceleration: 'accelerating two-bar decline', outside: 'bearish outside bar',
+};
+export function ruleName(rule: Rule) {
+  if (rule.family !== 'sequence') return FAMILIES[rule.family];
+  const short = rule.side === 'short';
+  return `${(short ? SHORT_SETUPS : SETUPS)[rule.recipe.setup]} → ${(short ? SHORT_TRIGGERS : TRIGGERS)[rule.recipe.trigger]}`;
+}
+export function ruleKey(rule: Rule) {
+  return [rule.side ?? 'long', rule.family, rule.recipe?.setup, rule.recipe?.trigger, rule.recipe?.within,
+    rule.setting, rule.trend, rule.volume, rule.stop, rule.reward, rule.maxBars].join(':');
+}
 export type ForwardFill = { entry: number; exit: number; price: number; exitPrice: number; net: number };
 export type ForwardBook = { version: number; rule: Rule; started: number; cursor: number; lastExit: number; count: number; equity: number;
   peak: number; drawdown: number; recent: ForwardFill[]; state: 'tracking' | 'data-gap' | 'stopped' | 'completed' | 'archived';
