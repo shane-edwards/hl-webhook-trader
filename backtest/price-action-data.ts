@@ -14,7 +14,7 @@ const cache = join(process.cwd(), 'backtest', 'data', 'intraday');
 export type Funding = { time: number; rate: number; hours: number };
 type ArchiveBar = Bar & { v: number };
 
-async function archiveRows(folder: string, name: string, url: string) {
+export async function archiveRows(folder: string, name: string, url: string) {
   mkdirSync(folder, { recursive: true });
   const file = join(folder, `${name}.csv`);
   if (existsSync(file)) return readFileSync(file, 'utf8').trim().split('\n');
@@ -50,7 +50,7 @@ export async function perpFunding(coin: string): Promise<Funding[]> {
   return unique;
 }
 
-const candle = (line: string): ArchiveBar | null => {
+export const candle = (line: string): ArchiveBar | null => {
   const [stamp, o, h, l, c, v] = line.split(',', 6).map(Number);
   const t = stamp > 10 ** 14 ? Math.round(stamp / 1_000) : stamp;
   return Number.isFinite(t) && [o, h, l, c, v].every(Number.isFinite) && o > 0 && l > 0 && h >= Math.max(o, c) &&

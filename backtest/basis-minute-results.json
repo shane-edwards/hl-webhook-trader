@@ -1,0 +1,87 @@
+{
+  "venue": "Binance matched spot and perpetuals",
+  "timeframe": "1m",
+  "bars": [
+    264960,
+    264960
+  ],
+  "windows": [
+    [
+      "2026-05-01T00:00:00.000Z",
+      "2026-07-01T00:00:00.000Z"
+    ],
+    [
+      "2026-07-01T00:00:00.000Z",
+      "2026-09-01T00:00:00.000Z"
+    ],
+    [
+      "2026-09-01T00:00:00.000Z",
+      "2026-11-01T00:00:00.000Z"
+    ]
+  ],
+  "tested": 9,
+  "selected": null,
+  "final": null,
+  "lowestThresholdDiagnostic": {
+    "rule": {
+      "threshold": 0.0025,
+      "hold": 5
+    },
+    "discovery": [
+      {
+        "coin": "BTC",
+        "setups": 0,
+        "missed": 0,
+        "trades": 0,
+        "wins": 0,
+        "net": 0,
+        "fills": []
+      },
+      {
+        "coin": "ETH",
+        "setups": 0,
+        "missed": 0,
+        "trades": 0,
+        "wins": 0,
+        "net": 0,
+        "fills": []
+      }
+    ],
+    "validation": [
+      {
+        "coin": "BTC",
+        "setups": 1,
+        "missed": 0,
+        "trades": 1,
+        "wins": 1,
+        "net": 0.004423085258814519,
+        "fills": [
+          {
+            "entry": "2026-08-19T15:28:00.000Z",
+            "exit": "2026-08-19T15:29:00.000Z",
+            "entryBasis": 0.01860158242537735,
+            "exitBasis": 0.00012138031246267111,
+            "net": 0.004423085258814577
+          }
+        ]
+      },
+      {
+        "coin": "ETH",
+        "setups": 1,
+        "missed": 0,
+        "trades": 1,
+        "wins": 1,
+        "net": 0.0013460730716419178,
+        "fills": [
+          {
+            "entry": "2026-08-19T15:28:00.000Z",
+            "exit": "2026-08-19T15:29:00.000Z",
+            "entryBasis": 0.01039337493861714,
+            "exitBasis": -0.00020615887657782217,
+            "net": 0.0013460730716419213
+          }
+        ]
+      }
+    ]
+  }
+}

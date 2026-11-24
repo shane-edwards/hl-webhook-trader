@@ -1,0 +1,38 @@
+{
+  "asset": "BTC",
+  "event UTC": "2026-08-19T15:28:00Z",
+  "sampledTrades": {
+    "spot": 59097,
+    "perp": 60434
+  },
+  "windows": [
+    {
+      "delayMs": 100,
+      "matched": true,
+      "entryBasis": 0.017714782052155043,
+      "entryTimingDifferenceMs": 21,
+      "net": 0.004193379312452159
+    },
+    {
+      "delayMs": 500,
+      "matched": true,
+      "entryBasis": 0.007005568382662641,
+      "entryTimingDifferenceMs": 0,
+      "net": -9.865826224346712e-05
+    },
+    {
+      "delayMs": 1000,
+      "matched": true,
+      "entryBasis": 0.0068694332090630805,
+      "entryTimingDifferenceMs": 0,
+      "net": -0.00015575176846821604
+    },
+    {
+      "delayMs": 5000,
+      "matched": true,
+      "entryBasis": 0.0014548730835448609,
+      "entryTimingDifferenceMs": 20,
+      "net": -0.0022135896427862836
+    }
+  ]
+}
