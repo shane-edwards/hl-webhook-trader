@@ -110,6 +110,7 @@ export function StrategySearch({ market, symbol, frame, active = true, compact =
         <p>{report.source} · {report.bars.toLocaleString()} candles{report.from && ` · From ${report.from}`}</p>
         <p>{report.validationPassed} qualified for the final test · {report.testedOnLaterData} tested on later data</p>
         {report.generation && <p>{report.generation.tried} evolved rules tested across {report.generation.uniquePairs} setup and trigger combinations · {report.generation.validated} passed validation</p>}
+        {report.generation?.exactRepeats !== undefined && <p>{report.generation.exactRepeats} exact repeats · {report.generation.similar} with similar historical trades</p>}
         {report.note && !report.rule && <p>{report.note}</p>}
         {(selected ? [selected] : outcomes).map(outcome => outcome.rule && <div key={ruleKey(outcome.rule)} className="mt-2 space-y-1 border-t pt-2">
           <p className="font-medium text-foreground">{outcome.rule.side === 'short' ? 'Short' : 'Long'} · {ruleName(outcome.rule)} · {outcome.verdict === 'paper-candidate' ? 'Passed backtest' : 'Did not qualify'}</p>

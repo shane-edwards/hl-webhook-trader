@@ -1,6 +1,8 @@
 import { BAR_MS, FAMILIES, RULE_INTERPRETER_VERSION, ruleKey, searchOutcomes, searchRevision, type Family, type Performance, type Rule, type SearchBar, type SearchOutcome,
   type SearchPair, type SearchReport, type SearchSide, type ForwardBook, type ForwardFill } from './model';
 import { evolve, sequenceFeatures } from './evolution';
+import { compareExperiments, fingerprint } from './experiments';
+import type { ContextFactor, Experiment } from './model';
 
 const DAY = 86_400_000;
 const WARMUP = 110;
@@ -88,7 +90,7 @@ export function searchInputs(bars: SearchBar[], volumeThrough = bars.length, sid
   }
   let sequences: ReturnType<typeof sequenceFeatures> | undefined;
   const entries = (rule: Rule) => rule.family === 'sequence'
-    ? (sequences ??= sequenceFeatures(oriented, atr))(rule.recipe) : signals.get(`${rule.family}:${rule.setting}`) ?? [];
+    ? (sequences ??= sequenceFeatures(oriented, atr, side))(rule.recipe) : signals.get(`${rule.family}:${rule.setting}`) ?? [];
   return { bars, trend, atr, signals, hasVolume, volume, volumeAverage, entries };
 }
 
@@ -96,7 +98,7 @@ type Inputs = ReturnType<typeof searchInputs>;
 type Replay = Performance & { exposure: number };
 
 function replay(input: Inputs, rule: Rule, from: number, end: number, edge: number, cluster: number, stockShort = false,
-  book?: ForwardBook, delay = 0, sample?: number[]): Replay {
+  book?: ForwardBook, delay = 0, sample?: number[], tradeTimes?: Map<number, number>): Replay {
   const { bars, atr, trend, volume, volumeAverage } = input;
   const direction = rule.side === 'short' ? -1 : 1;
   const average = trend.get(rule.trend);
@@ -155,6 +157,7 @@ function replay(input: Inputs, rule: Rule, from: number, end: number, edge: numb
     const group = Math.floor(bars[exitIndex].t / cluster);
     groups.set(group, (groups.get(group) ?? 0) + ret);
     trades++;
+    tradeTimes?.set(opening.t, bars[exitIndex].t);
     exposed += exitIndex - entryIndex + 1;
     netSum += ret;
     equity *= 1 + ret;
@@ -215,7 +218,8 @@ export function blockLowerBound(groups: number[]) {
   return means.sort((a,b) => a-b)[9];
 }
 
-export function searchHistory(pair: SearchPair, bars: SearchBar[], source: string): SearchReport {
+export function searchHistory(pair: SearchPair, bars: SearchBar[], source: string,
+  memory?: { previous: Experiment[]; record: Experiment[] }): SearchReport {
   const report: SearchReport = { revision: searchRevision(pair.market), pair, source, bars: bars.length, from: '', through: '', tried: 0, validationPassed: 0,
     testedOnLaterData: 0, holdoutFrom: '', verdict: 'insufficient-history', rule: null, holdout: null, stress: null, venue: null, benchmark: null };
   if (!bars.length) return report;
@@ -235,32 +239,46 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
   if (!paired) report.note = 'Complete historical ask ranges were unavailable for the short replay.';
   const finalists: { outcome: SearchOutcome; rank: number }[] = [];
   const pairs = new Set<string>();
-  report.generation = { tried: 0, validated: 0, uniquePairs: 0 };
+  const contexts: Partial<Record<ContextFactor, number>> = {};
+  const stats = { tried: 0, validated: 0, uniquePairs: 0, contexts, exactRepeats: 0, similar: 0 };
+  report.generation = stats;
+  const supported: ContextFactor[] = pair.market === 'stocks' ? ['sector','earnings'] : ['fundingChange','openInterest'];
+  const early = bars.slice(WARMUP, cut);
+  const covered = (rows: SearchBar[], f: ContextFactor) => rows.filter(b => Number.isFinite(b[f])).length >= .95 * rows.length;
+  const factors = supported.filter(f => covered(early, f));
+  const validFactors = factors.filter(f => covered(bars.slice(cut, final), f));
   for (const side of sides) {
     const cost = edge(pair, side);
     const stockShort = stock && side === 'short';
     const input = searchInputs(bars, cut, side);
-    const winners = new Map<'catalog'|'generated', { winner: Rule; rank: number }>();
+    const winners = new Map<'catalog'|'generated', { winner: Rule; rank: number; familiar: boolean }>();
+    const familiarKeys = new Set<string>();
     const epoch = Math.floor(bars.at(-1)!.t / (7 * DAY));
     const discoveryMid = Math.floor((WARMUP + cut) / 2);
     const evolved = evolve(side, epoch, rule => {
+      const tradeTimes = new Map<number, number>();
       const scores = [[WARMUP, discoveryMid], [discoveryMid, cut]].map(([start, end]) =>
-        replay(input, rule, start, end, cost * 2, cluster, stockShort));
+        replay(input, rule, start, end, cost * 2, cluster, stockShort, undefined, 0, undefined, tradeTimes));
       const fitness = scores.every(s => s.trades >= 4 && s.score !== null)
         ? Math.min(...scores.map(s => s.score! - s.drawdown)) : -Infinity;
-      const signature = new Set<number>();
-      if (Number.isFinite(fitness)) for (const i of input.entries(rule)) {
-        if (i >= cut) break;
-        signature.add(i);
+      if (rule.recipe.context) contexts[rule.recipe.context] = (contexts[rule.recipe.context] ?? 0) + 1;
+      if (memory) {
+        const experiment = fingerprint(rule, tradeTimes, fitness);
+        const novelty = compareExperiments(experiment, memory.previous);
+        if (novelty === 'repeat') stats.exactRepeats++;
+        if (novelty === 'similar') stats.similar++;
+        if (novelty !== 'new') familiarKeys.add(experiment.key);
+        memory.record.push(experiment);
       }
-      return { fitness, signature };
-    });
+      return { fitness, signature: new Set(tradeTimes.keys()), familiar: familiarKeys.has(ruleKey(rule)) };
+    }, factors);
     for (const key of evolved.pairs) pairs.add(key);
     report.generation.tried += evolved.tried;
     report.generation.uniquePairs = pairs.size;
     report.tried += evolved.tried;
-    function* candidates() { yield* grid(input.hasVolume, side); yield* evolved.finalists; }
+    function* candidates(): Generator<Rule> { yield* grid(input.hasVolume, side); yield* evolved.finalists; }
     for (const rule of candidates()) {
+      if (rule.recipe?.context && !validFactors.includes(rule.recipe.context)) continue;
       if (rule.family !== 'sequence') report.tried++;
       const train = replay(input, rule, WARMUP, cut, cost, cluster, stockShort);
       const validation = replay(input, rule, cut + (rule.family === 'sequence' ? rule.maxBars : 0), final, cost * 2, cluster, stockShort);
@@ -271,7 +289,10 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
       if (rule.family === 'sequence') report.generation.validated++;
       const rank = Math.min(train.score!, validation.score!);
       const group = rule.family === 'sequence' ? 'generated' : 'catalog';
-      if (rank > (winners.get(group)?.rank ?? -Infinity)) winners.set(group, { winner: rule, rank });
+      const familiar = group === 'generated' && familiarKeys.has(ruleKey(rule));
+      const best = winners.get(group);
+      if (!best || (best.familiar && !familiar) || (best.familiar === familiar && rank > best.rank))
+        winners.set(group, { winner: rule, rank, familiar });
     }
     for (const { winner, rank } of winners.values()) {
       const start = final + (winner.recipe ? winner.maxBars : 0);
@@ -281,7 +302,8 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
       const robustness = winner.recipe ? { delayed: replay(input, winner, start, bars.length, cost * 2, cluster, stockShort, undefined, 1),
         lowerGroupReturn: blockLowerBound(groups) } : undefined;
       const benchmark = (side === 'short' ? -1 : 1) * (Math.exp(Math.log(bars.at(-1)!.c / bars[start].o) * stress.exposure) - 1);
-      const passed = holdout.net > 0 && stress.net > Math.max(0, benchmark) && stress.trades >= 25 && stress.groups >= 9 &&
+      const passed = (!winner.recipe?.context || covered(bars.slice(start), winner.recipe.context)) &&
+        holdout.net > 0 && stress.net > Math.max(0, benchmark) && stress.trades >= 25 && stress.groups >= 9 &&
         stress.drawdown <= .16 && (stress.score ?? 0) >= 3.3 &&
         (!robustness || (robustness.lowerGroupReturn > 0 && robustness.delayed.net > 0 && robustness.delayed.drawdown <= .16));
       finalists.push({ rank, outcome: { verdict: passed ? 'paper-candidate' : 'holdout-failed', rule: winner,
@@ -299,6 +321,9 @@ export function checkPerpVenue(report: SearchReport, bars: SearchBar[]): SearchR
     if (outcome.verdict !== 'paper-candidate' || !outcome.rule) return outcome;
     if (!hasHistory) return { ...outcome, verdict: 'venue-failed', note: 'Incomplete Hyperliquid price or funding history' };
     const rule = outcome.rule;
+    const factor = rule.recipe?.context;
+    if (factor && bars.filter(b => Number.isFinite(b[factor])).length < .95 * bars.length)
+      return { ...outcome, verdict: 'venue-failed', note: 'Incomplete historical signal data on the venue test' };
     const venue = replay(searchInputs(bars, bars.length, rule.side), rule, WARMUP, bars.length, edge(report.pair, rule.side) * 2, clusterDays(report.pair));
     const passed = venue.trades >= 12 && venue.groups >= 3 && venue.net > 0 && venue.drawdown <= .16;
     return { ...outcome, verdict: passed ? 'paper-candidate' : 'venue-failed', venue };
@@ -326,7 +351,8 @@ export function advanceForward(report: SearchReport, previous: ForwardBook[], ba
       if (pair.market === 'crypto' || (bar.session && prior.session === bar.session)) return bar.t - prior.t !== step;
       return bar.t - prior.t > 7 * DAY;
     });
-    if (next < WARMUP || missing || pair.market === 'stocks' && book.rule.side === 'short' &&
+    const factor = book.rule.recipe?.context;
+    if (next < WARMUP || missing || (factor && bars.slice(next, -1).some(b => !Number.isFinite(b[factor]))) || pair.market === 'stocks' && book.rule.side === 'short' &&
       bars.slice(next).some(bar => !bar.askHigh || !bar.askLow || !bar.askClose || !bar.ask)) return { ...book, state: 'data-gap' };
     const side = book.rule.side ?? 'long';
     const input = inputs.get(side) ?? searchInputs(bars, next, side);

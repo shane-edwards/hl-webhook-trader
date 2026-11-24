@@ -1,15 +1,15 @@
-import { SETUPS, TRIGGERS, type Recipe, type Rule, type SearchBar, type SearchSide } from './model';
+import { SETUPS, TRIGGERS, type ContextFactor, type Recipe, type Rule, type SearchBar, type SearchSide } from './model';
 
 const setups = Object.keys(SETUPS) as (keyof typeof SETUPS)[];
 const triggers = Object.keys(TRIGGERS) as (keyof typeof TRIGGERS)[];
 export type Sequence = Extract<Rule, { family: 'sequence' }>;
 
-export function sequenceKey({ setup, trigger, within }: Recipe) {
-  return [setup, trigger, within].join('/');
+export function sequenceKey({ setup, trigger, within, context }: Recipe) {
+  return [setup, trigger, within, ...(context ? [context] : [])].join('/');
 }
 
 // The orientation transform in searchInputs lets exactly the same grammar express short trades.
-export function sequenceFeatures(bars: SearchBar[], atr: number[]) {
+export function sequenceFeatures(bars: SearchBar[], atr: number[], side: SearchSide = 'long') {
   const contexts = Object.fromEntries(setups.map(k => [k, []])) as unknown as Record<Recipe['setup'], number[]>;
   const confirmations = Object.fromEntries(triggers.map(k => [k, []])) as unknown as Record<Recipe['trigger'], number[]>;
   let pivot = Infinity;
@@ -57,6 +57,11 @@ export function sequenceFeatures(bars: SearchBar[], atr: number[]) {
     let index = -1;
     const entries = confirmations[recipe.trigger].filter(i => {
       while (index + 1 < context.length && context[index + 1] < i) index++;
+      if (recipe.context) {
+        const value = bars[i][recipe.context];
+        const sign = recipe.context === 'openInterest' ? 1 : (side === 'long' ? 1 : -1) * (recipe.context === 'fundingChange' ? -1 : 1);
+        if (value === undefined || !(sign * value > 0)) return false;
+      }
       return i >= 110 && index >= 0 && i - context[index] <= recipe.within;
     });
     cache.set(key, entries);
@@ -73,10 +78,10 @@ export function seedRecipes(side: SearchSide, epoch: number, count = 20): Sequen
   });
 }
 
-type Ranked = { rule: Sequence; fitness: number; signature: Set<number> };
+type Ranked = { rule: Sequence; fitness: number; signature: Set<number>; familiar?: boolean };
 function diverse(pool: Ranked[], count: number) {
   const picked: Ranked[] = [];
-  for (const next of [...pool].sort((a,b) => b.fitness - a.fitness)) {
+  for (const next of [...pool].sort((a,b) => Number(!!a.familiar) - Number(!!b.familiar) || b.fitness - a.fitness)) {
     if (picked.every(p => {
       let common = 0;
       for (const i of p.signature) if (next.signature.has(i)) common++;
@@ -88,8 +93,11 @@ function diverse(pool: Ranked[], count: number) {
   return picked;
 }
 
-export function evolve(side: SearchSide, epoch: number, score: (rule: Sequence) => Omit<Ranked, 'rule'>) {
+export function evolve(side: SearchSide, epoch: number, score: (rule: Sequence) => Omit<Ranked, 'rule'>, factors: ContextFactor[] = []) {
   let generation = seedRecipes(side, epoch);
+  const contextual = factors.flatMap((context, i) => generation.slice(i * 4, i * 4 + 4).map(rule =>
+    ({ ...rule, recipe: { ...rule.recipe, context } })));
+  generation.push(...contextual);
   const visited = new Set<string>(), pairs = new Set<string>(), pool: Ranked[] = [];
   for (let round = 0; round < 3; round++) {
     for (const rule of generation) {
