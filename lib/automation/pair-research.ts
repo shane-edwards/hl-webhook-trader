@@ -1,13 +1,11 @@
 import type { createServiceClient } from '@/lib/supabase/server';
 import { ideaId, ideasForPair } from './ideas';
-import type { RunReport } from './model';
 import { enqueueIdea } from './queue';
-import { marketSearchPairs, searchDue, searchKey, searchRevision, RECOMMENDATION_FRESH_MS, SEARCH_RETRY_MS,
+import { marketSearchPairs, searchDue, searchKey, searchRevision, SEARCH_RETRY_MS,
   type SearchJob, type SearchMarket, type SearchPair } from '@/lib/strategy-search/model';
 
 type Db = ReturnType<typeof createServiceClient>;
 type PairRun = SearchJob & { idea_id: string; verdict?: string | null };
-type DailyRun = { as_of: string; report: RunReport | null };
 const limit = 12;
 
 function pairTargets(pair: SearchPair) {
@@ -23,31 +21,24 @@ export async function pairAccess(db: Db, user: string, market: SearchMarket) {
   return { exists: !!profile.data, paused: profile.data?.enabled === false, connected: !feed || feed.data.length > 0 };
 }
 
-async function loadWork(db: Db, user: string, market: SearchMarket, now: number, ids?: string[]) {
+async function loadWork(db: Db, user: string, market: SearchMarket, ids?: string[]) {
   const domain = () => db.from('automation_runs').select('idea_id,status,as_of,revision:report->data->search->revision,verdict:report->data->search->>verdict')
     .eq('user_id', user).eq('market', market).eq('kind', 'focused');
-  const [rows, pending, daily] = await Promise.all([
+  const [rows, pending] = await Promise.all([
     (ids ? domain().in('idea_id', ids) : domain()).order('created_at', { ascending: false }).limit(ids ? 48 : 800),
     db.from('automation_runs').select('id', { count: 'exact', head: true }).eq('user_id', user).eq('market', market)
       .eq('kind', 'focused').in('status', ['queued', 'running']),
-    db.from('automation_runs').select('as_of,report').eq('user_id', user).eq('market', market).eq('kind', 'daily')
-      .eq('status', 'completed').gte('as_of', new Date(now - RECOMMENDATION_FRESH_MS).toISOString())
-      .order('as_of', { ascending: false }).limit(1).maybeSingle(),
   ]);
-  if (rows.error || pending.error || daily.error) throw new Error('Could not read recent research work.');
+  if (rows.error || pending.error) throw new Error('Could not read recent research work.');
   const history: PairRun[] = rows.data.map(row => ({ ...row, revision: typeof row.revision === 'number' ? row.revision : null }));
   const latest = new Map<string, PairRun>();
   for (const row of history) if (!latest.has(row.idea_id)) latest.set(row.idea_id, row);
-  const report = (daily.data as DailyRun | null)?.report;
-  const evidence = new Set(report?.data.missing?.some(item => item.symbol !== 'eToro journal') ? [] :
-    report?.evidence.map(item => ideaId(item.market, item.rule, item.symbol)));
-  return { latest, evidence, capacity: Math.max(0, limit - (pending.count ?? 0)) };
+  return { latest, capacity: Math.max(0, limit - (pending.count ?? 0)) };
 }
 
 function dueTargets(pair: SearchPair, work: Awaited<ReturnType<typeof loadWork>>, now: number) {
   const key = searchKey(pair);
-  return pairTargets(pair).filter(id => (id === key || !work.evidence.has(id)) &&
-    searchDue(work.latest.get(id), now, id === key, searchRevision(pair.market)));
+  return pairTargets(pair).filter(id => searchDue(work.latest.get(id), now, id === key, searchRevision(pair.market)));
 }
 
 function queueTarget(db: Db, user: string, pair: SearchPair, id: string, now: number, selected: boolean) {
@@ -69,7 +60,7 @@ async function ensureResearchProfile(db: Db, user: string, market: SearchMarket)
 
 export async function queueSelectedPair(db: Db, user: string, pair: SearchPair, now: number) {
   if (!await ensureResearchProfile(db, user, pair.market)) return;
-  const work = await loadWork(db, user, pair.market, now, pairTargets(pair));
+  const work = await loadWork(db, user, pair.market, pairTargets(pair));
   const targets = dueTargets(pair, work, now);
   await Promise.all(targets.slice(0, work.capacity).map(id => queueTarget(db, user, pair, id, now, true)));
   return { waitingForCapacity: targets.length > work.capacity };
@@ -81,9 +72,9 @@ export async function initializeMarketResearch(db: Db, user: string, market: Sea
 
 async function queueMarketBatch(db: Db, user: string, market: SearchMarket, now: number) {
   if (market === 'stocks' && !(await pairAccess(db, user, market)).connected) return 0;
-  const work = await loadWork(db, user, market, now);
+  const work = await loadWork(db, user, market);
   // Refresh existing recommendations first, then fill coverage gaps across the whole catalog.
-  const priority = (job?: PairRun) => job?.verdict === 'paper-candidate' ? 0 : !job || job.revision == null && job.status !== 'completed' ? 1 : 2;
+  const priority = (job?: PairRun) => job?.verdict === 'paper-candidate' || job?.verdict === 'small-sample' ? 0 : !job || job.revision == null && job.status !== 'completed' ? 1 : 2;
   const jobs = marketSearchPairs(market).flatMap(pair => dueTargets(pair, work, now).map(id => ({ pair, id })))
     .sort((a, b) => priority(work.latest.get(a.id)) - priority(work.latest.get(b.id)) ||
       Date.parse(work.latest.get(a.id)?.as_of ?? '1970-01-01') - Date.parse(work.latest.get(b.id)?.as_of ?? '1970-01-01'))

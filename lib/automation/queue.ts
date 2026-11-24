@@ -3,7 +3,7 @@ import { notify } from '@/lib/notify';
 import { EtoroError } from '@/lib/stocks/etoro';
 import { automationSchedule, type AutomationKind, type AutomationMarket, type RunReport } from './model';
 import { finishResearch, permanentResearchProblem, researchPlan, runIdeaResearch, runResearchStep, type ResearchStep } from './research';
-import { findIdea, versionedIdea, type StrategyIdea } from './ideas';
+import { findIdea, ideaId, versionedIdea, type StrategyIdea } from './ideas';
 import { pairFromKey } from '@/lib/strategy-search/model';
 import { runSearch } from '@/lib/strategy-search/data';
 
@@ -70,6 +70,26 @@ function problemFor(error: unknown) {
   return 'Market data or the research worker was temporarily unavailable.';
 }
 
+async function startIdlePaperScanner(db: Db, user: string, market: AutomationMarket) {
+  const match = { user_id: user, market, mode: 'research', enabled: true, entries_paused: false };
+  const profile = await db.from('automation_profiles').select('updated_at').match(match).maybeSingle();
+  if (profile.error) throw new Error('Could not verify paper controls.');
+  if (!profile.data) return;
+  const legacy = market === 'crypto'
+    ? await db.from('settings').select('user_id').eq('user_id', user).eq('autopilot_enabled', true).maybeSingle()
+    : await db.from('stock_autopilot').select('user_id').eq('user_id', user).not('active_environment','is',null).maybeSingle();
+  if (legacy.error) throw new Error('Could not verify the current trading plan.');
+  if (legacy.data) return;
+  if (market === 'stocks') {
+    const demo = await db.from('etoro_connections').select('user_id').eq('user_id', user).eq('environment', 'demo').maybeSingle();
+    if (demo.error) throw new Error('Could not verify the demo account.');
+    if (!demo.data) return;
+  }
+  const result = await db.from('automation_profiles').update({ mode: 'paper', scan_for_opportunities: true,
+    paper_version: null, updated_at: new Date().toISOString() }).match(match).eq('updated_at', profile.data.updated_at);
+  if (result.error) throw new Error('Could not start the paper scan.');
+}
+
 export async function processResearchStep(db: Db) {
   const claimed = await db.rpc('claim_automation_run');
   if (claimed.error) throw new Error('Could not claim the next research step.');
@@ -85,12 +105,15 @@ export async function processResearchStep(db: Db) {
   const complete = async (work: ResearchStep[]) => {
     const report: RunReport = run.kind === 'focused'
       ? { evidence: work.flatMap(item => item.evidence ?? []), summary: 'Backtest finished',
-        data: { search: work.find(item => item.search)?.search, missing: work.filter(item => item.problem).map(item => ({ symbol: item.symbol, detail: item.problem })) } }
+        data: { trial: work.find(item => item.trial)?.trial, search: work.find(item => item.search)?.search, missing: work.filter(item => item.problem).map(item => ({ symbol: item.symbol, detail: item.problem })) } }
       : finishResearch(run.market, run.kind, run.as_of, work);
     const noData = work.every(item => item.problem);
     // Save experiment fingerprints atomically with the report, outside the user-facing report payload.
     const experiments = work.filter(s => s.experiments?.length || s.positioning?.length)
       .map(s => ({ symbol: s.symbol, experiments: s.experiments, discoveryThrough: s.discoveryThrough, positioning: s.positioning }));
+    if (run.kind !== 'weekly' && report.evidence.some(e => e.qualified && findIdea(ideaId(e.market, e.rule, e.symbol))?.executable)) {
+      await startIdlePaperScanner(db, run.user_id, run.market);
+    }
     const finished = await save({ status: noData ? 'failed' : 'completed', cursor: run.plan.length, work: experiments, report,
       detail: noData ? 'Research did not receive usable market data.' : report.summary, completed_at: new Date().toISOString() });
     if (finished && (noData || work.some(item => item.problem))) {

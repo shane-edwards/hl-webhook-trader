@@ -8,11 +8,11 @@ import { EtoroError } from '@/lib/stocks/etoro';
 import { STOCK_INSTRUMENTS, isStockTradeSymbol } from '@/lib/stocks/trade-rules';
 import { CATALYST_INSTRUMENTS, CATALYST_UNIVERSE } from '@/lib/stocks/catalyst-universe';
 import type { EtoroClient } from '@/lib/stocks/etoro';
-import { BAR_MS, searchKey, type Experiment, type ForwardBook, type SearchBar, type SearchPair } from './model';
+import { BAR_MS, searchOutcomes, searchKey, type Experiment, type ForwardBook, type SearchBar, type SearchPair } from './model';
 import { attachContext, stockContext, type DailyContext, type EpsFact } from './context';
 import { positioningContext } from './crypto-context';
 import { archivePositioning, type PositionDay } from './positioning';
-import { advanceForward, checkPerpVenue, searchHistory } from './engine';
+import { advanceForward, admitsForward, checkPerpVenue, searchHistory } from './engine';
 
 type Db = ReturnType<typeof createServiceClient>;
 const DAY = 86_400_000;
@@ -194,7 +194,7 @@ export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: st
   let report = searchHistory(pair, history, pair.market === 'stocks' ? 'eToro bid/ask cash-stock history' : 'Binance spot candles',
     { previous: archive, record: experiments });
   let forwardBars = history;
-  if (pair.market === 'crypto' && (report.verdict === 'paper-candidate' || previous.some(b => b.state === 'tracking' || b.state === 'data-gap'))) {
+  if (pair.market === 'crypto' && (searchOutcomes(report).some(outcome => admitsForward(outcome.verdict)) || previous.some(b => b.state === 'tracking' || b.state === 'data-gap'))) {
     forwardBars = attachContext(await perpetualBars(pair, now), positioning.context);
     // Preserve the data source of any frozen rule from the original Bybit release.
     if (previous.some(b => ['tracking','data-gap'].includes(b.state) && ['fundingChange','openInterest'].includes(b.rule.recipe?.context ?? '')))

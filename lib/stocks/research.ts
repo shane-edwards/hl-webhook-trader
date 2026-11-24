@@ -44,7 +44,8 @@ export function stockSetups(bars: StockBar[]) {
   };
 }
 
-function simulate(bars: StockBar[], rule: DailyStockRule, start: number, end: number, cost: StockReplayCost, canEnter?: (previous: StockBar, current: StockBar) => boolean) {
+export function simulateStockRule(bars: StockBar[], rule: DailyStockRule, start: number, end: number, cost: StockReplayCost, canEnter?: (previous: StockBar, current: StockBar) => boolean,
+  onClose?: (entry: StockBar, exit: StockBar, net: number) => void) {
   const closes = bars.map(bar => bar.bidClose);
   let cash = START, entryIndex = -1, entryCash = 0, trades = 0, wins = 0, stops = 0, financing = 0, skipped = 0;
   let position: ReturnType<typeof replayEntry> = null;
@@ -66,6 +67,7 @@ function simulate(bars: StockBar[], rule: DailyStockRule, start: number, end: nu
         cash = replayExit(position, exit, cost);
         stops += Number(stop != null);
         wins += Number(cash > entryCash);
+        if (pending === 'sell' || stop != null) onClose?.(bars[entryIndex], bar, (cash - entryCash) / (cost.amount ?? entryCash));
         trades++;
         position = null;
       }
@@ -90,10 +92,10 @@ export function researchStock(bars: StockBar[], rule: DailyStockRule, cost: Stoc
   const start = rule === 'inside-day' ? 50 : 100;
   if (bars.length < (rule === 'inside-day' ? 120 : 260)) return null;
   const split = start + Math.floor((bars.length - start) * 0.7);
-  const result = simulate(bars, rule, start, bars.length, cost, canEnter);
-  const first = simulate(bars, rule, start, split, cost, canEnter);
-  const later = simulate(bars, rule, split, bars.length, cost, canEnter);
-  const stress = simulate(bars, rule, split, bars.length, stockReplayCosts(cost), canEnter);
+  const result = simulateStockRule(bars, rule, start, bars.length, cost, canEnter);
+  const first = simulateStockRule(bars, rule, start, split, cost, canEnter);
+  const later = simulateStockRule(bars, rule, split, bars.length, cost, canEnter);
+  const stress = simulateStockRule(bars, rule, split, bars.length, stockReplayCosts(cost), canEnter);
   return {
     ...result, from: bars[start].day, to: bars.at(-1)!.day, holdoutFrom: bars[split].day,
     earlyReturn: first.return, holdoutReturn: later.return, holdoutHold: later.hold, holdoutTrades: later.trades, stressReturn: stress.return,

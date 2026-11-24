@@ -10,11 +10,16 @@ import { STOCK_INSTRUMENTS, isStockTradeSymbol } from '@/lib/stocks/trade-rules'
 import { etoroFromConnection } from '@/lib/stocks/connection';
 import { readHealth } from '@/lib/health';
 
+import { liveVersions } from '@/lib/automation/strategy-workspace';
+
 const market = z.enum(AUTOMATION_MARKETS);
 const command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('run'), market, kind: z.enum(['daily', 'weekly']).default('daily') }),
   z.object({ action: z.literal('test'), market, idea: z.string().max(100) }),
   z.object({ action: z.literal('paper'), market, idea: z.string().max(100) }),
+  z.object({ action: z.literal('add-live'), market, version: z.string().max(140), confirmed: z.literal(true),
+    existing: z.array(z.string().max(140)).max(8), budget: z.number().min(1).max(10000), maxOrder: z.number().min(10).max(10000) }),
+  z.object({ action: z.literal('pause-live'), market, version: z.string().max(140) }),
   z.object({ action: z.literal('scan-paper'), market }),
   z.object({ action: z.literal('scan-live'), market, versions: z.array(z.string().max(140)).min(1).max(8), confirmed: z.literal(true),
     budget: z.number().min(1).max(10_000), maxOrder: z.number().min(10).max(10_000) }),
@@ -109,9 +114,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: id ? 'Backtest queued.' : 'Backtest already queued.' });
     }
     let patch: object;
-    if (input.action === 'approve' || input.action === 'scan-live') {
+    if (input.action === 'pause-live') {
+      const versions = liveVersions(current);
+      if (!versions.includes(input.version)) return fail('This strategy is no longer live.', 409);
+      const remaining = versions.filter(v => v !== input.version);
+      patch = remaining.length ? { live_version: remaining[0], live_scan_versions: remaining, scan_for_opportunities: true }
+        : { mode: 'research', entries_paused: true, live_version: null, live_scan_versions: [], scan_for_opportunities: false,
+          loss_budget_usd: null, max_order_usd: null };
+    } else if (input.action === 'add-live' || input.action === 'approve' || input.action === 'scan-live') {
       let candidates: Evidence[];
-      if (input.action === 'approve') {
+      if (input.action !== 'scan-live') {
         const candidate = await exactCandidate(ctx.db, ctx.id, input.market, input.version);
         candidates = candidate && (await readPaperResults(ctx.db, ctx.id, candidate)).passed ? [candidate] : [];
       } else {
@@ -122,9 +134,18 @@ export async function POST(request: Request) {
       if (!candidates.length) return fail('This exact strategy version must pass research and Paper before Live.', 409);
       const problem = await verifyLiveAccount(ctx.db, ctx.id, input.market, candidates, Math.min(input.budget, input.maxOrder));
       if (problem) return problem;
-      patch = { mode: 'live', enabled: true, entries_paused: false, live_version: candidates[0].version,
-        loss_budget_usd: input.budget, max_order_usd: input.maxOrder, scan_for_opportunities: input.action === 'scan-live',
-        live_scan_versions: input.action === 'scan-live' ? candidates.map(candidate => candidate.version) : [] };
+      let versions = candidates.map(candidate => candidate.version);
+      if (input.action === 'add-live') {
+        const active = liveVersions(current);
+        if (active.length !== input.existing.length || active.some(v => !input.existing.includes(v)) ||
+          active.includes(input.version) || active.length >= 8 || active.length && (current?.entries_paused || !current?.enabled ||
+            Number(current.loss_budget_usd) !== input.budget || Number(current.max_order_usd) !== input.maxOrder))
+          return fail('The live plan changed or reached its limit. Refresh to review it.', 409);
+        versions = [...active, input.version];
+      }
+      patch = { mode: 'live', enabled: true, entries_paused: false, live_version: versions[0],
+        loss_budget_usd: input.budget, max_order_usd: input.maxOrder, scan_for_opportunities: input.action === 'scan-live' || versions.length > 1,
+        live_scan_versions: versions.length > 1 || input.action === 'scan-live' ? versions : [] };
     } else if (input.action === 'scan-paper' || input.action === 'paper' && idea) {
       const version = input.action === 'paper' && idea ? automationVersion(idea.market, idea.symbol, idea.rule) : null;
       if (version && (!idea?.executable || !await exactCandidate(ctx.db, ctx.id, input.market, version))) return fail('This setup must pass a recent backtest.', 409);

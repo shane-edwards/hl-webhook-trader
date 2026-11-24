@@ -198,7 +198,7 @@ const clusterDays = (pair: SearchPair) => isIntradayStock(pair) ? 3 * DAY : 7 * 
 const edge = (pair: SearchPair, side?: SearchSide) => pair.market === 'crypto' ? .0008 : side === 'short' ? .0019 : .0004;
 
 function withOutcomes(report: SearchReport, outcomes: SearchOutcome[]) {
-  const first = outcomes.find(item => item.verdict === 'paper-candidate') ?? outcomes[0];
+  const first = outcomes.find(item => item.verdict === 'paper-candidate') ?? outcomes.find(item => item.verdict === 'small-sample') ?? outcomes[0];
   return first ? { ...report, ...first, alternatives: outcomes.filter(item => item !== first) } : report;
 }
 
@@ -302,11 +302,13 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
       const robustness = winner.recipe ? { delayed: replay(input, winner, start, bars.length, cost * 2, cluster, stockShort, undefined, 1),
         lowerGroupReturn: blockLowerBound(groups) } : undefined;
       const benchmark = (side === 'short' ? -1 : 1) * (Math.exp(Math.log(bars.at(-1)!.c / bars[start].o) * stress.exposure) - 1);
-      const passed = (!winner.recipe?.context || covered(bars.slice(start), winner.recipe.context)) &&
-        holdout.net > 0 && stress.net > Math.max(0, benchmark) && stress.trades >= 25 && stress.groups >= 9 &&
+      const sound = (!winner.recipe?.context || covered(bars.slice(start), winner.recipe.context)) &&
+        holdout.net > 0 && stress.net > Math.max(0, benchmark) &&
         stress.drawdown <= .16 && (stress.score ?? 0) >= 3.3 &&
         (!robustness || (robustness.lowerGroupReturn > 0 && robustness.delayed.net > 0 && robustness.delayed.drawdown <= .16));
-      finalists.push({ rank, outcome: { verdict: passed ? 'paper-candidate' : 'holdout-failed', rule: winner,
+      const enough = stress.trades >= 25 && stress.groups >= 9;
+      const verdict = sound && enough ? 'paper-candidate' : sound && stress.trades >= 4 && stress.groups >= 2 ? 'small-sample' : 'holdout-failed';
+      finalists.push({ rank, outcome: { verdict, rule: winner,
         holdout, stress, venue: null, benchmark, note: report.note, robustness } });
     }
   }
@@ -314,11 +316,13 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
   return withOutcomes({ ...report, verdict: 'no-candidate', testedOnLaterData: finalists.length }, outcomes);
 }
 
+export const admitsForward = (verdict: SearchOutcome['verdict']) => verdict === 'paper-candidate' || verdict === 'small-sample';
+
 export function checkPerpVenue(report: SearchReport, bars: SearchBar[]): SearchReport {
-  if (report.verdict !== 'paper-candidate' || !report.rule || report.pair.market !== 'crypto') return report;
+  if (report.pair.market !== 'crypto' || !searchOutcomes(report).some(o => admitsForward(o.verdict))) return report;
   const hasHistory = bars.length >= 650 && (bars.at(-1)!.t - bars[0].t) / BAR_MS[report.pair.frame] + 1 <= bars.length / .995;
   return withOutcomes(report, searchOutcomes(report).map(outcome => {
-    if (outcome.verdict !== 'paper-candidate' || !outcome.rule) return outcome;
+    if (!admitsForward(outcome.verdict) || !outcome.rule) return outcome;
     if (!hasHistory) return { ...outcome, verdict: 'venue-failed', note: 'Incomplete Hyperliquid price or funding history' };
     const rule = outcome.rule;
     const factor = rule.recipe?.context;
@@ -326,7 +330,7 @@ export function checkPerpVenue(report: SearchReport, bars: SearchBar[]): SearchR
       return { ...outcome, verdict: 'venue-failed', note: 'Incomplete historical signal data on the venue test' };
     const venue = replay(searchInputs(bars, bars.length, rule.side), rule, WARMUP, bars.length, edge(report.pair, rule.side) * 2, clusterDays(report.pair));
     const passed = venue.trades >= 12 && venue.groups >= 3 && venue.net > 0 && venue.drawdown <= .16;
-    return { ...outcome, verdict: passed ? 'paper-candidate' : 'venue-failed', venue };
+    return { ...outcome, verdict: passed ? outcome.verdict : 'venue-failed', venue };
   }));
 }
 
@@ -365,10 +369,11 @@ export function advanceForward(report: SearchReport, previous: ForwardBook[], ba
   });
   for (const outcome of searchOutcomes(report)) {
     const rule = outcome.rule;
-    if (!rule || outcome.verdict !== 'paper-candidate' || !outcome.stress || !(outcome.stress.net > 0) ||
+    if (!rule || !admitsForward(outcome.verdict) || !outcome.stress || !(outcome.stress.net > 0) ||
         (pair.market === 'crypto' && !(outcome.venue && outcome.venue.net > 0)) ||
         books.some(b => b.version === RULE_INTERPRETER_VERSION && ruleKey(b.rule) === ruleKey(rule))) continue;
-    books.push({ version: RULE_INTERPRETER_VERSION, rule, started: enrolledAt, cursor: enrolledAt, lastExit: 0, count: 0,
+    books.push({ admission: outcome.verdict === 'small-sample' ? 'sample' : 'passed',
+      backtest: { net: outcome.stress.net, trades: outcome.stress.trades, through: report.through }, version: RULE_INTERPRETER_VERSION, rule, started: enrolledAt, cursor: enrolledAt, lastExit: 0, count: 0,
       equity: 1, peak: 1, drawdown: 0, recent: [], state: 'tracking' });
   }
   return books;

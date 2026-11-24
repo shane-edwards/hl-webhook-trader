@@ -57,14 +57,20 @@ export async function proxy(request: NextRequest) {
   // Redirect authenticated users away from login
   if (user && pathname === '/login') {
     const url = request.nextUrl.clone();
-    url.pathname = '/journey/find';
+    url.pathname = '/strategies';
+    return NextResponse.redirect(url);
+  }
+
+  if (user && pathname === '/journey/find' && !request.nextUrl.searchParams.has('asset') && !request.nextUrl.searchParams.has('frame') && !request.nextUrl.searchParams.has('idea')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/strategies';
     return NextResponse.redirect(url);
   }
 
   // Redirect root to dashboard
   if (user && pathname === '/') {
     const url = request.nextUrl.clone();
-    url.pathname = '/journey/find';
+    url.pathname = '/strategies';
     return NextResponse.redirect(url);
   }
 
