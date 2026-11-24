@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { cronAuthorized } from '@/lib/cron-auth';
 import { heartbeat } from '@/lib/health';
 import { processResearchStep, queueScheduledResearch } from '@/lib/automation/queue';
-import { queueRotatingPairs } from '@/lib/automation/pair-research';
+import { queueMarketSearches } from '@/lib/automation/pair-research';
 import { stockMarketClock } from '@/lib/stocks/session';
 import { notify } from '@/lib/notify';
 import { updateCryptoShadow } from '@/lib/automation/crypto-shadow';
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     const [result, hedge, searches] = await Promise.all([
       minute >= 10 && minute <= 12 ? updateCryptoShadow(db, now).then(() => 'shadow recorded') : processResearchStep(db),
       minute % 5 === 4 ? watchFundingHedges(db, now) : null,
-      minute % 5 === 3 ? queueRotatingPairs(db, now).catch(error => {
+      minute % 5 === 3 ? queueMarketSearches(db, now).catch(error => {
         console.error('[automation] strategy search queue', error);
         return null;
       }) : 0,

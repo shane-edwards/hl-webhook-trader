@@ -10,6 +10,7 @@ import { stockHref } from '@/components/layout/workspaces';
 import { TradeActions } from '@/components/journey/TradeActions';
 import { FullAutopilot } from '@/components/journey/FullAutopilot';
 import { FundingHedge } from '@/components/journey/FundingHedge';
+import { MarketRecommendations } from '@/components/journey/MarketRecommendations';
 import { frameNames, StrategySearch } from '@/components/journey/StrategySearch';
 import { Button } from '@/components/ui/button';
 import { IDEA_RULES, findIdea, ideaId, ideasForPair, ideaSearchFrame, type StrategyIdea } from '@/lib/automation/ideas';
@@ -105,6 +106,7 @@ export default function JourneyPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [openedResearch, setOpenedResearch] = useState<AutomationMarket | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     const response = await fetch(selectedId ? `/api/journey?${new URLSearchParams({ idea: selectedId })}` : '/api/journey', { signal, cache: 'no-store' });
@@ -142,6 +144,7 @@ export default function JourneyPage() {
   const needsFeed = market === 'stocks' && !!current && current.connections.length === 0;
   const profile = current?.profiles.find(item => item.market === market);
   const stockMode = query.get('mode');
+  const linkedPair = searchPair(market, query.get('asset'), query.get('frame'));
   const baseAsset = query.get('asset') ?? requested?.symbol ?? SEARCH_ASSETS[market][0];
   const baseFrame = query.get('frame') ?? (market === 'crypto' ? '1h' : '1d');
   const findPair = searchPair(market, baseAsset, baseFrame) ?? searchPair(market, SEARCH_ASSETS[market][0], market === 'crypto' ? '1h' : '1d')!;
@@ -199,34 +202,43 @@ export default function JourneyPage() {
       {error && <p role="alert" className="text-sm text-loss">{error}</p>}
       {notice && <p role="status" className="text-sm">{notice}</p>}
       {step === 'find' ? <>
-        <section className="surface p-4 grid grid-cols-2 gap-3 sm:max-w-xl">
-          <label className="block text-xs font-medium">Asset<select aria-label="Asset" className={selectClass} value={findPair.symbol}
-            onChange={event => changeSearch('asset', event.target.value)}>{SEARCH_ASSETS[market].map(symbol => <option key={symbol}>{symbol}</option>)}</select></label>
-          <label className="block text-xs font-medium">Timeframe<select aria-label="Timeframe" className={selectClass} value={findPair.frame}
-            onChange={event => changeSearch('frame', event.target.value)}>{SEARCH_FRAMES[market].map(frame => <option key={frame} value={frame}>{frameNames[frame]}</option>)}</select></label>
-        </section>
-        <StrategySearch market={market} symbol={findPair.symbol} frame={findPair.frame} recommendation={recommend} />
-        {!!matching.length && <details className="surface p-4">
-          <summary className="cursor-pointer text-sm font-medium">Built-in strategy results</summary>
-          <div className="mt-2 divide-y">
-            {matching.map(item => <IdeaRow key={item.rule} item={item} symbol={findPair.symbol} data={data} />)}
-          </div>
-        </details>}
-        {market === 'crypto' && (findPair.symbol === 'BTC' || findPair.symbol === 'ETH') && <>
-          <details className="surface p-4" open={findPair.frame === '4h' || undefined}>
-            <summary className="cursor-pointer text-sm font-medium">4-hour swing research lead</summary>
-            <div className="mt-3 space-y-1 text-sm">
-              <p className="font-medium">Spot-confirmed rally · Long up to two days</p>
-              <p className="text-xs text-muted-foreground">Historical research · {findPair.symbol === 'BTC' ? '+13.23% over 2 BTC trades' : '+8.40% over 5 ETH trades'} through Oct 2026 · Small sample</p>
-              <a href="https://github.com/shane-edwards/hl-webhook-trader/blob/ccdf185/backtest/CRYPTO-SETUPS.md" target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-primary">View study <ArrowUpRight size={12} /></a>
+        <MarketRecommendations market={market} />
+        <details id="asset-research" key={linkedPair ? `${market}:${linkedPair.symbol}:${linkedPair.frame}` : market}
+          open={!!linkedPair || undefined} onToggle={event => setOpenedResearch(event.currentTarget.open ? market : null)}
+          className="surface scroll-mt-20 p-4">
+          <summary className="cursor-pointer text-sm font-medium">Research by asset</summary>
+          <div className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3 sm:max-w-xl">
+              <label className="block text-xs font-medium">Asset<select aria-label="Asset" className={selectClass} value={findPair.symbol}
+                onChange={event => changeSearch('asset', event.target.value)}>{SEARCH_ASSETS[market].map(symbol => <option key={symbol}>{symbol}</option>)}</select></label>
+              <label className="block text-xs font-medium">Timeframe<select aria-label="Timeframe" className={selectClass} value={findPair.frame}
+                onChange={event => changeSearch('frame', event.target.value)}>{SEARCH_FRAMES[market].map(frame => <option key={frame} value={frame}>{frameNames[frame]}</option>)}</select></label>
             </div>
-          </details>
-          <details className="surface p-4">
-            <summary className="cursor-pointer text-sm font-medium">Funding hedge</summary>
-            <div className="mt-3"><FundingHedge key={findPair.symbol} symbol={findPair.symbol} /></div>
-          </details>
-        </>}
+            <StrategySearch market={market} symbol={findPair.symbol} frame={findPair.frame} recommendation={recommend}
+              active={!!linkedPair || openedResearch === market} />
+            {!!matching.length && <details className="rounded-lg border p-3">
+              <summary className="cursor-pointer text-sm font-medium">Built-in strategy results</summary>
+              <div className="mt-2 divide-y">
+                {matching.map(item => <IdeaRow key={item.rule} item={item} symbol={findPair.symbol} data={data} />)}
+              </div>
+            </details>}
+            {(!!linkedPair || openedResearch === market) && market === 'crypto' && (findPair.symbol === 'BTC' || findPair.symbol === 'ETH') && <>
+              <details className="rounded-lg border p-3" open={findPair.frame === '4h' || undefined}>
+                <summary className="cursor-pointer text-sm font-medium">4-hour swing research lead</summary>
+                <div className="mt-3 space-y-1 text-sm">
+                  <p className="font-medium">Spot-confirmed rally · Long up to two days</p>
+                  <p className="text-xs text-muted-foreground">Historical research · {findPair.symbol === 'BTC' ? '+13.23% over 2 BTC trades' : '+8.40% over 5 ETH trades'} through Oct 2026 · Small sample</p>
+                  <a href="https://github.com/shane-edwards/hl-webhook-trader/blob/ccdf185/backtest/CRYPTO-SETUPS.md" target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary">View study <ArrowUpRight size={12} /></a>
+                </div>
+              </details>
+              <details className="rounded-lg border p-3">
+                <summary className="cursor-pointer text-sm font-medium">Funding hedge</summary>
+                <div className="mt-3"><FundingHedge key={findPair.symbol} symbol={findPair.symbol} /></div>
+              </details>
+            </>}
+          </div>
+        </details>
         <Button asChild variant="ghost" size="sm"><Link href={journeyHref('trade', market) + '#autopilot'}>Full Autopilot <ArrowRight size={15} /></Link></Button>
       </> : <div className="grid gap-4 lg:grid-cols-[minmax(225px,1fr)_minmax(0,3fr)]">
         <section className="surface min-w-0 p-4 self-start space-y-3">

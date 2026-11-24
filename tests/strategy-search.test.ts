@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { searchHistory, searchInputs } from '../lib/strategy-search/engine';
-import { pairFromKey, scheduledPairs, searchDue, searchKey, searchPair, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
-  SEARCH_RETRY_MS, SEARCH_REVISION, RECOMMENDATION_FRESH_MS, type SearchBar } from '../lib/strategy-search/model';
+import { marketSearchPairs, pairFromKey, searchDue, searchKey, searchPair, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
+  SEARCH_RETRY_MS, SEARCH_REVISION, RECOMMENDATION_FRESH_MS, type SearchBar, type SearchReport } from '../lib/strategy-search/model';
 import { ideasForPair } from '../lib/automation/ideas';
+import { automationVersion, type Evidence } from '../lib/automation/model';
+import { summarizeMarketResearch, type SearchRecord } from '../lib/strategy-search/recommendations';
 
 const sample = Array.from({ length: 800 }, (_, i): SearchBar => {
   const c = 100 + Math.sin(i / 8) * 10 + Math.sin(i / 3) * 3;
@@ -31,17 +33,12 @@ test('strategy search abstains on short or missing history and matches the exact
   assert.equal(report.rule, null);
 });
 
-test('background rotation covers the catalog and includes the default assets without a visit', () => {
-  const date = Date.UTC(2026, 10, 1);
+test('the background catalog covers every supported asset and timeframe without a visit', () => {
   for (const market of ['crypto', 'stocks'] as const) {
-    const rotation = new Set<string>();
-    for (let i = 0; i < 30; i++) {
-      const day = new Date(date + i * 86_400_000).toISOString().slice(0, 10);
-      const pairs = scheduledPairs(market, day);
-      assert.equal(new Set(pairs.map(searchKey)).size, pairs.length);
-      for (const pair of pairs) rotation.add(searchKey(pair));
-    }
-    assert.equal(rotation.size, SEARCH_ASSETS[market].length * SEARCH_FRAMES[market].length);
+    const pairs = marketSearchPairs(market);
+    assert.equal(new Set(pairs.map(searchKey)).size, SEARCH_ASSETS[market].length * SEARCH_FRAMES[market].length);
+    assert.deepEqual(new Set(pairs.map(({ symbol }) => symbol)), new Set(SEARCH_ASSETS[market]));
+    assert.deepEqual(new Set(pairs.map(({ frame }) => frame)), new Set(SEARCH_FRAMES[market]));
   }
 });
 
@@ -65,4 +62,41 @@ test('built-in tests are scoped to the asset and the signal bar timeframe', () =
   assert.deepEqual(ideasForPair(searchPair('crypto', 'BTC', '4h')!), []);
   assert.deepEqual(ideasForPair(searchPair('stocks', 'SPY', '30m')!).map(rule => rule.rule), ['close', 'close-volume']);
   assert.deepEqual(ideasForPair(searchPair('stocks', 'JPM', '5m')!), []);
+});
+
+test('market recommendations list every current pass across assets and frames, without copying hidden or old results', () => {
+  const now = Date.UTC(2026, 10, 24, 12);
+  const time = (ageDays: number) => new Date(now - ageDays * 86_400_000).toISOString();
+  const metric = { trades: 51, groups: 20, net: .25, average: .005, drawdown: .09, score: 4 };
+  const rule = { family: 'range', setting: 20, trend: 80, volume: 1, stop: 1.75, reward: 1.8, maxBars: 18 } as const;
+  const record = (pair: NonNullable<ReturnType<typeof searchPair>>, ageDays = 1,
+    verdict: SearchReport['verdict'] = 'paper-candidate'): SearchRecord => ({
+    id: searchKey(pair), asOf: time(ageDays), completedAt: time(ageDays), status: 'completed',
+    report: { pair, revision: SEARCH_REVISION, source: 'sample', bars: 10000, from: '2023-10-01', through: '2026-11-23',
+      tried: 3024, validationPassed: 1, testedOnLaterData: 1, holdoutFrom: '2025-10-01',
+      verdict, rule, stress: metric, holdout: metric, venue: metric, benchmark: .01 },
+  });
+  const btc = searchPair('crypto', 'BTC', '4h')!;
+  const eth = searchPair('crypto', 'ETH', '15m')!;
+  const sol = searchPair('crypto', 'SOL', '1d')!;
+  const link = searchPair('crypto', 'LINK', '5m')!;
+  const doge = searchPair('crypto', 'DOGE', '5m')!;
+  const spy = searchPair('stocks', 'SPY', '30m')!;
+  const assetRule = (symbol: string, rule: string, stress: number): Evidence => ({ market: 'crypto', symbol, rule,
+    name: rule, version: automationVersion('crypto', symbol, rule), trades: 90, holdoutTrades: 35, early: .1, later: .2,
+    stress, benchmark: .02, drawdown: .08, from: '2026-06-01', through: '2026-11-23', qualified: true, reason: 'Passed' });
+  const named = assetRule('BTC', 'trend_breakout', .15);
+  const namedOther = assetRule('ETH', 'trend_pullback', .19);
+  const records = [record(btc), record(eth), record(sol, 9), record(spy),
+    record(link, 1, 'holdout-failed'), record(link, 2), record(doge, 1, 'insufficient-history'),
+    { ...record(searchPair('crypto', 'ADA', '1h')!), status: 'running', report: null }];
+  const result = summarizeMarketResearch('crypto', records, [
+    { evidence: named, asOf: time(1) }, { evidence: namedOther, asOf: time(1) },
+    { evidence: { ...namedOther, rule: 'trend_breakout', version: 'old' }, asOf: time(1) },
+    { evidence: { ...named, stress: .99 }, asOf: time(6) },
+  ], now);
+  assert.deepEqual(result.setups.map(setup => [setup.pair.symbol, setup.pair.frame, setup.kind]),
+    [['ETH', '1h', 'trade'], ['BTC', '1h', 'trade'], ['BTC', '4h', 'research'], ['ETH', '15m', 'research']]);
+  assert.deepEqual(result.coverage, { symbols: 18, timeframes: 5, total: 90, scanned: 3, queued: 1, limited: 1, lastChecked: time(1) });
+  assert.deepEqual(summarizeMarketResearch('stocks', records, [], now).setups.map(setup => setup.pair), [spy]);
 });

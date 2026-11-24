@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { pairAccess, queueSelectedPair } from '@/lib/automation/pair-research';
-import { SEARCH_REFRESH_MS, SEARCH_REVISION, searchDue, searchKey, searchPair, type SearchPair, type SearchReport } from '@/lib/strategy-search/model';
+import { initializeMarketResearch, pairAccess, queueSelectedPair } from '@/lib/automation/pair-research';
+import { readMarketResearch } from '@/lib/automation/market-research';
+import { isSearchMarket, SEARCH_REFRESH_MS, SEARCH_REVISION, searchDue, searchKey, searchPair, type SearchPair, type SearchReport } from '@/lib/strategy-search/model';
 
 async function currentUser() {
   const { data: { user } } = await (await createClient()).auth.getUser();
@@ -31,10 +32,12 @@ export async function GET(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const query = new URL(request.url).searchParams;
-  const pair = searchPair(query.get('market'), query.get('symbol'), query.get('frame'));
-  if (!pair) return NextResponse.json({ status: 'unsupported', report: null, canStart: false });
+  const market = query.get('market');
   try {
-    return NextResponse.json(await searchStatus(createServiceClient(), user.id, pair));
+    const db = createServiceClient();
+    if (isSearchMarket(market) && !query.has('symbol') && !query.has('frame')) return NextResponse.json(await readMarketResearch(db, user.id, market));
+    const pair = searchPair(market, query.get('symbol'), query.get('frame'));
+    return NextResponse.json(pair ? await searchStatus(db, user.id, pair) : { status: 'unsupported', report: null, canStart: false });
   } catch {
     return NextResponse.json({ error: 'Could not read strategy research.' }, { status: 503 });
   }
@@ -44,10 +47,14 @@ export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await request.json().catch(() => null);
-  const pair = searchPair(body?.market, body?.symbol, body?.frame);
-  if (!pair) return NextResponse.json({ status: 'unsupported', report: null, canStart: false });
   const db = createServiceClient();
   try {
+    if (isSearchMarket(body?.market) && body.symbol === undefined && body.frame === undefined) {
+      await initializeMarketResearch(db, user.id, body.market);
+      return NextResponse.json(await readMarketResearch(db, user.id, body.market));
+    }
+    const pair = searchPair(body?.market, body?.symbol, body?.frame);
+    if (!pair) return NextResponse.json({ status: 'unsupported', report: null, canStart: false });
     const queued = await queueSelectedPair(db, user.id, pair, Date.now());
     return NextResponse.json(await searchStatus(db, user.id, pair, queued?.waitingForCapacity));
   } catch {

@@ -56,12 +56,12 @@ export function searchDue(job: SearchJob | undefined, now: number, search: boole
   return age >= (search ? SEARCH_REFRESH_MS : RECOMMENDATION_FRESH_MS);
 }
 
-export function scheduledPairs(market: SearchMarket, day: string): SearchPair[] {
+export function marketSearchPairs(market: SearchMarket): SearchPair[] {
   const core = market === 'stocks' ? ['AAPL', 'NVDA', 'SPY'] : ['BTC', 'ETH', 'SOL'];
   const frame = market === 'stocks' ? '1d' : '1h';
-  const pairs = SEARCH_ASSETS[market].flatMap(symbol => SEARCH_FRAMES[market].map(frame => ({ market, symbol, frame })));
-  const offset = Math.floor(Date.parse(day) / 86_400_000) * 6;
-  const rotating = Array.from({ length: 6 }, (_, i) => pairs[(offset + i) % pairs.length]);
-  return [...new Map([...core.map(symbol => ({ market, symbol, frame } satisfies SearchPair)), ...rotating]
+  const pairs = SEARCH_FRAMES[market].flatMap(frame => SEARCH_ASSETS[market].map(symbol => ({ market, symbol, frame })));
+  return [...new Map([...core.map(symbol => ({ market, symbol, frame } satisfies SearchPair)), ...pairs]
     .map(pair => [searchKey(pair), pair])).values()];
 }
+
+export const isSearchMarket = (value: unknown): value is SearchMarket => value === 'stocks' || value === 'crypto';
