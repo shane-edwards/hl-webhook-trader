@@ -1,0 +1,108 @@
+{
+  "venues": [
+    "Hyperliquid USD perpetuals",
+    "Binance USDT perpetuals"
+  ],
+  "collateralPerLeg": 1.5,
+  "markets": [
+    {
+      "coin": "BTC",
+      "studies": [
+        {
+          "from": "2026-06-01",
+          "to": "2026-08-01",
+          "base": {
+            "net": -0.0012462141887594758,
+            "drawdown": 0.0013366599542334878,
+            "entries": 1
+          },
+          "stress": {
+            "net": -0.002406681299747193,
+            "drawdown": 0.002536585039036643,
+            "entries": 1
+          }
+        },
+        {
+          "from": "2026-08-01",
+          "to": "2026-11-01",
+          "base": {
+            "net": 0,
+            "drawdown": 0,
+            "entries": 0
+          },
+          "stress": {
+            "net": 0,
+            "drawdown": 0,
+            "entries": 0
+          }
+        }
+      ]
+    },
+    {
+      "coin": "ETH",
+      "studies": [
+        {
+          "from": "2026-06-01",
+          "to": "2026-08-01",
+          "base": {
+            "net": -0.0008968449854032112,
+            "drawdown": 0.0012175675925977236,
+            "entries": 1
+          },
+          "stress": {
+            "net": -0.0020913076544839537,
+            "drawdown": 0.0024342629887403877,
+            "entries": 1
+          }
+        },
+        {
+          "from": "2026-08-01",
+          "to": "2026-11-01",
+          "base": {
+            "net": 0,
+            "drawdown": 0,
+            "entries": 0
+          },
+          "stress": {
+            "net": 0,
+            "drawdown": 0,
+            "entries": 0
+          }
+        }
+      ]
+    },
+    {
+      "coin": "SOL",
+      "studies": [
+        {
+          "from": "2026-06-01",
+          "to": "2026-08-01",
+          "base": {
+            "net": 0,
+            "drawdown": 0,
+            "entries": 0
+          },
+          "stress": {
+            "net": 0,
+            "drawdown": 0,
+            "entries": 0
+          }
+        },
+        {
+          "from": "2026-08-01",
+          "to": "2026-11-01",
+          "base": {
+            "net": 0,
+            "drawdown": 0,
+            "entries": 0
+          },
+          "stress": {
+            "net": 0,
+            "drawdown": 0,
+            "entries": 0
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { journeyHref, JOURNEY_STEPS } from '@/components/layout/journey';
 import { stockHref } from '@/components/layout/workspaces';
 import { TradeActions } from '@/components/journey/TradeActions';
 import { FullAutopilot } from '@/components/journey/FullAutopilot';
+import { FundingHedge } from '@/components/journey/FundingHedge';
 import { frameNames, StrategySearch } from '@/components/journey/StrategySearch';
 import { Button } from '@/components/ui/button';
 import { IDEA_RULES, findIdea, ideaId, type StrategyIdea } from '@/lib/automation/ideas';
@@ -214,6 +215,7 @@ export default function JourneyPage() {
           </div>
         </section>}
         <StrategySearch market={market} symbol={findPair.symbol} frame={findPair.frame} />
+        {market === 'crypto' && (findPair.symbol === 'BTC' || findPair.symbol === 'ETH') && <FundingHedge key={findPair.symbol} symbol={findPair.symbol} />}
         {!!matching.length && <details className="surface p-4">
           <summary className="cursor-pointer text-sm font-medium">Other tested ideas</summary>
           <div className="grid gap-3 mt-3 sm:grid-cols-2 xl:grid-cols-3">

@@ -1,0 +1,87 @@
+{
+  "source": "Matched Binance spot/perpetual hourly candles and actual funding",
+  "tested": 27,
+  "windows": [
+    {
+      "from": "2024-03-01T00:00:00.000Z",
+      "to": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "from": "2025-01-01T00:00:00.000Z",
+      "to": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "from": "2026-01-01T00:00:00.000Z",
+      "to": "2026-11-01T00:00:00.000Z"
+    }
+  ],
+  "mostActive": {
+    "rule": {
+      "lookback": 24,
+      "premium": 0.0025,
+      "hold": 12
+    },
+    "discovery": {
+      "byMarket": [
+        {
+          "coin": "BTC",
+          "trades": 0,
+          "wins": 0,
+          "net": 0,
+          "worstTradeMark": 0,
+          "positiveWeeks": 0
+        },
+        {
+          "coin": "ETH",
+          "trades": 0,
+          "wins": 0,
+          "net": 0,
+          "worstTradeMark": 0,
+          "positiveWeeks": 0
+        },
+        {
+          "coin": "SOL",
+          "trades": 0,
+          "wins": 0,
+          "net": 0,
+          "worstTradeMark": 0,
+          "positiveWeeks": 0
+        }
+      ],
+      "trades": 0,
+      "net": 0
+    },
+    "validation": {
+      "byMarket": [
+        {
+          "coin": "BTC",
+          "trades": 0,
+          "wins": 0,
+          "net": 0,
+          "worstTradeMark": 0,
+          "positiveWeeks": 0
+        },
+        {
+          "coin": "ETH",
+          "trades": 0,
+          "wins": 0,
+          "net": 0,
+          "worstTradeMark": 0,
+          "positiveWeeks": 0
+        },
+        {
+          "coin": "SOL",
+          "trades": 0,
+          "wins": 0,
+          "net": 0,
+          "worstTradeMark": 0,
+          "positiveWeeks": 0
+        }
+      ],
+      "trades": 0,
+      "net": 0
+    }
+  },
+  "selected": null,
+  "final": null
+}

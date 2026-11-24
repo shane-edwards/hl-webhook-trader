@@ -1,0 +1,36 @@
+{
+  "tested": 24,
+  "source": "Paired eToro 30-minute bid/ask candles, SPY benchmark and SEC Item 2.02 filing timestamps",
+  "symbols": [
+    17,
+    26
+  ],
+  "mostActive": {
+    "rule": {
+      "profile": "rebound",
+      "exit": "same-day",
+      "gap": 0.01,
+      "confirm": false
+    },
+    "initial": {
+      "eligibleFilings": 60,
+      "trades": 2,
+      "tradingDays": 2,
+      "netBps": -30.629558791893107,
+      "excessBps": -82.00125625329846,
+      "positiveSymbols": 1,
+      "score": -1.949309210523515
+    },
+    "replication": {
+      "eligibleFilings": 26,
+      "trades": 10,
+      "tradingDays": 10,
+      "netBps": 28.370294785805548,
+      "excessBps": 6.439755781915579,
+      "positiveSymbols": 5,
+      "score": 0.12924349126655463
+    }
+  },
+  "selected": null,
+  "final": null
+}

@@ -1,0 +1,38 @@
+{
+  "venue": "eToro paired 30-minute quotes",
+  "basket": [
+    "AAPL",
+    "AMD",
+    "AMZN",
+    "AVGO",
+    "BA",
+    "CAT",
+    "GOOGL",
+    "JPM",
+    "LLY",
+    "META",
+    "MSFT",
+    "MU",
+    "NVDA",
+    "PLTR",
+    "TSLA",
+    "WMT",
+    "XOM"
+  ],
+  "windows": [
+    [
+      "2025-06-01",
+      "2026-01-01"
+    ],
+    [
+      "2026-01-01",
+      "2026-07-01"
+    ],
+    [
+      "2026-07-01",
+      "2026-11-21"
+    ]
+  ],
+  "tested": 108,
+  "finalists": []
+}

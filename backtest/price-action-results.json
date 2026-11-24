@@ -1,0 +1,766 @@
+{
+  "testedThrough": "2026-10-31",
+  "venues": [
+    "Binance USD-M perpetuals and spot",
+    "Hyperliquid spot and perpetuals"
+  ],
+  "coins": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "windows": [
+    {
+      "name": "train",
+      "from": "2024-02-01",
+      "until": "2025-01-01"
+    },
+    {
+      "name": "validation",
+      "from": "2025-01-01",
+      "until": "2026-01-01"
+    },
+    {
+      "name": "holdout",
+      "from": "2026-01-01",
+      "until": "2026-11-01"
+    }
+  ],
+  "directional": {
+    "tested": 972,
+    "reports": [],
+    "perAsset": []
+  },
+  "carry": [
+    {
+      "name": "Permanent hedge",
+      "markets": [
+        {
+          "coin": "BTC",
+          "windows": [
+            {
+              "window": "train",
+              "regular": {
+                "net": 0.059761090702444175,
+                "drawdown": 0.0023999122016776786,
+                "entries": 2,
+                "resets": 1,
+                "openHours": 8019
+              },
+              "stressed": {
+                "net": 0.05607034374051367,
+                "drawdown": 0.003947103895603821,
+                "entries": 2,
+                "resets": 1,
+                "openHours": 8019
+              }
+            },
+            {
+              "window": "validation",
+              "regular": {
+                "net": 0.021483988975728785,
+                "drawdown": 0.0015174457083012571,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 8758
+              },
+              "stressed": {
+                "net": 0.020089212494579733,
+                "drawdown": 0.002957136436693153,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 8758
+              }
+            },
+            {
+              "window": "holdout",
+              "regular": {
+                "net": 0.007608134395867383,
+                "drawdown": 0.0016231416106927687,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 7294
+              },
+              "stressed": {
+                "net": 0.006251470532452341,
+                "drawdown": 0.002967174416910634,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 7294
+              }
+            }
+          ]
+        },
+        {
+          "coin": "ETH",
+          "windows": [
+            {
+              "window": "train",
+              "regular": {
+                "net": 0.048016934922862964,
+                "drawdown": 0.0025284019271164526,
+                "entries": 3,
+                "resets": 2,
+                "openHours": 7997
+              },
+              "stressed": {
+                "net": 0.04300540961758581,
+                "drawdown": 0.00400531608699306,
+                "entries": 3,
+                "resets": 2,
+                "openHours": 7997
+              }
+            },
+            {
+              "window": "validation",
+              "regular": {
+                "net": 0.012284392549866352,
+                "drawdown": 0.0018775827206864992,
+                "entries": 6,
+                "resets": 5,
+                "openHours": 8683
+              },
+              "stressed": {
+                "net": 0.0032696138016989895,
+                "drawdown": 0.005612119430640661,
+                "entries": 6,
+                "resets": 5,
+                "openHours": 8683
+              }
+            },
+            {
+              "window": "holdout",
+              "regular": {
+                "net": 0.005786677280715358,
+                "drawdown": 0.004271628581854703,
+                "entries": 2,
+                "resets": 1,
+                "openHours": 7289
+              },
+              "stressed": {
+                "net": 0.0029866050385078946,
+                "drawdown": 0.006535979023489458,
+                "entries": 2,
+                "resets": 1,
+                "openHours": 7289
+              }
+            }
+          ]
+        },
+        {
+          "coin": "SOL",
+          "windows": [
+            {
+              "window": "train",
+              "regular": {
+                "net": 0.04938394343246921,
+                "drawdown": 0.0025053798978761366,
+                "entries": 4,
+                "resets": 3,
+                "openHours": 7991
+              },
+              "stressed": {
+                "net": 0.04266188995950215,
+                "drawdown": 0.0040620368843435894,
+                "entries": 4,
+                "resets": 3,
+                "openHours": 7991
+              }
+            },
+            {
+              "window": "validation",
+              "regular": {
+                "net": -0.002947645289394063,
+                "drawdown": 0.011065274080540255,
+                "entries": 4,
+                "resets": 3,
+                "openHours": 8712
+              },
+              "stressed": {
+                "net": -0.008688024855678433,
+                "drawdown": 0.01232797696467458,
+                "entries": 4,
+                "resets": 3,
+                "openHours": 8712
+              }
+            },
+            {
+              "window": "holdout",
+              "regular": {
+                "net": -0.003118085842080398,
+                "drawdown": 0.00935615288225522,
+                "entries": 2,
+                "resets": 1,
+                "openHours": 7290
+              },
+              "stressed": {
+                "net": -0.0058842744436061745,
+                "drawdown": 0.01188383868656806,
+                "entries": 2,
+                "resets": 1,
+                "openHours": 7290
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Funding-regime hedge",
+      "markets": [
+        {
+          "coin": "BTC",
+          "windows": [
+            {
+              "window": "train",
+              "regular": {
+                "net": 0.057199376398509916,
+                "drawdown": 0.0018355867302072282,
+                "entries": 2,
+                "resets": 0,
+                "openHours": 6525
+              },
+              "stressed": {
+                "net": 0.053703715724485734,
+                "drawdown": 0.0032521241478243867,
+                "entries": 2,
+                "resets": 0,
+                "openHours": 6525
+              }
+            },
+            {
+              "window": "validation",
+              "regular": {
+                "net": 0.013001678976117592,
+                "drawdown": 0.0016406069462704398,
+                "entries": 2,
+                "resets": 0,
+                "openHours": 6502
+              },
+              "stressed": {
+                "net": 0.010108593958910506,
+                "drawdown": 0.003097535513769123,
+                "entries": 2,
+                "resets": 0,
+                "openHours": 6502
+              }
+            },
+            {
+              "window": "holdout",
+              "regular": {
+                "net": 0.006916574560507316,
+                "drawdown": 0.0015019085018793676,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 2710
+              },
+              "stressed": {
+                "net": 0.005326815825860143,
+                "drawdown": 0.002942435414187816,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 2710
+              }
+            }
+          ]
+        },
+        {
+          "coin": "ETH",
+          "windows": [
+            {
+              "window": "train",
+              "regular": {
+                "net": 0.04415361319180677,
+                "drawdown": 0.0030197199310902922,
+                "entries": 4,
+                "resets": 2,
+                "openHours": 6892
+              },
+              "stressed": {
+                "net": 0.037616472859753,
+                "drawdown": 0.00591466321228129,
+                "entries": 4,
+                "resets": 2,
+                "openHours": 6892
+              }
+            },
+            {
+              "window": "validation",
+              "regular": {
+                "net": 0.011431147635962757,
+                "drawdown": 0.0015514340744630095,
+                "entries": 3,
+                "resets": 3,
+                "openHours": 5721
+              },
+              "stressed": {
+                "net": 0.007035898245130845,
+                "drawdown": 0.0030320896279102394,
+                "entries": 3,
+                "resets": 3,
+                "openHours": 5721
+              }
+            },
+            {
+              "window": "holdout",
+              "regular": {
+                "net": 0.001826515296526221,
+                "drawdown": 0.0015324743484899095,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 1630
+              },
+              "stressed": {
+                "net": 0.0004529082933719675,
+                "drawdown": 0.0029795443760045615,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 1630
+              }
+            }
+          ]
+        },
+        {
+          "coin": "SOL",
+          "windows": [
+            {
+              "window": "train",
+              "regular": {
+                "net": 0.05153991773750022,
+                "drawdown": 0.0029743747319185276,
+                "entries": 4,
+                "resets": 2,
+                "openHours": 6931
+              },
+              "stressed": {
+                "net": 0.045013679798737716,
+                "drawdown": 0.005891997355229717,
+                "entries": 4,
+                "resets": 2,
+                "openHours": 6931
+              }
+            },
+            {
+              "window": "validation",
+              "regular": {
+                "net": 0.0027889372317018157,
+                "drawdown": 0.0019008774250443006,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 1727
+              },
+              "stressed": {
+                "net": 0.001241020565035278,
+                "drawdown": 0.0033806988536155824,
+                "entries": 1,
+                "resets": 0,
+                "openHours": 1727
+              }
+            },
+            {
+              "window": "holdout",
+              "regular": {
+                "net": 0,
+                "drawdown": 0,
+                "entries": 0,
+                "resets": 0,
+                "openHours": 0
+              },
+              "stressed": {
+                "net": 0,
+                "drawdown": 0,
+                "entries": 0,
+                "resets": 0,
+                "openHours": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "venue": {
+    "window": {
+      "from": "2026-05-27",
+      "to": "2026-11-23"
+    },
+    "markets": [
+      {
+        "coin": "BTC",
+        "regular": [
+          {
+            "name": "Permanent hedge",
+            "net": 0.014091921504239213,
+            "drawdown": 0.0037134535644142153,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 4318
+          },
+          {
+            "name": "Funding-regime hedge",
+            "net": 0.015874767534431955,
+            "drawdown": 0.004569268125169446,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 3982
+          }
+        ],
+        "stressed": [
+          {
+            "name": "Permanent hedge",
+            "net": 0.012793009059414162,
+            "drawdown": 0.0037146704698344246,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 4318
+          },
+          {
+            "name": "Funding-regime hedge",
+            "net": 0.014442311903060334,
+            "drawdown": 0.004571391300490113,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 3982
+          }
+        ],
+        "segments": [
+          {
+            "from": "2026-05-27",
+            "to": "2026-07-26",
+            "net": 0.0008037737007833279,
+            "drawdown": 0.004571391300490113,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 1102
+          },
+          {
+            "from": "2026-07-26",
+            "to": "2026-09-24",
+            "net": 0.003483899623375697,
+            "drawdown": 0.002851785864110168,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 1438
+          },
+          {
+            "from": "2026-09-24",
+            "to": "2026-11-23",
+            "net": 0.0022796135781337767,
+            "drawdown": 0.0029647675453063904,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 1438
+          }
+        ]
+      },
+      {
+        "coin": "ETH",
+        "regular": [
+          {
+            "name": "Permanent hedge",
+            "net": 0.014184207738648258,
+            "drawdown": 0.002514894655113009,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 4318
+          },
+          {
+            "name": "Funding-regime hedge",
+            "net": 0.014378449396760917,
+            "drawdown": 0.002596917425588985,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 4198
+          }
+        ],
+        "stressed": [
+          {
+            "name": "Permanent hedge",
+            "net": 0.012867872523711243,
+            "drawdown": 0.00346832635306793,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 4318
+          },
+          {
+            "name": "Funding-regime hedge",
+            "net": 0.01304269296861671,
+            "drawdown": 0.003068207594179806,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 4198
+          }
+        ],
+        "segments": [
+          {
+            "from": "2026-05-27",
+            "to": "2026-07-26",
+            "net": 0.0011486674101095495,
+            "drawdown": 0.003068207594179806,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 1318
+          },
+          {
+            "from": "2026-07-26",
+            "to": "2026-09-24",
+            "net": 0.003604727725877499,
+            "drawdown": 0.0030831026704838393,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 1438
+          },
+          {
+            "from": "2026-09-24",
+            "to": "2026-11-23",
+            "net": 0.001606231226940702,
+            "drawdown": 0.002909851193801938,
+            "entries": 1,
+            "resets": 1,
+            "openHours": 1246
+          }
+        ]
+      },
+      {
+        "coin": "SOL",
+        "regular": [
+          {
+            "name": "Permanent hedge",
+            "net": 0.00988472646551708,
+            "drawdown": 0.0025609750533154285,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 4318
+          },
+          {
+            "name": "Funding-regime hedge",
+            "net": 0.010029330724045549,
+            "drawdown": 0.0027460159498685632,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 3167
+          }
+        ],
+        "stressed": [
+          {
+            "name": "Permanent hedge",
+            "net": 0.008559961759634582,
+            "drawdown": 0.00381034863503249,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 4318
+          },
+          {
+            "name": "Funding-regime hedge",
+            "net": 0.008630464748627942,
+            "drawdown": 0.0030516691232073123,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 3167
+          }
+        ],
+        "segments": [
+          {
+            "from": "2026-05-27",
+            "to": "2026-07-26",
+            "net": -0.002119641751558432,
+            "drawdown": 0.0030516691232073123,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 382
+          },
+          {
+            "from": "2026-07-26",
+            "to": "2026-09-24",
+            "net": 0.0011061079444489863,
+            "drawdown": 0.0034780528184865656,
+            "entries": 1,
+            "resets": 0,
+            "openHours": 1006
+          },
+          {
+            "from": "2026-09-24",
+            "to": "2026-11-23",
+            "net": 0.0012433241497626923,
+            "drawdown": 0.003206017929549665,
+            "entries": 1,
+            "resets": 1,
+            "openHours": 1238
+          }
+        ]
+      }
+    ]
+  },
+  "macd": {
+    "period": "2026-01-01 to 2026-10-31",
+    "reusedRule": "MACD trend (4-hour)",
+    "legs": "long and short",
+    "original": [
+      {
+        "net": -0.020732593582936887,
+        "drawdown": 0.3535070031088269,
+        "trades": 203,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.06761229975049265,
+            "trades": 63
+          },
+          {
+            "coin": "ETH",
+            "net": -0.06891712727484867,
+            "trades": 70
+          },
+          {
+            "coin": "SOL",
+            "net": -0.09105403937057843,
+            "trades": 70
+          }
+        ]
+      },
+      {
+        "net": -0.1100012472788543,
+        "drawdown": 0.37970986669937945,
+        "trades": 203,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.023642391071777125,
+            "trades": 63
+          },
+          {
+            "coin": "ETH",
+            "net": -0.15670973725490223,
+            "trades": 70
+          },
+          {
+            "coin": "SOL",
+            "net": -0.1765664148400743,
+            "trades": 70
+          }
+        ]
+      }
+    ],
+    "outsideOriginalMarketSet": [
+      {
+        "net": -0.12562999483140147,
+        "drawdown": 0.41320742843674574,
+        "trades": 208,
+        "markets": [
+          {
+            "coin": "XRP",
+            "net": -0.27166737643936056,
+            "trades": 71
+          },
+          {
+            "coin": "LINK",
+            "net": -0.22357089914642136,
+            "trades": 72
+          },
+          {
+            "coin": "LTC",
+            "net": 0.111690846368669,
+            "trades": 65
+          }
+        ]
+      },
+      {
+        "net": -0.20701584092314318,
+        "drawdown": 0.4377605338698193,
+        "trades": 208,
+        "markets": [
+          {
+            "coin": "XRP",
+            "net": -0.3406909784863541,
+            "trades": 71
+          },
+          {
+            "coin": "LINK",
+            "net": -0.3001226511614712,
+            "trades": 72
+          },
+          {
+            "coin": "LTC",
+            "net": 0.01565256769940726,
+            "trades": 65
+          }
+        ]
+      }
+    ]
+  },
+  "momentum": {
+    "universe": [
+      "BTC",
+      "ETH",
+      "SOL",
+      "XRP",
+      "LINK",
+      "LTC",
+      "ADA",
+      "DOGE",
+      "AVAX",
+      "BCH"
+    ],
+    "lookbackDays": 90,
+    "protectionPct": 15,
+    "windows": [
+      {
+        "name": "train",
+        "regular": {
+          "net": -0.2467106670177035,
+          "drawdown": 0.315146048411864,
+          "baskets": 39,
+          "won": 15,
+          "stopped": 21,
+          "score": -1.3163224276562435
+        },
+        "stressed": {
+          "net": -0.2855902965310617,
+          "drawdown": 0.34152897707837926,
+          "baskets": 39,
+          "won": 13,
+          "stopped": 21,
+          "score": -1.579641509973303
+        }
+      },
+      {
+        "name": "validation",
+        "regular": {
+          "net": -0.18346619036675482,
+          "drawdown": 0.30749707024480954,
+          "baskets": 51,
+          "won": 21,
+          "stopped": 24,
+          "score": -0.9187460836229491
+        },
+        "stressed": {
+          "net": -0.23800178186262844,
+          "drawdown": 0.3404659659049203,
+          "baskets": 51,
+          "won": 20,
+          "stopped": 24,
+          "score": -1.262851447239018
+        }
+      },
+      {
+        "name": "holdout",
+        "regular": {
+          "net": -0.05166284291456236,
+          "drawdown": 0.16241556732582907,
+          "baskets": 42,
+          "won": 24,
+          "stopped": 14,
+          "score": -0.27679796195584583
+        },
+        "stressed": {
+          "net": -0.10298866815093366,
+          "drawdown": 0.17648190841874167,
+          "baskets": 42,
+          "won": 23,
+          "stopped": 14,
+          "score": -0.6433268808116892
+        }
+      }
+    ]
+  }
+}

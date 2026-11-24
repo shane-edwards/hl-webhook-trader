@@ -184,10 +184,15 @@ export class HyperliquidClient {
   }
 
   /** The visible order book (20 levels a side): bids best first, asks best first. */
-  async getBook(coin: string): Promise<{ bids: Array<{ px: number; sz: number }>; asks: Array<{ px: number; sz: number }> }> {
-    const raw = await this.infoRequest<{ levels?: Array<Array<{ px: string; sz: string }>> }>({ type: 'l2Book', coin: coin.toUpperCase() });
+  async getBookSnapshot(coin: string) {
+    const raw = await this.infoRequest<{ time?: number; levels?: Array<Array<{ px: string; sz: string }>> }>({ type: 'l2Book', coin: coin.toUpperCase() });
     const side = (rows?: Array<{ px: string; sz: string }>) => (rows ?? []).map(l => ({ px: parseFloat(l.px), sz: parseFloat(l.sz) }));
-    return { bids: side(raw.levels?.[0]), asks: side(raw.levels?.[1]) };
+    return { time: raw.time ?? null, bids: side(raw.levels?.[0]), asks: side(raw.levels?.[1]) };
+  }
+
+  async getBook(coin: string) {
+    const { bids, asks } = await this.getBookSnapshot(coin);
+    return { bids, asks };
   }
 
   async getMarkPrice(coin: string): Promise<number> {

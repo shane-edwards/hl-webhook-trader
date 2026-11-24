@@ -6,6 +6,7 @@ import { processResearchStep, queueScheduledResearch } from '@/lib/automation/qu
 import { stockMarketClock } from '@/lib/stocks/session';
 import { notify } from '@/lib/notify';
 import { updateCryptoShadow } from '@/lib/automation/crypto-shadow';
+import { watchFundingHedges } from '@/lib/hedge-research/watch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -33,10 +34,13 @@ export async function GET(request: Request) {
     const now = Date.now();
     const [scheduled] = await Promise.all([queueScheduledResearch(db, now), checkShadow(db, now)]);
     const minute = new Date(now).getUTCMinutes();
-    const result = minute >= 10 && minute <= 12
-      ? await updateCryptoShadow(db, now).then(() => 'shadow recorded') : await processResearchStep(db);
-    await heartbeat(db, 'automation', true, `${scheduled} queued · ${result}`);
-    return NextResponse.json({ scheduled, result });
+    const [result, hedge] = await Promise.all([
+      minute >= 10 && minute <= 12 ? updateCryptoShadow(db, now).then(() => 'shadow recorded') : processResearchStep(db),
+      minute % 5 === 4 ? watchFundingHedges(db, now) : null,
+    ]);
+    const watch = hedge?.failures ? ' · funding hedge needs attention' : hedge?.captured ? ` · ${hedge.captured} hedge observations` : '';
+    await heartbeat(db, 'automation', true, `${scheduled} queued · ${result}${watch}`);
+    return NextResponse.json({ scheduled, result, hedge });
   } catch {
     await heartbeat(db, 'automation', false, 'The research worker could not finish.');
     return NextResponse.json({ error: 'The research worker could not finish.' }, { status: 503 });
