@@ -47,6 +47,30 @@ export async function exactCandidate(db: Db, userId: string, market: AutomationM
   return latest?.qualified ? latest : null;
 }
 
+async function opportunityCandidates(db: Db, userId: string, market: AutomationMarket) {
+  const fresh = new Date(Date.now() - 4 * day).toISOString();
+  const [daily, focused] = await Promise.all([
+    db.from('automation_runs').select('report, as_of').eq('user_id', userId).eq('market', market).eq('kind', 'daily').eq('status', 'completed')
+      .gte('as_of', fresh).order('as_of', { ascending: false }).limit(1).maybeSingle(),
+    db.from('automation_runs').select('report, as_of').eq('user_id', userId).eq('market', market).eq('kind', 'focused').eq('status', 'completed')
+      .not('idea_id', 'like', 'search:%').gte('as_of', fresh).order('as_of', { ascending: false }).limit(150),
+  ]);
+  if (daily.error || focused.error) throw new Error('Could not verify opportunity research.');
+  const reports = [...(focused.data ?? []), ...(daily.data ? [daily.data] : [])].sort((a, b) => Date.parse(b.as_of) - Date.parse(a.as_of));
+  const latest = new Map<string, Evidence>();
+  for (const row of reports) for (const item of (row.report as RunReport | null)?.evidence ?? []) {
+    const idea = findIdea(ideaId(market, item.rule, item.symbol));
+    if (idea?.executable && item.version === automationVersion(market, item.symbol, item.rule) && !latest.has(item.version)) latest.set(item.version, item);
+  }
+  return [...latest.values()].filter(item => item.qualified).sort((a, b) => b.stress - a.stress);
+}
+
+export async function liveOpportunityCandidates(db: Db, userId: string, market: AutomationMarket, versions?: readonly string[]) {
+  const candidates = (await opportunityCandidates(db, userId, market)).filter(item => !versions || versions.includes(item.version));
+  const verified = await Promise.all(candidates.slice(0, versions ? 8 : 12).map(async candidate => ({ candidate, results: await readPaperResults(db, userId, candidate) })));
+  return verified.filter(row => row.results.passed);
+}
+
 export async function readPaperResults(db: Db, userId: string, candidate: Evidence) {
   if (candidate.market === 'crypto') {
     const result = await db.from('autopilot_positions').select('pnl, exit_time').eq('user_id', userId).eq('mode', 'paper')
@@ -71,13 +95,30 @@ export async function readPaperResults(db: Db, userId: string, candidate: Eviden
   }));
 }
 
-export async function automationDecision(db: Db, userId: string, market: AutomationMarket): Promise<AutomationDecision> {
+export async function automationDecision(db: Db, userId: string, market: AutomationMarket,
+  pickSignal?: (candidates: Evidence[], mode: 'paper' | 'live') => Promise<Evidence | null>): Promise<AutomationDecision> {
   const profile = await readAutomationProfile(db, userId, market);
   const response = (decision: AutomationDecision['decision'], detail: string, candidate: Evidence | null = null,
     results: PaperResults | null = null): AutomationDecision => ({ profile, decision, detail, candidate, results });
   if (profile?.entries_paused) return response('paused', 'New automated entries are paused.');
   if (!profile || profile.mode === 'research') return response('legacy', 'Research can run alongside your existing Autopilot settings.');
   if (!profile.enabled) return response('paused', 'Automation is paused.');
+  if (profile.scan_for_opportunities) {
+    const mode = profile.mode;
+    if (market === 'stocks') {
+      const environment = mode === 'paper' ? 'demo' : 'real';
+      const connection = await db.from('etoro_connections').select('environment').eq('user_id', userId).eq('environment', environment).maybeSingle();
+      if (connection.error) throw new Error('Could not read the eToro connection.');
+      if (!connection.data) return response('waiting', `Connect eToro ${mode === 'paper' ? 'Demo' : 'Real'} to start scanning.`);
+    }
+    const live = mode === 'live' ? await liveOpportunityCandidates(db, userId, market, profile.live_scan_versions ?? []) : [];
+    const candidates = mode === 'live' ? live.map(row => row.candidate) : await opportunityCandidates(db, userId, market);
+    if (!candidates.length) return response('waiting', 'Waiting for a strategy to pass its backtest.');
+    const candidate = pickSignal ? await pickSignal(candidates, mode) : candidates[0];
+    return candidate ? response(mode, mode === 'live' ? 'Scanning approved Live strategies.' : 'Scanning qualified strategies in Paper.', candidate,
+      live.find(row => row.candidate.version === candidate.version)?.results ?? await readPaperResults(db, userId, candidate)) :
+      response('waiting', 'Waiting for a qualified entry signal.');
+  }
   const version = profile.mode === 'live' ? profile.live_version : profile.paper_version;
   const candidate = version ? await exactCandidate(db, userId, market, version) : (await latestCandidates(db, userId, market))[0];
   if (!candidate) return response('waiting', 'Waiting for a strategy version to pass the current research checks.');

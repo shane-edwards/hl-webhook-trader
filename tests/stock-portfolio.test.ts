@@ -75,7 +75,7 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
       CREATE ROLE authenticated;
       CREATE ROLE service_role;
     `);
-    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio', '016_stock_execution_research', '017_stock_catalysts_and_guards', '018_automation_center', '019_strategy_journey']) {
+    for (const path of ['009_etoro_connections', '011_etoro_stock_orders', '012_etoro_stock_autopilot', '013_stock_strategy_execution', '014_stock_leverage', '015_stock_portfolio', '016_stock_execution_research', '017_stock_catalysts_and_guards', '018_automation_center', '019_strategy_journey', '020_opportunity_autopilot']) {
       await db.exec(readFileSync(`supabase/migrations/${path}.sql`, 'utf8'));
     }
     const user = '00000000-0000-4000-8000-000000000001';
@@ -138,6 +138,10 @@ test('portfolio SQL reserves distinct tickers, preserves single-mode behavior an
     await enqueue('stocks:close-volume:SPY');
     await assert.rejects(enqueue('stocks:close-volume:SPY'), /duplicate key/);
     await assert.rejects(enqueue(null), /automation_runs_idea_check/);
+    await db.exec("UPDATE automation_profiles SET scan_for_opportunities=true");
+    await assert.rejects(db.exec("UPDATE automation_profiles SET mode='live', live_version='first', max_order_usd=100, loss_budget_usd=25"), /automation_profiles_opportunity_mode/);
+    await db.exec("UPDATE automation_profiles SET mode='live', live_version='first', max_order_usd=100, loss_budget_usd=25, live_scan_versions=ARRAY['first', 'second']");
+    await assert.rejects(db.exec("UPDATE automation_profiles SET live_version='unapproved'"), /automation_profiles_opportunity_mode/);
   } finally {
     await db.close();
   }

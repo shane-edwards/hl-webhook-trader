@@ -14,6 +14,8 @@ import type { EtoroClient } from '@/lib/stocks/etoro';
 import { StockPortfolioFields } from './StockPortfolioFields';
 import { StockRiskSizer } from './StockRiskSizer';
 import { formatCurrency } from '@/lib/utils';
+import { frameNames, StrategySearch } from '@/components/journey/StrategySearch';
+import { SEARCH_FRAMES, type SearchFrame } from '@/lib/strategy-search/model';
 
 export type StockEnvironment = 'demo' | 'real';
 type Order = { id: string; symbol: string; state: string; broker_order_id: number | null; strategy_exit_at?: string | null; closed_at?: string | null; leverage?: StockLeverage; protection_state?: string | null };
@@ -73,6 +75,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
   const [book, setBook] = useState<{ mode: StockEnvironment; value: Book | null } | null>(null);
   const [portfolioMode, setPortfolioMode] = useState<boolean | null>(null);
   const [portfolioDraft, setPortfolioDraft] = useState<StockPortfolio | null>(null);
+  const [researchFrame, setResearchFrame] = useState<SearchFrame>('1d');
   const connected = connections.includes(environment);
   const saved = flow === 'auto' ? auto : null;
   const savedSymbol = saved?.symbol ?? 'AAPL';
@@ -180,6 +183,11 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
       </div>
       {error && <p role="alert" className="text-sm text-loss">{error}</p>}
       {message && <p role="status" className="text-sm">{message}</p>}
+      {!compact && flow === 'manual' && <div className="space-y-2">
+        <Segmented<SearchFrame> aria-label="Research timeframe" value={researchFrame} onChange={setResearchFrame}
+          options={SEARCH_FRAMES.stocks.map(frame => ({ value: frame, label: frameNames[frame] }))} />
+        <StrategySearch market="stocks" symbol={symbol} frame={researchFrame} compact />
+      </div>}
       {flow === 'auto' && auto?.active_environment && <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
         <div>
           <p className="text-xs text-profit">{auto.active_environment === 'demo' ? 'Paper' : 'Live'} Autopilot running</p>

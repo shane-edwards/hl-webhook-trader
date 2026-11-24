@@ -4,6 +4,8 @@ import { EtoroError } from '@/lib/stocks/etoro';
 import { automationSchedule, type AutomationKind, type AutomationMarket, type RunReport } from './model';
 import { finishResearch, permanentResearchProblem, researchPlan, runIdeaResearch, runResearchStep, type ResearchStep } from './research';
 import { findIdea, versionedIdea, type StrategyIdea } from './ideas';
+import { pairFromKey, scheduledPair, searchKey, type SearchPair } from '@/lib/strategy-search/model';
+import { runSearch } from '@/lib/strategy-search/data';
 
 type Db = ReturnType<typeof createServiceClient>;
 const stockStudyDays: Record<number, string> = {
@@ -24,7 +26,7 @@ export async function enqueueResearch(db: Db, userId: string, market: Automation
   return result.data?.id ?? null;
 }
 
-export async function enqueueIdea(db: Db, userId: string, idea: StrategyIdea, asOf: string, key?: string) {
+export async function enqueueIdea(db: Db, userId: string, idea: Pick<StrategyIdea, 'id' | 'market' | 'symbol'>, asOf: string, key?: string) {
   const result = await db.from('automation_runs').insert({ user_id: userId, market: idea.market, kind: 'focused',
     idea_id: idea.id, source: key ? 'schedule' : 'manual', schedule_key: key ?? null, as_of: asOf, plan: [idea.symbol] }).select('id').maybeSingle();
   if (result.error?.code === '23505') return null;
@@ -32,17 +34,29 @@ export async function enqueueIdea(db: Db, userId: string, idea: StrategyIdea, as
   return result.data?.id ?? null;
 }
 
+export function enqueueSearch(db: Db, userId: string, pair: SearchPair, asOf: string, key?: string) {
+  return enqueueIdea(db, userId, { id: searchKey(pair), market: pair.market, symbol: pair.symbol }, asOf, key);
+}
+
 export async function queueScheduledResearch(db: Db, now: number) {
-  const profiles = await db.from('automation_profiles').select('user_id, market, mode, paper_version, live_version').eq('enabled', true);
+  const profiles = await db.from('automation_profiles').select('user_id, market, mode, paper_version, live_version, live_scan_versions, scan_for_opportunities').eq('enabled', true);
   if (profiles.error) throw new Error('Could not read research schedules.');
   const scheduled = await Promise.all((profiles.data ?? []).flatMap(profile => {
     const market = profile.market as AutomationMarket;
-    const idea = versionedIdea(market, profile.mode === 'paper' ? profile.paper_version : profile.mode === 'live' ? profile.live_version : null);
     const jobs = automationSchedule(market, now);
     const daily = jobs.find(job => job.kind === 'daily');
     const weekday = daily && new Date(`${daily.key}T12:00:00Z`).getUTCDay();
     const study = market === 'stocks' && weekday ? findIdea(stockStudyDays[weekday]) : null;
-    const ideas = [idea?.executable ? idea : null, study];
+    const versions: (string | null)[] = profile.mode === 'live' && profile.scan_for_opportunities ? profile.live_scan_versions :
+      [profile.mode === 'paper' ? profile.paper_version : profile.mode === 'live' ? profile.live_version : null];
+    const ideas: (Pick<StrategyIdea, 'id' | 'market' | 'symbol'> | null)[] = [study, ...versions.map(version => {
+      const idea = versionedIdea(market, version);
+      return idea?.executable ? idea : null;
+    })];
+    if (daily) {
+      const pair = scheduledPair(market, daily.key);
+      ideas.push({ id: searchKey(pair), market, symbol: pair.symbol });
+    }
     const focus = daily ? ideas.flatMap(item => item ? [{ ...daily, kind: 'focused' as const, idea: item, key: `${daily.key}:${item.id}` }] : []) : [];
     return [...jobs, ...focus].map(async job => {
       const match = await db.from('automation_runs').select('id').eq('user_id', profile.user_id).eq('market', market)
@@ -79,7 +93,7 @@ export async function processResearchStep(db: Db) {
   const complete = async (work: ResearchStep[]) => {
     const report: RunReport = run.kind === 'focused'
       ? { evidence: work.flatMap(item => item.evidence ?? []), summary: 'Backtest finished',
-        data: { missing: work.filter(item => item.problem).map(item => ({ symbol: item.symbol, detail: item.problem })) } }
+        data: { search: work.find(item => item.search)?.search, missing: work.filter(item => item.problem).map(item => ({ symbol: item.symbol, detail: item.problem })) } }
       : finishResearch(run.market, run.kind, run.as_of, work);
     const noData = work.every(item => item.problem);
     const finished = await save({ status: noData ? 'failed' : 'completed', cursor: run.plan.length, work: [], report,
@@ -95,11 +109,13 @@ export async function processResearchStep(db: Db) {
   try {
     if (run.kind === 'focused') {
       const idea = findIdea(run.idea_id);
-      if (!idea) {
+      const pair = pairFromKey(run.idea_id);
+      if (!idea && !pair) {
         await save({ status: 'failed', detail: 'This idea is no longer available.', completed_at: new Date().toISOString() });
         return 'failed';
       }
-      step = await runIdeaResearch(db, run.user_id, idea, run.as_of);
+      step = pair ? { symbol, search: await runSearch(db, run.user_id, pair, run.as_of) } :
+        await runIdeaResearch(db, run.user_id, idea!, run.as_of);
     } else {
       step = await runResearchStep(db, run.user_id, run.market, run.kind, symbol, run.as_of);
     }

@@ -7,7 +7,7 @@ import { alertOnStalePeers, heartbeat } from '@/lib/health';
 import { cronAuthorized } from '@/lib/cron-auth';
 import { notify } from '@/lib/notify';
 import { automationDecision, sameAutomationProfile, type AutomationDecision } from '@/lib/automation/policy';
-import { controlledCryptoConfig } from '@/lib/automation/trading';
+import { controlledCryptoConfig, cryptoOpportunity } from '@/lib/automation/trading';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const wallet = (() => { try { return hlClientFromSettings(settings); } catch { return null; } })();
 
     let policy: AutomationDecision;
-    try { policy = await automationDecision(supabase, settings.user_id, 'crypto'); }
+    try { policy = await automationDecision(supabase, settings.user_id, 'crypto', (candidates, mode) => cryptoOpportunity(supabase, settings.user_id, candidates, mode)); }
     catch {
       policy = { decision: 'paused', detail: 'Could not verify automation settings', profile: null, candidate: null, results: null };
       failures.push(policy.detail);

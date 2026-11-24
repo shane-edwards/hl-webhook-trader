@@ -8,12 +8,15 @@ import { Header } from '@/components/layout/Header';
 import { journeyHref, JOURNEY_STEPS } from '@/components/layout/journey';
 import { stockHref } from '@/components/layout/workspaces';
 import { TradeActions } from '@/components/journey/TradeActions';
+import { FullAutopilot } from '@/components/journey/FullAutopilot';
+import { frameNames, StrategySearch } from '@/components/journey/StrategySearch';
 import { Button } from '@/components/ui/button';
 import { IDEA_RULES, findIdea, ideaId, type StrategyIdea } from '@/lib/automation/ideas';
 import type { AutomationMarket, AutomationProfile, Evidence } from '@/lib/automation/model';
 import type { PaperResults } from '@/lib/automation/policy';
 import type { StockEnvironment } from '@/components/stocks/StockOrderTicket';
 import { stockSizingQuery } from '@/lib/stocks/leverage';
+import { SEARCH_ASSETS, SEARCH_FRAMES, searchPair, type SearchFrame } from '@/lib/strategy-search/model';
 import { cn } from '@/lib/utils';
 
 type IdeaResult = { evidence: Evidence; asOf: string };
@@ -27,6 +30,8 @@ type Journey = {
   connections: StockEnvironment[];
   hasWallet: boolean;
   isTestnet: boolean;
+  observedAt: number;
+  live: { version: string; name: string; symbol: string }[];
 };
 
 const selectClass = 'w-full h-10 mt-1 rounded-md border bg-background pl-2 pr-1 text-sm';
@@ -92,6 +97,12 @@ function EvidencePanel({ evidence, idea }: { evidence: Evidence; idea: StrategyI
   </div>;
 }
 
+function ideaFrame(idea: (typeof IDEA_RULES)[number]): SearchFrame {
+  if (idea.market === 'crypto') return idea.rule === 'trend_breakout' ? '4h' : '1h';
+  if (idea.executable) return '1d';
+  return idea.rule === 'close' || idea.rule === 'close-volume' ? '30m' : '5m';
+}
+
 export default function JourneyPage() {
   const { step: rawStep } = useParams<{ step: string }>();
   const step = JOURNEY_STEPS.find(value => value === rawStep);
@@ -134,9 +145,26 @@ export default function JourneyPage() {
   const needsFeed = market === 'stocks' && !!current && current.connections.length === 0;
   const profile = current?.profiles.find(item => item.market === market);
   const stockMode = query.get('mode');
-  const rankedRules = rules.map(item => ({
-    item, passed: item.symbols.some(symbol => data?.results[ideaId(market, item.rule, symbol)]?.evidence.qualified),
-  })).sort((a, b) => Number(b.passed) - Number(a.passed));
+  const baseAsset = query.get('asset') ?? requested?.symbol ?? SEARCH_ASSETS[market][0];
+  const baseFrame = query.get('frame') ?? (market === 'crypto' ? '1h' : '1d');
+  const findPair = searchPair(market, baseAsset, baseFrame) ?? searchPair(market, SEARCH_ASSETS[market][0], market === 'crypto' ? '1h' : '1d')!;
+  const matching = rules.filter(item => item.symbols.includes(findPair.symbol) && ideaFrame(item) === findPair.frame);
+  const readyIdeas = matching.flatMap(item => {
+    const id = ideaId(market, item.rule, findPair.symbol);
+    const row = data?.results[id];
+    return item.executable && data && row?.evidence.qualified && Date.parse(row.asOf) > data.observedAt - 4 * 86_400_000 ? [{ id, row }] : [];
+  }).sort((a, b) => b.row.evidence.stress - a.row.evidence.stress);
+  const recommend = readyIdeas[0];
+
+  function changeSearch(field: 'asset' | 'frame', value: string) {
+    const next = new URLSearchParams(window.location.search);
+    next.set('market', market);
+    if (!next.has('asset')) next.set('asset', findPair.symbol);
+    if (!next.has('frame')) next.set('frame', findPair.frame);
+    next.delete('idea');
+    next.set(field, value);
+    window.history.replaceState(null, '', `/journey/find?${next}`);
+  }
   function changeIdea(rule: string, symbol: string) {
     setError(''); setNotice('');
     router.push(journeyHref(step!, market, ideaId(market, rule, symbol)));
@@ -171,9 +199,29 @@ export default function JourneyPage() {
       </div>
       {error && <p role="alert" className="text-sm text-loss">{error}</p>}
       {notice && <p role="status" className="text-sm">{notice}</p>}
-      {step === 'find' ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {rankedRules.map(({ item }) => <IdeaCard key={item.rule} item={item} data={data} />)}
-      </div> : <div className="grid gap-4 lg:grid-cols-[minmax(225px,1fr)_minmax(0,3fr)]">
+      {step === 'find' ? <>
+        <section className="surface p-4 grid grid-cols-2 gap-3 sm:max-w-xl">
+          <label className="block text-xs font-medium">Asset<select aria-label="Asset" className={selectClass} value={findPair.symbol}
+            onChange={event => changeSearch('asset', event.target.value)}>{SEARCH_ASSETS[market].map(symbol => <option key={symbol}>{symbol}</option>)}</select></label>
+          <label className="block text-xs font-medium">Timeframe<select aria-label="Timeframe" className={selectClass} value={findPair.frame}
+            onChange={event => changeSearch('frame', event.target.value)}>{SEARCH_FRAMES[market].map(frame => <option key={frame} value={frame}>{frameNames[frame]}</option>)}</select></label>
+        </section>
+        {recommend && <section className="surface p-4 sm:p-5 flex flex-wrap justify-between items-center gap-3">
+          <div><h2 className="font-semibold">{recommend.row.evidence.name}</h2><p className="mt-1 text-xs text-profit">Passed backtest</p></div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm"><Link href={journeyHref('test', market, recommend.id)}>See test</Link></Button>
+            <Button asChild size="sm"><Link href={journeyHref('trade', market, recommend.id)}>Trade setup</Link></Button>
+          </div>
+        </section>}
+        <StrategySearch market={market} symbol={findPair.symbol} frame={findPair.frame} />
+        {!!matching.length && <details className="surface p-4">
+          <summary className="cursor-pointer text-sm font-medium">Other tested ideas</summary>
+          <div className="grid gap-3 mt-3 sm:grid-cols-2 xl:grid-cols-3">
+            {matching.map(item => <IdeaCard key={item.rule} item={{ ...item, symbols: [findPair.symbol] }} data={data} />)}
+          </div>
+        </details>}
+        <Button asChild variant="ghost" size="sm"><Link href={journeyHref('trade', market) + '#autopilot'}>Full Autopilot <ArrowRight size={15} /></Link></Button>
+      </> : <div className="grid gap-4 lg:grid-cols-[minmax(225px,1fr)_minmax(0,3fr)]">
         <section className="surface min-w-0 p-4 self-start space-y-3">
           <label className="block text-xs font-medium">Strategy<select className={selectClass} value={idea.rule} onChange={event => {
             const row = rules.find(item => item.rule === event.target.value)!;
@@ -213,6 +261,9 @@ export default function JourneyPage() {
             state={{ ...current, profile }} refresh={load} initialMethod={query.get('method') === 'automated' ? 'automated' : 'manual'}
             initialEnvironment={stockMode === 'real' ? 'real' : undefined} initialSizing={stockSizingQuery(query).data} />
             : <div role="status" className="surface p-4 text-sm text-muted-foreground">Loading trade controls…</div>}
+          <StrategySearch market={market} symbol={idea.symbol} frame={ideaFrame(idea)} compact />
+          {current && <FullAutopilot key={market} market={market} profile={profile} demo={current.connections.includes('demo')}
+            real={market === 'stocks' ? current.connections.includes('real') : current.hasWallet && !current.isTestnet} live={current.live ?? []} refresh={load} />}
         </div>}
       </div>}
     </div>

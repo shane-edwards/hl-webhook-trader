@@ -16,6 +16,7 @@ import type { Settings } from '@/types';
 import type { Suggestion } from '@/lib/suggestions';
 import { frameWarnings, TICKET_DEFAULTS, TIMEFRAMES, type TicketFrame, type Timeframe, type TimeframeLevels } from '@/lib/timeframes';
 import tfEvidence from '@/lib/timeframes-evidence.json';
+import { StrategySearch } from '@/components/journey/StrategySearch';
 
 interface TfEvidence { generatedThrough?: string; timeframes?: Array<{ timeframe: string; windowDays: number; verdict: string; overall: { ideas: number; avgR: number; hitRate: number } }> }
 const ZOOMS = [60, 120, 240, 480];
@@ -298,6 +299,7 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
               </div>
             </div>
 
+            {side === 'long' && <StrategySearch market="crypto" symbol={symbol.trim().toUpperCase()} frame={timeframe} active={open} compact />}
             <details className="space-y-2">
               <summary className="text-sm font-medium cursor-pointer">Chart and timeframe</summary>
               <div className="flex items-center justify-between gap-2">
