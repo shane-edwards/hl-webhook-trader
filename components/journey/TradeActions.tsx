@@ -64,7 +64,7 @@ function SignalOrder({ idea, hasWallet, isTestnet }: { idea: StrategyIdea; hasWa
 
   const liveLabel = isTestnet ? 'Testnet' : 'Live';
   return <section className="surface p-4 sm:p-5 space-y-4">
-    <Segmented aria-label="Order environment" value={mode} options={[{ value: 'paper', label: 'Paper' }, { value: 'live', label: liveLabel }]}
+    <Segmented aria-label="Order environment" value={mode} options={[{ value: 'paper', label: 'Paper' }, { value: 'live', label: liveLabel }]} disabled={busy || review}
       onChange={value => { setMode(value); setSignal(null); setChecked(false); setStatus(''); setError(''); }} />
     {mode === 'live' && !hasWallet ? <Button asChild><Link href="/settings">Connect Hyperliquid</Link></Button> :
       <div className="flex flex-wrap items-center gap-3">
@@ -107,8 +107,8 @@ export function TradeActions({ idea, state, refresh, initialMethod, initialEnvir
   const version = automationVersion(idea.market, idea.symbol, idea.rule);
   const active = !profile ? null : profile.mode === 'live' ? profile.live_version === version ? 'Live' : null
     : profile.mode === 'paper' && profile.paper_version === version ? 'Paper' : null;
-  const running = !!active && !profile?.entries_paused && profile?.enabled && !!ready;
   const needsDemo = idea.market === 'stocks' && !state.connections.includes('demo');
+  const running = !!active && !profile?.entries_paused && profile?.enabled && !!ready && (active === 'Live' ? !!paper?.passed : !needsDemo);
   const activeOther = !!profile && profile.mode !== 'research' && !active && !profile.entries_paused;
   const realConnected = idea.market === 'stocks' ? state.connections.includes('real') : state.hasWallet && !state.isTestnet;
   const connect = (mode: StockEnvironment, params?: Record<string, string>) => stockHref('account', {

@@ -71,8 +71,8 @@ function IdeaCard({ item, data }: { item: (typeof IDEA_RULES)[number]; data: Jou
 
 function EvidencePanel({ evidence, idea }: { evidence: Evidence; idea: StrategyIdea }) {
   const metrics = [
-    ['Holdout return', percentage(evidence.later)], ['Higher-cost return', percentage(evidence.stress)],
-    ['Holdout trades', String(evidence.holdoutTrades)], ['Max drawdown', `${(evidence.drawdown * 100).toFixed(2)}%`],
+    ['Return on later data', percentage(evidence.later)], ['Return with higher costs', percentage(evidence.stress)],
+    ['Trades on later data', String(evidence.holdoutTrades)], ['Largest drop', `${(evidence.drawdown * 100).toFixed(2)}%`],
   ];
   return <div className="space-y-3">
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
