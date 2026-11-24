@@ -2,30 +2,17 @@
 
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { APP_NAME } from '@/lib/brand';
 import {
-  LogOut, CandlestickChart, Search, FlaskConical, ChevronRight, SlidersHorizontal,
+  LogOut, CandlestickChart, Layers, ChevronRight, SlidersHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isStocksPath } from './workspaces';
-import { currentJourneyStep, journeyHref } from './journey';
-import { findIdea } from '@/lib/automation/ideas';
-
 const workspaces = [
-  { id: 'find', label: 'Find', icon: Search },
-  { id: 'test', label: 'Test', icon: FlaskConical },
-  { id: 'trade', label: 'Trade', icon: CandlestickChart },
+  { id: '/strategies', label: 'Strategies', icon: Layers },
+  { id: '/tools', label: 'Tools', icon: SlidersHorizontal },
 ] as const;
-
-function useJourneyNavigation() {
-  const pathname = usePathname();
-  const query = useSearchParams();
-  const idea = findIdea(query.get('idea'));
-  const market = idea?.market ?? (query.get('market') === 'crypto' || !pathname.startsWith('/journey') && !isStocksPath(pathname) ? 'crypto' : 'stocks');
-  return { active: currentJourneyStep(pathname, query.get('tab')), market, idea: idea?.id } as const;
-}
 
 export function SignOutButton() {
   const router = useRouter();
@@ -47,7 +34,7 @@ export function SignOutButton() {
 }
 
 export function Sidebar() {
-  const nav = useJourneyNavigation();
+  const path = usePathname();
   return (
     <aside className="hidden lg:flex flex-col w-60 fixed inset-y-0 left-0 z-40 border-r border-border bg-card/60 backdrop-blur-xl">
       <div className="flex items-center gap-3 px-5 h-16 border-b border-border">
@@ -61,11 +48,11 @@ export function Sidebar() {
 
       <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Trading workflow">
         {workspaces.map(({ id, label, icon: Icon }) => {
-          const active = nav.active === id;
+          const active = path === id || (id === '/strategies' && path.startsWith('/journey/'));
           return (
             <Link
               key={id}
-              href={journeyHref(id, nav.market, nav.idea)}
+              href={id}
               aria-current={active ? 'location' : undefined}
               className={cn(
                 'flex items-center gap-3 px-3 h-11 rounded-lg text-sm font-semibold transition-colors',
@@ -81,9 +68,6 @@ export function Sidebar() {
       </nav>
 
       <div className="p-3 border-t border-border">
-        <Link href="/tools" className="flex items-center gap-3 px-3 min-h-10 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground">
-          <SlidersHorizontal className="w-4 h-4" />Tools and settings
-        </Link>
         <SignOutButton />
       </div>
     </aside>
@@ -92,19 +76,19 @@ export function Sidebar() {
 
 // Mobile bottom nav
 export function MobileNav() {
-  const nav = useJourneyNavigation();
+  const path = usePathname();
 
   return (
     <nav
       aria-label="Trading workflow"
-      className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-3 gap-1 border-t border-border bg-card/95 backdrop-blur-xl px-2 pt-1.5 pb-safe"
+      className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-2 gap-1 border-t border-border bg-card/95 backdrop-blur-xl px-2 pt-1.5 pb-safe"
     >
       {workspaces.map(({ id, label, icon: Icon }) => {
-        const active = nav.active === id;
+        const active = path === id || (id === '/strategies' && path.startsWith('/journey/'));
         return (
           <Link
             key={id}
-            href={journeyHref(id, nav.market, nav.idea)}
+            href={id}
             aria-current={active ? 'location' : undefined}
             className={cn(
               'flex items-center justify-center gap-2 min-h-11 rounded-lg text-sm font-semibold transition-colors',

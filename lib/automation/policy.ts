@@ -30,7 +30,7 @@ export async function exactCandidate(db: Db, userId: string, market: AutomationM
   const [, scope, symbol, rule] = version.split('.');
   if (scope !== market || version !== automationVersion(market, symbol, rule)) return null;
   const idea = findIdea(ideaId(market, rule, symbol));
-  if (!idea?.executable) return (await latestCandidates(db, userId, market, now)).find(item => item.version === version) ?? null;
+  if (!idea?.executable) return null;
   const fresh = new Date(now - 4 * day).toISOString();
   const [focused, daily] = await Promise.all([
     db.from('automation_runs').select('report, as_of').eq('user_id', userId).eq('market', market).eq('kind', 'focused')
@@ -67,7 +67,7 @@ async function opportunityCandidates(db: Db, userId: string, market: AutomationM
 
 export async function liveOpportunityCandidates(db: Db, userId: string, market: AutomationMarket, versions?: readonly string[]) {
   const candidates = (await opportunityCandidates(db, userId, market)).filter(item => !versions || versions.includes(item.version));
-  const verified = await Promise.all(candidates.slice(0, versions ? 8 : 12).map(async candidate => ({ candidate, results: await readPaperResults(db, userId, candidate) })));
+  const verified = await Promise.all(candidates.map(async candidate => ({ candidate, results: await readPaperResults(db, userId, candidate) })));
   return verified.filter(row => row.results.passed);
 }
 

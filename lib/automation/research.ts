@@ -10,7 +10,7 @@ import { etoroFromConnection } from '@/lib/stocks/connection';
 import { loadPortfolioReplayMarket } from '@/lib/stocks/portfolio-replay-data';
 import { replayStockPortfolio, type StockPortfolioInput } from '@/lib/stocks/portfolio-replay';
 import { DEFAULT_STOCK_PORTFOLIO } from '@/lib/stocks/portfolio';
-import { researchStock } from '@/lib/stocks/research';
+import { researchStock, simulateStockRule } from '@/lib/stocks/research';
 import { previousStockSession } from '@/lib/stocks/session';
 import { STOCK_TRADE_RULES, type StockTradeSymbol } from '@/lib/stocks/trade-rules';
 import type { DailyStockRule, StockBar } from '@/lib/stocks/research';
@@ -20,6 +20,7 @@ import type { PositionDay } from '@/lib/strategy-search/positioning';
 import { refreshScheduledStockJournal } from './stock-journal';
 import { CRYPTO_RESEARCH_RULES, CRYPTO_RESEARCH_SYMBOLS, STOCK_RESEARCH_RULES, STOCK_RESEARCH_SYMBOLS, isoDay, researchWindow,
   studyEvidence, type AutomationKind, type AutomationMarket, type Evidence, type RunReport } from './model';
+import { updateTrial, type NamedTrial, type TrialFill } from './forward-trials';
 
 type Db = ReturnType<typeof createServiceClient>;
 const hour = 3_600_000;
@@ -27,7 +28,7 @@ const stockCosts = { amount: 1000, commission: 1, slipBps: 3, leverage: 1 as con
 const labCosts = { fee: 1, slipBps: 3 };
 type LabMarket = Parameters<typeof summarizeStockLab>[0][number];
 export type ResearchStep = { symbol: string; stock?: StockPortfolioInput; lab?: LabMarket; evidence?: Evidence[];
-  experiments?: Experiment[]; discoveryThrough?: number; positioning?: PositionDay[];
+  trial?: NamedTrial | null; experiments?: Experiment[]; discoveryThrough?: number; positioning?: PositionDay[];
   journal?: Awaited<ReturnType<typeof refreshScheduledStockJournal>>; search?: SearchReport; problem?: string };
 
 export function researchPlan(market: AutomationMarket, kind: AutomationKind) {
@@ -58,10 +59,12 @@ function performance(run: Run) {
   return { gain: value - 1, drawdown };
 }
 
+const stockEntryAllowed = (prev: StockBar, current: StockBar) =>
+  (current.askOpen - current.bidOpen) / current.askOpen <= .003 &&
+  (current.day < '2025-01-01' || previousStockSession(Date.parse(`${current.day}T15:00:00Z`)) === prev.day);
+
 function stockEvidence(symbol: string, rule: DailyStockRule, bars: StockBar[]) {
-  const result = researchStock(bars, rule, stockCosts, (prev, current) =>
-    (current.askOpen - current.bidOpen) / current.askOpen <= .003 &&
-    (current.day < '2025-01-01' || previousStockSession(Date.parse(`${current.day}T15:00:00Z`)) === prev.day));
+  const result = researchStock(bars, rule, stockCosts, stockEntryAllowed);
   return result ? studyEvidence({ market: 'stocks', symbol, rule, name: STOCK_TRADE_RULES.find(item => item.id === rule)!.name, trades: result.trades,
     holdoutTrades: result.holdoutTrades, from: result.from, through: result.to, early: result.earlyReturn, later: result.holdoutReturn,
     stress: result.stressReturn, benchmark: result.holdoutHold * (stockCosts.amount / 10_000), drawdown: result.drawdown }) : null;
@@ -79,8 +82,28 @@ function intradayPerformance(trades: IntradayTrade[], cost: 'netBps' | 'stressBp
 
 export async function runIdeaResearch(db: Db, userId: string, idea: StrategyIdea, asOf: string): Promise<ResearchStep> {
   const now = Date.parse(asOf);
+  const checkpoint = await db.from('automation_runs').select('trial:report->data->trial').eq('user_id', userId)
+    .eq('market', idea.market).eq('idea_id', idea.id).eq('kind', 'focused').eq('status', 'completed')
+    .not('report->data->trial', 'is', null).order('as_of', { ascending: false }).limit(1).maybeSingle();
+  if (checkpoint.error) throw new Error('Could not read the strategy paper record.');
+  const prior = (checkpoint.data?.trial ?? null) as unknown as NamedTrial | null;
+  const fills: TrialFill[] = [];
+  const finish = (evidence: Evidence, availableFrom: number, through: number) => ({ symbol: idea.symbol, evidence: [evidence],
+    trial: updateTrial(evidence, prior, fills, availableFrom, through, Date.now()) });
+  const resume = prior?.fills.at(-1)?.exit ?? prior?.started ?? Infinity;
   if (idea.market === 'crypto') {
-    return { symbol: idea.symbol, evidence: (await cryptoStudy(idea.symbol, now, 'daily')).filter(e => e.rule === idea.rule) };
+    let complete = true;
+    const studies = await cryptoStudy(idea.symbol, now, 'daily', (bars, rates) => {
+      const start = bars.findIndex(b => b.t > resume && (!!prior?.fills.length || b.t - hour >= resume));
+      if (start === -1) return;
+      if (start < WARMUP_BARS || bars.slice(start).some(b => !rates.has(b.t + hour))) {
+        complete = false;
+        return;
+      }
+      const run = simulate(bars, getStrategy(idea.rule)!, false, new Map(), start, { hourlyFunding: rates });
+      for (const t of run.trades) fills.push({ entry: t.entryT, exit: t.exitT, net: t.net });
+    });
+    return finish(studies.find(e => e.rule === idea.rule)!, complete ? now - 1900 * hour : Infinity, Math.floor(now / hour) * hour);
   }
   const broker = await stockFeed(db, userId);
   if (idea.executable) {
@@ -89,7 +112,13 @@ export async function runIdeaResearch(db: Db, userId: string, idea: StrategyIdea
     const stock = await loadPortfolioReplayMarket(broker, idea.symbol as StockTradeSymbol, [rule], from, to, false, 570);
     const evidence = stockEvidence(idea.symbol, rule, rule === 'inside-day' ? stock.regular : stock.daily);
     if (!evidence) throw new Error('Paired stock history is unavailable for this rule.');
-    return { symbol: idea.symbol, evidence: [evidence] };
+    const bars = rule === 'inside-day' ? stock.regular : stock.daily;
+    const start = bars.findIndex(b => Date.parse(b.day) >= resume);
+    if (start >= (rule === 'inside-day' ? 50 : 100)) {
+      simulateStockRule(bars, rule, start, bars.length, stockCosts, stockEntryAllowed, (entry, exit, net) =>
+        fills.push({ entry: Date.parse(entry.day), exit: Date.parse(exit.day), net }));
+    }
+    return finish(evidence, start >= 0 && start < (rule === 'inside-day' ? 50 : 100) ? Infinity : Date.parse(bars[rule === 'inside-day' ? 50 : 100].day), Date.parse(bars.at(-1)!.day));
   }
   const end = isoDay(now);
   const { validationFrom, holdoutFrom } = stockLabWindows(end);
@@ -108,17 +137,22 @@ export async function runIdeaResearch(db: Db, userId: string, idea: StrategyIdea
   const early = replayStockIntraday(sessions, rule, validationFrom, holdoutFrom, cost);
   const later = replayStockIntraday(sessions, rule, holdoutFrom, end, cost);
   const baseline = rule === 'close' ? [] : replayStockIntraday(sessions, control[rule], holdoutFrom, end, cost);
-  const prior = intradayPerformance(early, 'netBps');
+  const earlier = intradayPerformance(early, 'netBps');
   const heldOut = intradayPerformance(later, 'netBps');
   const stressed = intradayPerformance(later, 'stressBps');
   const evidence = studyEvidence({ market: 'stocks', symbol: idea.symbol, rule, name: idea.name,
-    trades: early.length + later.length, holdoutTrades: later.length, early: prior.result, later: heldOut.result,
+    trades: early.length + later.length, holdoutTrades: later.length, early: earlier.result, later: heldOut.result,
     stress: stressed.result, benchmark: intradayPerformance(baseline, 'netBps').result,
-    drawdown: Math.max(prior.drawdown, heldOut.drawdown, stressed.drawdown), from: usable[0].day, through: usable.at(-1)!.day });
-  return { symbol: idea.symbol, evidence: [evidence] };
+    drawdown: Math.max(earlier.drawdown, heldOut.drawdown, stressed.drawdown), from: usable[0].day, through: usable.at(-1)!.day });
+  for (const trade of later) {
+    const day = Date.parse(trade.day);
+    fills.push({ entry: day, exit: day, net: trade.netBps / 10_000 });
+  }
+  return finish(evidence, Date.parse(holdoutFrom), Date.parse(usable.at(-1)!.day));
 }
 
-async function cryptoStudy(symbol: string, asOf: number, kind: AutomationKind) {
+async function cryptoStudy(symbol: string, asOf: number, kind: AutomationKind,
+  observe?: (bars: Awaited<ReturnType<ReturnType<typeof marketDataClient>['getCandles']>>, funding: Map<number, number>) => void) {
   const close = Math.floor(asOf / hour) * hour;
   const start = close - 4600 * hour;
   const hl = marketDataClient();
@@ -132,6 +166,7 @@ async function cryptoStudy(symbol: string, asOf: number, kind: AutomationKind) {
       bars.some((bar, i) => i > 0 && bar.t - bars[i - 1].t !== hour) || funding.size < 1900) {
     throw new Error('Complete hourly prices and funding are unavailable.');
   }
+  if (observe) observe(bars, funding);
   const split = WARMUP_BARS + Math.floor((bars.length - WARMUP_BARS) * .7);
   const benchmark = bars.at(-1)!.c / bars[split].o - 1 - 2 * COST;
   return CRYPTO_RESEARCH_RULES.map(id => {

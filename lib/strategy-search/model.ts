@@ -1,6 +1,6 @@
 import { STOCK_TRADE_SYMBOLS } from '@/lib/stocks/trade-rules';
 
-export const SEARCH_REVISION = 6;
+export const SEARCH_REVISION = 7;
 // Increment when changing any signal, fill, funding or exit semantics for frozen rules.
 export const RULE_INTERPRETER_VERSION = 1;
 export const SEARCH_REFRESH_MS = 7 * 86_400_000;
@@ -79,6 +79,7 @@ export function ruleKey(rule: Rule) {
 export type ForwardFill = { entry: number; exit: number; price: number; exitPrice: number; net: number };
 export type ForwardBook = { version: number; rule: Rule; started: number; cursor: number; lastExit: number; count: number; equity: number;
   peak: number; drawdown: number; recent: ForwardFill[]; state: 'tracking' | 'data-gap' | 'stopped' | 'completed' | 'archived';
+  admission?: 'passed' | 'sample'; backtest?: { net: number; trades: number; through: string };
   pending?: { signal: number; entry: number; price: number; stop: number; target: number } };
 
 export function paperTradingStatus(count?: number, state: ForwardBook['state'] | 'paused' = 'tracking', capped = false) {
@@ -91,7 +92,7 @@ export type SearchBar = { t: number; o: number; h: number; l: number; c: number;
   askHigh?: number; askLow?: number; askClose?: number; funding?: number; shortFunding?: number } & Partial<Record<ContextFactor, number>>;
 export type Performance = { trades: number; groups: number; net: number; average: number; drawdown: number; score: number | null };
 export type SearchOutcome = {
-  verdict: 'insufficient-history' | 'no-candidate' | 'holdout-failed' | 'venue-failed' | 'paper-candidate';
+  verdict: 'insufficient-history' | 'no-candidate' | 'holdout-failed' | 'venue-failed' | 'paper-candidate' | 'small-sample';
   rule: Rule | null; holdout: Performance | null; stress: Performance | null; venue: Performance | null;
   benchmark: number | null; note?: string;
   robustness?: { delayed: Performance; lowerGroupReturn: number };

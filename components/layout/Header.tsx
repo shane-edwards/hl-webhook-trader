@@ -26,6 +26,7 @@ const pageTitles: Record<string, string> = {
   '/lab/scalping': 'Scalping research',
   '/analytics': 'Crypto analytics',
   '/settings': 'Crypto settings',
+  '/strategies': 'Strategies',
   '/tools': 'Tools and settings',
   '/journey/find': 'Find a strategy',
   '/journey/test': 'Test a strategy',
@@ -41,7 +42,7 @@ export function Header({ onRefresh, refreshing }: HeaderProps) {
   const pathname = usePathname();
   const query = useSearchParams();
   const stocks = isStocksPath(pathname);
-  const shared = pathname === '/automation' || pathname === '/tools' || pathname.startsWith('/journey/');
+  const shared = pathname === '/automation' || pathname === '/tools' || pathname === '/strategies' || pathname.startsWith('/journey/');
   const workspace = shared ? APP_NAME : stocks ? 'Stocks' : 'Crypto';
   const stockTab = pathname === '/stocks' ? stockSection(query.get('tab')) : 'research';
   const title = pathname === '/stocks' ? stockSections.find(section => section.id === stockTab)!.title : pageTitles[pathname] ?? APP_NAME;
@@ -60,7 +61,7 @@ export function Header({ onRefresh, refreshing }: HeaderProps) {
                 <RefreshCw className={cn('w-4 h-4', refreshing && 'animate-spin')} />
               </Button>
             )}
-            {pathname !== '/tools' && <Button asChild variant="ghost" size="icon" className="lg:hidden shrink-0" aria-label="Tools and settings">
+            {pathname !== '/tools' && pathname !== '/strategies' && <Button asChild variant="ghost" size="icon" className="lg:hidden shrink-0" aria-label="Tools and settings">
               <Link href="/tools"><SlidersHorizontal className="w-4 h-4" /></Link>
             </Button>}
             </div>
