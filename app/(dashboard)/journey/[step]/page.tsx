@@ -12,12 +12,12 @@ import { FullAutopilot } from '@/components/journey/FullAutopilot';
 import { FundingHedge } from '@/components/journey/FundingHedge';
 import { frameNames, StrategySearch } from '@/components/journey/StrategySearch';
 import { Button } from '@/components/ui/button';
-import { IDEA_RULES, findIdea, ideaId, type StrategyIdea } from '@/lib/automation/ideas';
-import type { AutomationMarket, AutomationProfile, Evidence } from '@/lib/automation/model';
+import { IDEA_RULES, findIdea, ideaId, ideasForPair, ideaSearchFrame, type StrategyIdea } from '@/lib/automation/ideas';
+import { automationVersion, type AutomationMarket, type AutomationProfile, type Evidence } from '@/lib/automation/model';
 import type { PaperResults } from '@/lib/automation/policy';
 import type { StockEnvironment } from '@/components/stocks/StockOrderTicket';
 import { stockSizingQuery } from '@/lib/stocks/leverage';
-import { SEARCH_ASSETS, SEARCH_FRAMES, searchPair, type SearchFrame } from '@/lib/strategy-search/model';
+import { RECOMMENDATION_FRESH_MS, SEARCH_ASSETS, SEARCH_FRAMES, searchPair } from '@/lib/strategy-search/model';
 import { cn } from '@/lib/utils';
 
 type IdeaResult = { evidence: Evidence; asOf: string };
@@ -43,36 +43,26 @@ function status(evidence: Evidence | undefined, work?: IdeaWork) {
   if (work?.status === 'queued') return 'Queued';
   if (work?.status === 'running') return 'Testing';
   if (work?.status === 'failed') return 'Run failed';
-  if (!evidence) return 'Ready to test';
+  if (!evidence) return 'Awaiting automatic backtest';
   if (evidence.qualified) return 'Passed backtest';
   if (evidence.trades < 24 || evidence.holdoutTrades < 8) return 'Needs more trades';
   return 'Did not pass';
 }
 
-function IdeaCard({ item, data }: { item: (typeof IDEA_RULES)[number]; data: Journey | null }) {
-  const ranked = item.symbols.map(symbol => {
-    const id = ideaId(item.market, item.rule, symbol);
-    const result = data?.results[id]?.evidence;
-    return { symbol, result, id };
-  }).sort((a, b) => Number(!!b.result?.qualified) - Number(!!a.result?.qualified) ||
-    (b.result?.holdoutTrades ?? -1) - (a.result?.holdoutTrades ?? -1));
-  const [picked, setPicked] = useState<string>();
-  const displayed = ranked.find(row => row.symbol === picked) ?? ranked[0];
-  return <article className="surface min-w-0 p-4 sm:p-5 flex flex-col gap-4">
-    <div className="space-y-2">
-      <div className="flex flex-wrap justify-between gap-x-2 gap-y-1 text-xs text-muted-foreground"><span>{item.timeframe}</span>
-        <span className={cn(displayed.result?.qualified && 'text-profit')}>{status(displayed.result, data?.work[displayed.id])}</span>
+function IdeaRow({ item, symbol, data }: { item: (typeof IDEA_RULES)[number]; symbol: string; data: Journey | null }) {
+  const id = ideaId(item.market, item.rule, symbol);
+  const result = data?.results[id];
+  const fresh = result && data && data.observedAt - Date.parse(result.asOf) < RECOMMENDATION_FRESH_MS;
+  return <Link href={journeyHref('test', item.market, id)} className="flex items-center justify-between gap-4 py-3 hover:text-primary">
+    <div className="min-w-0">
+      <div className="text-sm font-medium">{item.name}</div>
+      <div className={cn('mt-1 text-xs text-muted-foreground', fresh && result.evidence.qualified && 'text-profit')}>
+        {result && !fresh ? 'Previous result' : status(result?.evidence, data?.work[id])}
+        {result && ` · ${result.evidence.holdoutTrades} later trades`}
       </div>
-      <h2 className="font-semibold tracking-tight">{item.name}</h2>
     </div>
-    <div className="flex flex-wrap items-center gap-2 mt-auto">
-      <select aria-label={`Asset for ${item.name}`} className="h-9 px-2 rounded-md border bg-background text-sm" value={displayed.symbol}
-        onChange={event => setPicked(event.target.value)}>{item.symbols.map(symbol => <option key={symbol}>{symbol}</option>)}</select>
-      <Button size="sm" variant="outline" asChild className="ml-auto">
-        <Link href={journeyHref('test', item.market, displayed.id)} aria-label={`Test ${item.name} on ${displayed.symbol}`}>Test <ArrowRight size={15} /></Link>
-      </Button>
-    </div>
-  </article>;
+    <ArrowRight size={16} className="shrink-0" aria-label="View results" />
+  </Link>;
 }
 
 function EvidencePanel({ evidence, idea }: { evidence: Evidence; idea: StrategyIdea }) {
@@ -98,12 +88,6 @@ function EvidencePanel({ evidence, idea }: { evidence: Evidence; idea: StrategyI
   </div>;
 }
 
-function ideaFrame(idea: (typeof IDEA_RULES)[number]): SearchFrame {
-  if (idea.market === 'crypto') return idea.rule === 'trend_breakout' ? '4h' : '1h';
-  if (idea.executable) return '1d';
-  return idea.rule === 'close' || idea.rule === 'close-volume' ? '30m' : '5m';
-}
-
 export default function JourneyPage() {
   const { step: rawStep } = useParams<{ step: string }>();
   const step = JOURNEY_STEPS.find(value => value === rawStep);
@@ -115,6 +99,8 @@ export default function JourneyPage() {
   const fallback = (step === 'trade' ? rules.find(item => item.executable) : rules[0])!;
   const idea = requested ?? findIdea(ideaId(market, fallback.rule, fallback.symbols[0]))!;
   const selectedId = step === 'find' ? undefined : String(idea.id);
+  const selectedFrame = ideaSearchFrame(idea);
+  const selectedSymbol = idea.symbol;
   const [loaded, setLoaded] = useState<{ data: Journey; idea?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -137,6 +123,16 @@ export default function JourneyPage() {
     return () => { controller.abort(); clearInterval(interval); };
   }, [load]);
 
+  useEffect(() => {
+    if (step !== 'test') return;
+    const controller = new AbortController();
+    void fetch('/api/strategy-search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
+      body: JSON.stringify({ market, symbol: selectedSymbol, frame: selectedFrame }) }).then(response => {
+      if (response.ok && !controller.signal.aborted) return load(controller.signal);
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [market, selectedSymbol, selectedFrame, step, load]);
+
   if (!step) notFound();
   const data = loaded?.data ?? null;
   const current = loaded && loaded.idea === selectedId ? loaded.data : null;
@@ -149,12 +145,14 @@ export default function JourneyPage() {
   const baseAsset = query.get('asset') ?? requested?.symbol ?? SEARCH_ASSETS[market][0];
   const baseFrame = query.get('frame') ?? (market === 'crypto' ? '1h' : '1d');
   const findPair = searchPair(market, baseAsset, baseFrame) ?? searchPair(market, SEARCH_ASSETS[market][0], market === 'crypto' ? '1h' : '1d')!;
-  const matching = rules.filter(item => item.symbols.includes(findPair.symbol) && ideaFrame(item) === findPair.frame);
+  const matching = ideasForPair(findPair);
   const readyIdeas = matching.flatMap(item => {
     const id = ideaId(market, item.rule, findPair.symbol);
     const row = data?.results[id];
-    return item.executable && data && row?.evidence.qualified && Date.parse(row.asOf) > data.observedAt - 4 * 86_400_000 ? [{ id, row }] : [];
-  }).sort((a, b) => b.row.evidence.stress - a.row.evidence.stress);
+    return item.executable && data && row?.evidence.qualified && row.evidence.version === automationVersion(market, findPair.symbol, item.rule) &&
+      data.observedAt - Date.parse(row.asOf) < RECOMMENDATION_FRESH_MS
+      ? [{ id, evidence: row.evidence }] : [];
+  }).sort((a, b) => b.evidence.stress - a.evidence.stress);
   const recommend = readyIdeas[0];
 
   function changeSearch(field: 'asset' | 'frame', value: string) {
@@ -207,21 +205,28 @@ export default function JourneyPage() {
           <label className="block text-xs font-medium">Timeframe<select aria-label="Timeframe" className={selectClass} value={findPair.frame}
             onChange={event => changeSearch('frame', event.target.value)}>{SEARCH_FRAMES[market].map(frame => <option key={frame} value={frame}>{frameNames[frame]}</option>)}</select></label>
         </section>
-        {recommend && <section className="surface p-4 sm:p-5 flex flex-wrap justify-between items-center gap-3">
-          <div><h2 className="font-semibold">{recommend.row.evidence.name}</h2><p className="mt-1 text-xs text-profit">Passed backtest</p></div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm"><Link href={journeyHref('test', market, recommend.id)}>See test</Link></Button>
-            <Button asChild size="sm"><Link href={journeyHref('trade', market, recommend.id)}>Trade setup</Link></Button>
-          </div>
-        </section>}
-        <StrategySearch market={market} symbol={findPair.symbol} frame={findPair.frame} />
-        {market === 'crypto' && (findPair.symbol === 'BTC' || findPair.symbol === 'ETH') && <FundingHedge key={findPair.symbol} symbol={findPair.symbol} />}
+        <StrategySearch market={market} symbol={findPair.symbol} frame={findPair.frame} recommendation={recommend} />
         {!!matching.length && <details className="surface p-4">
-          <summary className="cursor-pointer text-sm font-medium">Other tested ideas</summary>
-          <div className="grid gap-3 mt-3 sm:grid-cols-2 xl:grid-cols-3">
-            {matching.map(item => <IdeaCard key={item.rule} item={{ ...item, symbols: [findPair.symbol] }} data={data} />)}
+          <summary className="cursor-pointer text-sm font-medium">Built-in strategy results</summary>
+          <div className="mt-2 divide-y">
+            {matching.map(item => <IdeaRow key={item.rule} item={item} symbol={findPair.symbol} data={data} />)}
           </div>
         </details>}
+        {market === 'crypto' && (findPair.symbol === 'BTC' || findPair.symbol === 'ETH') && <>
+          <details className="surface p-4" open={findPair.frame === '4h' || undefined}>
+            <summary className="cursor-pointer text-sm font-medium">4-hour swing research lead</summary>
+            <div className="mt-3 space-y-1 text-sm">
+              <p className="font-medium">Spot-confirmed rally · Long up to two days</p>
+              <p className="text-xs text-muted-foreground">Historical research · {findPair.symbol === 'BTC' ? '+13.23% over 2 BTC trades' : '+8.40% over 5 ETH trades'} through Oct 2026 · Small sample</p>
+              <a href="https://github.com/shane-edwards/hl-webhook-trader/blob/ccdf185/backtest/CRYPTO-SETUPS.md" target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-primary">View study <ArrowUpRight size={12} /></a>
+            </div>
+          </details>
+          <details className="surface p-4">
+            <summary className="cursor-pointer text-sm font-medium">Funding hedge</summary>
+            <div className="mt-3"><FundingHedge key={findPair.symbol} symbol={findPair.symbol} /></div>
+          </details>
+        </>}
         <Button asChild variant="ghost" size="sm"><Link href={journeyHref('trade', market) + '#autopilot'}>Full Autopilot <ArrowRight size={15} /></Link></Button>
       </> : <div className="grid gap-4 lg:grid-cols-[minmax(225px,1fr)_minmax(0,3fr)]">
         <section className="surface min-w-0 p-4 self-start space-y-3">
@@ -241,14 +246,14 @@ export default function JourneyPage() {
               <p role="status" className={cn('mt-1 text-xs text-muted-foreground', current?.ready && 'text-profit')}>{status(evidence, work)}</p>
             </div>
             {needsFeed ? <Button asChild size="sm"><Link href={stockHref('account', { mode: 'real', returnTo: 'journey-test', idea: idea.id })}>Connect eToro</Link></Button>
-              : <Button size="sm" disabled={busy || testing || !current} onClick={() => void runTest()}>
-                {testing || busy ? <Loader2 className="animate-spin" size={15} /> : <FlaskConical size={15} />}{testing ? 'In progress' : evidence ? 'Run again' : 'Run backtest'}
+              : <Button size="sm" variant="outline" disabled={busy || testing || !current} onClick={() => void runTest()}>
+                {testing || busy ? <Loader2 className="animate-spin" size={15} /> : <FlaskConical size={15} />}{testing ? 'Backtest in progress' : 'Run manually'}
               </Button>}
           </div>
           {work?.status === 'failed' && work.detail && <p role="status" className="text-sm text-loss">{work.detail}</p>}
           {evidence && <EvidencePanel evidence={evidence} idea={idea} />}
-          {idea.executable && evidence && <Button asChild variant={current?.ready ? 'default' : 'outline'}><Link href={journeyHref('trade', market, idea.id)}>
-            {current?.ready ? 'Continue to Trade' : 'Open manual trade'} <ArrowRight size={16} />
+          {current?.ready && <Button asChild><Link href={journeyHref('trade', market, idea.id)}>
+            Continue to Trade <ArrowRight size={16} />
           </Link></Button>}
           {!idea.executable && <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span>Research only</span>
@@ -263,7 +268,7 @@ export default function JourneyPage() {
             state={{ ...current, profile }} refresh={load} initialMethod={query.get('method') === 'automated' ? 'automated' : 'manual'}
             initialEnvironment={stockMode === 'real' ? 'real' : undefined} initialSizing={stockSizingQuery(query).data} />
             : <div role="status" className="surface p-4 text-sm text-muted-foreground">Loading trade controls…</div>}
-          <StrategySearch market={market} symbol={idea.symbol} frame={ideaFrame(idea)} compact />
+          <StrategySearch market={market} symbol={idea.symbol} frame={selectedFrame} compact />
           {current && <FullAutopilot key={market} market={market} profile={profile} demo={current.connections.includes('demo')}
             real={market === 'stocks' ? current.connections.includes('real') : current.hasWallet && !current.isTestnet} live={current.live ?? []} refresh={load} />}
         </div>}

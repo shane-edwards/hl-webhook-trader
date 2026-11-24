@@ -21,6 +21,31 @@ function assemble(bars: SearchBar[]) {
   return [...new Map(bars.map(row => [row.t, row])).values()].sort((a, b) => a.t - b.t);
 }
 
+function spotBar(values: Array<string | number>): SearchBar | null {
+  const [stamp, o, h, l, c, v] = values.slice(0, 6).map(Number);
+  const t = stamp > 10 ** 14 ? Math.floor(stamp / 1000) : stamp;
+  return Number.isFinite(t) && [o, h, l, c].every(value => Number.isFinite(value) && value > 0) &&
+    h >= Math.max(o, c) && l <= Math.min(o, c) ? { t, o, h, l, c, v } : null;
+}
+
+async function recentSpot(pair: SearchPair, after: number, now: number) {
+  const step = BAR_MS[pair.frame];
+  const close = Math.floor(now / step) * step;
+  const pages = Array.from({ length: Math.ceil(Math.max(0, close - after) / (1000 * step)) }, (_, i) => after + i * step * 1000);
+  return (await inBatches(pages, 5, async start => {
+    const query = new URLSearchParams({ symbol: `${pair.symbol}USDT`, interval: pair.frame, startTime: String(start),
+      endTime: String(Math.min(close, start + 1000 * step) - 1), limit: '1000' });
+    const response = await fetch(`https://data-api.binance.vision/api/v3/klines?${query}`, { signal: AbortSignal.timeout(8_000) });
+    if (!response.ok) throw new Error('Recent Binance candles are temporarily unavailable.');
+    const rows: Array<Array<string | number>> = await response.json();
+    if (!Array.isArray(rows)) throw new Error('Recent Binance candles are temporarily unavailable.');
+    return rows.flatMap(row => {
+      const bar = spotBar(row);
+      return bar && bar.t >= start && bar.t + step <= close ? [bar] : [];
+    });
+  })).flat();
+}
+
 export async function binanceArchive(pair: SearchPair, now: number) {
   const date = new Date(now);
   const months = Array.from({ length: 37 }, (_, i) =>
@@ -35,17 +60,15 @@ export async function binanceArchive(pair: SearchPair, now: number) {
     const entries = unzipSync(new Uint8Array(await response.arrayBuffer()));
     if (!entries[`${archive}.csv`]) throw new Error('The Binance archive returned an unexpected file.');
     const csv = new TextDecoder().decode(entries[`${archive}.csv`]);
-    return csv.trim().split('\n').map(line => {
-      const fields = line.split(',', 6).map(Number);
-      const [stamp, o, h, l, c, v] = fields;
-      return { t: stamp > 10 ** 14 ? Math.round(stamp / 1000) : stamp, o, h, l, c, v };
-    }).filter(row => Number.isFinite(row.t) && [row.o, row.h, row.l, row.c].every(value => value > 0) &&
-      row.h >= Math.max(row.o, row.c) && row.l <= Math.min(row.o, row.c));
+    return csv.trim().split('\n').flatMap(line => spotBar(line.split(',', 6)) ?? []);
   });
   const bars = assemble(chunks.flat());
-  // A good old archive alone cannot make a current venue relevant.
-  if (bars.length && now - bars.at(-1)!.t > 70 * DAY) return [];
-  return bars;
+  const last = bars.at(-1);
+  if (!last || now - last.t > 70 * DAY) return [];
+  const step = BAR_MS[pair.frame];
+  const complete = assemble([...bars, ...await recentSpot(pair, last.t + step, now)]);
+  if (now - complete.at(-1)!.t > 3 * step) throw new Error('Recent Binance candles are temporarily unavailable.');
+  return complete;
 }
 
 async function pairedStocks(db: Db, user: string, pair: SearchPair, now: number): Promise<SearchBar[]> {
@@ -71,7 +94,7 @@ async function pairedStocks(db: Db, user: string, pair: SearchPair, now: number)
 export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: string) {
   const now = Date.parse(asOf);
   if (pair.market === 'stocks') return searchHistory(pair, await pairedStocks(db, user, pair, now), 'eToro bid/ask cash-stock history');
-  const report = searchHistory(pair, await binanceArchive(pair, now), 'Binance archived spot candles');
+  const report = searchHistory(pair, await binanceArchive(pair, now), 'Binance historical and recent spot candles');
   if (report.verdict !== 'paper-candidate') return report;
   // A transfer check using actual perp data and observed funding, independent of choosing the rule.
   const frame = pair.frame === '30m' ? '15m' : pair.frame;

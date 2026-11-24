@@ -1,28 +1,38 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { journeyHref } from '@/components/layout/journey';
+import { stockHref } from '@/components/layout/workspaces';
+import type { Evidence } from '@/lib/automation/model';
 import { FAMILIES, searchPair, type SearchMarket, type SearchPair, type SearchReport, type SearchFrame } from '@/lib/strategy-search/model';
 
-type SearchState = { status: string; report: SearchReport | null; canStart: boolean; detail?: string };
+type SearchState = { status: string; report: SearchReport | null; canStart: boolean; fresh: boolean; completedAt: string | null; detail?: string };
 export const frameNames: Record<SearchFrame, string> = { '5m': '5 min', '15m': '15 min', '30m': '30 min', '1h': '1 hour', '4h': '4 hours', '1d': 'Daily' };
+type Recommendation = { id: string; evidence: Evidence };
 
 const pct = (value: number) => `${(value * 100).toFixed(2)}%`;
 
-function readStatus(payload: SearchState | null) {
+function researchStatus(payload: SearchState | null) {
   if (!payload) return 'Checking research…';
-  if (payload.status === 'unsupported') return 'Research unavailable for this market and timeframe';
-  if (payload.status === 'connect') return 'Connect eToro to run this search';
-  if (payload.status === 'failed') return 'Research needs attention';
-  if (payload.status === 'busy') return 'Research queue is full';
-  if (payload.status === 'queued' || payload.status === 'new') return 'Search queued';
-  if (payload.status === 'running') return 'Testing strategies…';
-  if (payload.report?.verdict === 'insufficient-history') return 'More price history needed';
-  if (payload.report?.verdict === 'paper-candidate' && payload.report.rule) return `Paper candidate · ${FAMILIES[payload.report.rule.family]}`;
-  return 'No indicator combination passed';
+  if (payload.status === 'unsupported') return 'Research unavailable for this timeframe';
+  if (payload.status === 'connect') return 'Waiting for eToro market data';
+  if (payload.status === 'paused') return 'Automatic research paused';
+  if (payload.status === 'failed') return 'Data unavailable · Tideframe will retry';
+  if (payload.status === 'busy' || payload.status === 'queued') return 'Queued for automatic testing';
+  if (payload.status === 'running') return 'Automatic backtest running';
+  if (payload.status === 'new') return 'Waiting for the first automatic backtest';
+  if (payload.report?.verdict === 'insufficient-history') return 'Waiting for more price history';
+  if (payload.report?.verdict === 'venue-failed') return 'No setup passed the Hyperliquid check';
+  if (payload.report?.verdict === 'holdout-failed') return 'No setup passed on later data';
+  if (payload.report?.verdict === 'paper-candidate') return payload.fresh ? 'Passed research · forward testing needed' : 'Older research · refresh due';
+  return payload.report ? 'No setup passed the backtest' : 'Waiting for research results';
 }
 
-export function StrategySearch({ market, symbol, frame, active = true, compact = false }: {
-  market: SearchMarket; symbol: string; frame: SearchFrame; active?: boolean; compact?: boolean;
+export function StrategySearch({ market, symbol, frame, active = true, compact = false, recommendation }: {
+  market: SearchMarket; symbol: string; frame: SearchFrame; active?: boolean; compact?: boolean; recommendation?: Recommendation;
 }) {
   const pair = searchPair(market, symbol, frame);
   const key = pair ? `${market}/${symbol}/${frame}` : null;
@@ -32,37 +42,58 @@ export function StrategySearch({ market, symbol, frame, active = true, compact =
     if (!active || !key) return;
     const match: SearchPair = { market, symbol, frame };
     const controller = new AbortController();
-    const request = async () => {
+    let timer: ReturnType<typeof setTimeout>;
+    const request = async (initial = false) => {
       try {
-        const response = await fetch(`/api/strategy-search?${new URLSearchParams(match)}`, { signal: controller.signal, cache: 'no-store' });
+        const autoQueue = () => fetch('/api/strategy-search', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(match), signal: controller.signal });
+        const response = await (initial && !compact ? autoQueue() :
+          fetch(`/api/strategy-search?${new URLSearchParams(match)}`, { signal: controller.signal, cache: 'no-store' }));
         if (!response.ok) throw new Error();
         let payload = await response.json() as SearchState;
-        if (payload.canStart) {
-          const queued = await fetch('/api/strategy-search', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(match), signal: controller.signal });
+        if (!initial && !compact && payload.canStart) {
+          const queued = await autoQueue();
           if (!queued.ok) throw new Error();
           payload = await queued.json();
         }
         if (!controller.signal.aborted) { setData({ key, payload }); setFailed(null); }
       } catch {
         if (!controller.signal.aborted) setFailed(key);
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(() => void request(), 15_000);
       }
     };
-    const start = setTimeout(() => void request(), 500);
-    const poll = setInterval(() => void request(), 20_000);
-    return () => { controller.abort(); clearTimeout(start); clearInterval(poll); };
-  }, [market, symbol, frame, key, active]);
+    timer = setTimeout(() => void request(true), 200);
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [market, symbol, frame, key, active, compact]);
   if (!active) return null;
-  const payload = key ? data?.key === key ? data.payload : null : { status: 'unsupported', report: null, canStart: false };
+  const payload = key ? data?.key === key ? data.payload : null :
+    { status: 'unsupported', report: null, canStart: false, fresh: false, completedAt: null };
   const { report } = payload ?? {};
-  return <section className={compact ? 'rounded-lg border border-border p-3 space-y-1' : 'surface p-4 sm:p-5 space-y-3'} aria-label="Strategy research">
-    {!compact && <h2 className="font-semibold">{symbol} · {frameNames[frame]}</h2>}
-    <p role="status" className="text-sm font-medium">{failed === key && key ? 'Research temporarily unavailable' : readStatus(payload)}</p>
-    {!!report?.tried && <p className="text-xs text-muted-foreground">{report.tried.toLocaleString()} setups tested · {report.from} to {report.through}</p>}
+  const lead = payload?.fresh && report?.verdict === 'paper-candidate' && report.rule ? FAMILIES[report.rule.family] : null;
+  const message = failed === key && key ? 'Research temporarily unavailable' : researchStatus(payload);
+  const waiting = !report || report.verdict === 'insufficient-history';
+  const heading = recommendation?.evidence.name ?? (lead && `${lead} · Research candidate`) ??
+    (waiting ? 'Researching this market' : 'Wait for a stronger setup');
+  return <section className={compact ? 'rounded-lg border border-border p-3 space-y-1' : 'surface p-4 sm:p-5 space-y-3'} aria-label={compact ? 'Strategy research' : 'Recommendation'}>
+    {!compact && <>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs font-medium text-muted-foreground">
+        <span>Recommendation</span><span>{symbol} · {frameNames[frame]}</span>
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight">{heading}</h2>
+    </>}
+    {!compact && recommendation ? <div className="flex flex-wrap items-center gap-2">
+      <span className="mr-auto text-sm text-profit">Passed backtest</span>
+      <Button asChild variant="outline" size="sm"><Link href={journeyHref('test', market, recommendation.id)}>View results</Link></Button>
+      <Button asChild size="sm"><Link href={journeyHref('trade', market, recommendation.id)}>Trade setup <ArrowRight size={15} /></Link></Button>
+    </div> : <p role="status" className="text-sm text-muted-foreground">{message}</p>}
+    {!compact && payload?.status === 'connect' && <Button asChild variant="outline" size="sm"><Link href={stockHref('account')}>Connect eToro</Link></Button>}
+    {!!report?.tried && <p className="text-xs text-muted-foreground">{report.tried.toLocaleString()} setups tested · Prices through {report.through}</p>}
     {report && <details className="text-xs text-muted-foreground">
-      <summary className="cursor-pointer">Search results</summary>
+      <summary className="cursor-pointer font-medium">Automatic search results</summary>
       <div className="space-y-1 mt-2">
-        <p>{report.source} · {report.bars.toLocaleString()} candles</p>
+        {payload?.completedAt && <p>Checked {new Date(payload.completedAt).toLocaleString()}</p>}
+        <p>{report.source} · {report.bars.toLocaleString()} candles{report.from && ` · From ${report.from}`}</p>
         <p>{report.validationPassed} qualified for the final test · {report.testedOnLaterData} tested on later data</p>
         {report.holdout && <p>{report.holdout.trades} later trades · {pct(report.holdout.net)} after costs · {pct(report.stress?.net ?? 0)} with higher costs · {pct(report.stress?.drawdown ?? 0)} drawdown</p>}
         {report.venue && <p>Hyperliquid check · {report.venue.trades} trades · {pct(report.venue.net)} after costs and funding</p>}

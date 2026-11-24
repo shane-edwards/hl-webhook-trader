@@ -4,7 +4,7 @@ import { EtoroError } from '@/lib/stocks/etoro';
 import { automationSchedule, type AutomationKind, type AutomationMarket, type RunReport } from './model';
 import { finishResearch, permanentResearchProblem, researchPlan, runIdeaResearch, runResearchStep, type ResearchStep } from './research';
 import { findIdea, versionedIdea, type StrategyIdea } from './ideas';
-import { pairFromKey, scheduledPair, searchKey, type SearchPair } from '@/lib/strategy-search/model';
+import { pairFromKey } from '@/lib/strategy-search/model';
 import { runSearch } from '@/lib/strategy-search/data';
 
 type Db = ReturnType<typeof createServiceClient>;
@@ -34,10 +34,6 @@ export async function enqueueIdea(db: Db, userId: string, idea: Pick<StrategyIde
   return result.data?.id ?? null;
 }
 
-export function enqueueSearch(db: Db, userId: string, pair: SearchPair, asOf: string, key?: string) {
-  return enqueueIdea(db, userId, { id: searchKey(pair), market: pair.market, symbol: pair.symbol }, asOf, key);
-}
-
 export async function queueScheduledResearch(db: Db, now: number) {
   const profiles = await db.from('automation_profiles').select('user_id, market, mode, paper_version, live_version, live_scan_versions, scan_for_opportunities').eq('enabled', true);
   if (profiles.error) throw new Error('Could not read research schedules.');
@@ -53,10 +49,6 @@ export async function queueScheduledResearch(db: Db, now: number) {
       const idea = versionedIdea(market, version);
       return idea?.executable ? idea : null;
     })];
-    if (daily) {
-      const pair = scheduledPair(market, daily.key);
-      ideas.push({ id: searchKey(pair), market, symbol: pair.symbol });
-    }
     const focus = daily ? ideas.flatMap(item => item ? [{ ...daily, kind: 'focused' as const, idea: item, key: `${daily.key}:${item.id}` }] : []) : [];
     return [...jobs, ...focus].map(async job => {
       const match = await db.from('automation_runs').select('id').eq('user_id', profile.user_id).eq('market', market)

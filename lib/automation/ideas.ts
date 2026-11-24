@@ -1,4 +1,5 @@
 import { CRYPTO_RESEARCH_RULES, type AutomationMarket } from './model';
+import type { SearchFrame, SearchPair } from '@/lib/strategy-search/model';
 
 type IdeaRule = {
   market: AutomationMarket;
@@ -33,6 +34,17 @@ export type StrategyIdea = IdeaRule & { id: string; symbol: string };
 
 export function ideaId(market: AutomationMarket, rule: string, symbol: string) {
   return `${market}:${rule}:${symbol}`;
+}
+
+export function ideaSearchFrame(idea: IdeaRule): SearchFrame {
+  if (idea.market === 'crypto') return '1h';
+  if (idea.executable) return '1d';
+  return idea.rule === 'close' || idea.rule === 'close-volume' ? '30m' : '5m';
+}
+
+export function ideasForPair(pair: SearchPair) {
+  return IDEA_RULES.filter(rule => rule.market === pair.market && rule.symbols.includes(pair.symbol) &&
+    ideaSearchFrame(rule) === pair.frame);
 }
 
 export function findIdea(id: unknown): StrategyIdea | null {

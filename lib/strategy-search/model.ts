@@ -1,6 +1,9 @@
 import { STOCK_TRADE_SYMBOLS } from '@/lib/stocks/trade-rules';
 
-export const SEARCH_REVISION = 1;
+export const SEARCH_REVISION = 2;
+export const SEARCH_REFRESH_MS = 7 * 86_400_000;
+export const SEARCH_RETRY_MS = 12 * 3_600_000;
+export const RECOMMENDATION_FRESH_MS = 4 * 86_400_000;
 export const BAR_MS = { '5m': 300_000, '15m': 900_000, '30m': 1_800_000, '1h': 3_600_000, '4h': 14_400_000, '1d': 86_400_000 } as const;
 export type SearchFrame = keyof typeof BAR_MS;
 export type SearchMarket = 'stocks' | 'crypto';
@@ -42,9 +45,23 @@ export type SearchReport = {
   benchmark: number | null; note?: string;
 };
 
-export function scheduledPair(market: SearchMarket, day: string): SearchPair {
-  const starter = market === 'stocks' ? ['AAPL', 'NVDA', 'SPY'] : ['BTC', 'ETH', 'SOL'];
-  const list = starter.flatMap(symbol => SEARCH_FRAMES[market].map(frame => ({ market, symbol, frame })));
-  const position = Math.floor(Date.parse(day) / 86_400_000) % list.length;
-  return list[position];
+export type SearchJob = { status: string; as_of: string; revision?: number | null };
+
+export function searchDue(job: SearchJob | undefined, now: number, search: boolean) {
+  if (!job) return true;
+  if (job.status === 'queued' || job.status === 'running') return false;
+  const age = now - Date.parse(job.as_of);
+  if (job.status === 'failed') return age >= SEARCH_RETRY_MS;
+  if (search && job.revision !== SEARCH_REVISION) return true;
+  return age >= (search ? SEARCH_REFRESH_MS : RECOMMENDATION_FRESH_MS);
+}
+
+export function scheduledPairs(market: SearchMarket, day: string): SearchPair[] {
+  const core = market === 'stocks' ? ['AAPL', 'NVDA', 'SPY'] : ['BTC', 'ETH', 'SOL'];
+  const frame = market === 'stocks' ? '1d' : '1h';
+  const pairs = SEARCH_ASSETS[market].flatMap(symbol => SEARCH_FRAMES[market].map(frame => ({ market, symbol, frame })));
+  const offset = Math.floor(Date.parse(day) / 86_400_000) * 6;
+  const rotating = Array.from({ length: 6 }, (_, i) => pairs[(offset + i) % pairs.length]);
+  return [...new Map([...core.map(symbol => ({ market, symbol, frame } satisfies SearchPair)), ...rotating]
+    .map(pair => [searchKey(pair), pair])).values()];
 }

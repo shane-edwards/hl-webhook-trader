@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { cronAuthorized } from '@/lib/cron-auth';
 import { heartbeat } from '@/lib/health';
 import { processResearchStep, queueScheduledResearch } from '@/lib/automation/queue';
+import { queueRotatingPairs } from '@/lib/automation/pair-research';
 import { stockMarketClock } from '@/lib/stocks/session';
 import { notify } from '@/lib/notify';
 import { updateCryptoShadow } from '@/lib/automation/crypto-shadow';
@@ -34,13 +35,18 @@ export async function GET(request: Request) {
     const now = Date.now();
     const [scheduled] = await Promise.all([queueScheduledResearch(db, now), checkShadow(db, now)]);
     const minute = new Date(now).getUTCMinutes();
-    const [result, hedge] = await Promise.all([
+    const [result, hedge, searches] = await Promise.all([
       minute >= 10 && minute <= 12 ? updateCryptoShadow(db, now).then(() => 'shadow recorded') : processResearchStep(db),
       minute % 5 === 4 ? watchFundingHedges(db, now) : null,
+      minute % 5 === 3 ? queueRotatingPairs(db, now).catch(error => {
+        console.error('[automation] strategy search queue', error);
+        return null;
+      }) : 0,
     ]);
     const watch = hedge?.failures ? ' · funding hedge needs attention' : hedge?.captured ? ` · ${hedge.captured} hedge observations` : '';
-    await heartbeat(db, 'automation', true, `${scheduled} queued · ${result}${watch}`);
-    return NextResponse.json({ scheduled, result, hedge });
+    const research = searches === null ? ' · strategy search needs attention' : searches ? ` · ${searches} strategy tests queued` : '';
+    await heartbeat(db, 'automation', searches !== null, `${scheduled} queued · ${result}${research}${watch}`);
+    return NextResponse.json({ scheduled, result, hedge, searches });
   } catch {
     await heartbeat(db, 'automation', false, 'The research worker could not finish.');
     return NextResponse.json({ error: 'The research worker could not finish.' }, { status: 503 });

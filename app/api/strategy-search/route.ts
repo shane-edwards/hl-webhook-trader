@@ -1,22 +1,30 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { enqueueSearch } from '@/lib/automation/queue';
-import { SEARCH_REVISION, searchKey, searchPair, type SearchPair } from '@/lib/strategy-search/model';
+import { pairAccess, queueSelectedPair } from '@/lib/automation/pair-research';
+import { SEARCH_REFRESH_MS, SEARCH_REVISION, searchDue, searchKey, searchPair, type SearchPair, type SearchReport } from '@/lib/strategy-search/model';
 
 async function currentUser() {
   const { data: { user } } = await (await createClient()).auth.getUser();
   return user;
 }
 
-async function searchStatus(db: ReturnType<typeof createServiceClient>, user: string, pair: SearchPair) {
-  const result = await db.from('automation_runs').select('status,report,created_at,detail').eq('user_id', user)
-    .eq('market', pair.market).eq('kind', 'focused').eq('idea_id', searchKey(pair)).order('created_at', { ascending: false }).limit(8);
+async function searchStatus(db: ReturnType<typeof createServiceClient>, user: string, pair: SearchPair, waitingForCapacity = false) {
+  const [result, access] = await Promise.all([
+    db.from('automation_runs').select('status,report,as_of,detail,completed_at').eq('user_id', user)
+      .eq('market', pair.market).eq('kind', 'focused').eq('idea_id', searchKey(pair)).order('created_at', { ascending: false }).limit(8),
+    pairAccess(db, user, pair.market),
+  ]);
   if (result.error) throw new Error('Could not read strategy research.');
+  const now = Date.now();
   const latest = result.data[0];
-  const completed = result.data.find(row => row.report?.data?.search?.revision === SEARCH_REVISION);
-  const ttl = latest?.status === 'failed' ? 12 * 3_600_000 : 7 * 86_400_000;
-  return { status: latest?.status ?? 'new', detail: latest?.detail ?? null, report: completed?.report?.data?.search ?? null,
-    canStart: !latest || !['queued', 'running'].includes(latest.status) && Date.now() - Date.parse(latest.created_at) >= ttl };
+  const completed = result.data.find(row => row.status === 'completed' && row.report?.data?.search);
+  const report: SearchReport | null = completed?.report?.data?.search ?? null;
+  const fresh = report?.revision === SEARCH_REVISION && now - Date.parse(completed!.as_of) < SEARCH_REFRESH_MS;
+  const due = searchDue(latest && { ...latest, revision: latest.report?.data?.search?.revision }, now, true);
+  const status = access.paused ? 'paused' : !access.connected ? 'connect' : latest?.status === 'running' || latest?.status === 'queued'
+    ? latest.status : waitingForCapacity && due ? 'busy' : latest?.status ?? 'new';
+  return { status, report, fresh, completedAt: completed?.completed_at ?? null, detail: latest?.detail ?? null,
+    canStart: access.connected && !access.paused && (due || waitingForCapacity) };
 }
 
 export async function GET(request: Request) {
@@ -40,21 +48,8 @@ export async function POST(request: Request) {
   if (!pair) return NextResponse.json({ status: 'unsupported', report: null, canStart: false });
   const db = createServiceClient();
   try {
-    const status = await searchStatus(db, user.id, pair);
-    if (!status.canStart) return NextResponse.json(status);
-    if (pair.market === 'stocks') {
-      const feed = await db.from('etoro_connections').select('environment').eq('user_id', user.id).limit(1);
-      if (feed.error) throw new Error('Could not check the market-data feed.');
-      if (!feed.data.length) return NextResponse.json({ ...status, status: 'connect', canStart: false });
-    }
-    const pending = await db.from('automation_runs').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
-      .eq('kind', 'focused').like('idea_id', 'search:%').in('status', ['queued', 'running']);
-    if (pending.error) throw new Error('Could not check the research queue.');
-    if ((pending.count ?? 0) >= 12) return NextResponse.json({ ...status, status: 'busy', canStart: false });
-    const profile = await db.from('automation_profiles').upsert({ user_id: user.id, market: pair.market }, { onConflict: 'user_id,market', ignoreDuplicates: true });
-    if (profile.error) throw new Error('Could not initialize research.');
-    await enqueueSearch(db, user.id, pair, new Date().toISOString());
-    return NextResponse.json({ ...status, status: 'queued', canStart: false });
+    const queued = await queueSelectedPair(db, user.id, pair, Date.now());
+    return NextResponse.json(await searchStatus(db, user.id, pair, queued?.waitingForCapacity));
   } catch {
     return NextResponse.json({ error: 'Could not queue strategy research.' }, { status: 503 });
   }
