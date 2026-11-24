@@ -1,0 +1,504 @@
+{
+  "costs": [
+    {
+      "fill": 0.00085,
+      "stop": 0.0003
+    },
+    {
+      "fill": 0.0015,
+      "stop": 0.0007
+    }
+  ],
+  "delayMinutes": 15,
+  "periods": [
+    [
+      "2024-02-01",
+      "2025-01-01"
+    ],
+    [
+      "2025-01-01",
+      "2026-01-01"
+    ],
+    [
+      "2026-01-01",
+      "2026-11-01"
+    ]
+  ],
+  "source": "https://www.tftc.io/bitcoin-etf-flows/data.json",
+  "rows": 720,
+  "normalEntryHour": 36,
+  "delayedEntryHour": 60,
+  "rules": 72,
+  "earlyPasses": 0,
+  "earlierLeaders": [
+    {
+      "rule": {
+        "family": "follow-flow",
+        "sessions": 1,
+        "threshold": 2,
+        "filter": "all",
+        "hold": 288
+      },
+      "rank": 0.3839692453874643,
+      "discovery": {
+        "net": 0.08924678084163085,
+        "drawdown": 0.12447773268108864,
+        "days": 21,
+        "weeks": 16,
+        "trades": 21,
+        "longs": 18,
+        "score": 0.3839692453874643,
+        "averageBps": 48.84335932512664,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.08924678084163085,
+            "trades": 21
+          }
+        ],
+        "funding": -0.015343694385256507
+      },
+      "validation": {
+        "net": 0.06602103472227094,
+        "drawdown": 0.11658644584069044,
+        "days": 20,
+        "weeks": 17,
+        "trades": 20,
+        "longs": 15,
+        "score": 0.6278818738891488,
+        "averageBps": 36.26419075324726,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.06602103472227094,
+            "trades": 20
+          }
+        ],
+        "funding": -0.00443375680417736
+      },
+      "qualified": false
+    },
+    {
+      "rule": {
+        "family": "fade-flow",
+        "sessions": 3,
+        "threshold": 2,
+        "filter": "price-conflict",
+        "hold": 96
+      },
+      "rank": 0.3366528169793936,
+      "discovery": {
+        "net": 0.2351486270332348,
+        "drawdown": 0.1008054667558349,
+        "days": 23,
+        "weeks": 16,
+        "trades": 23,
+        "longs": 3,
+        "score": 1.3699721669940848,
+        "averageBps": 95.82118344857808,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.2351486270332348,
+            "trades": 23
+          }
+        ],
+        "funding": 0.006209113611312498
+      },
+      "validation": {
+        "net": 0.02982287710517606,
+        "drawdown": 0.08124300905527748,
+        "days": 18,
+        "weeks": 13,
+        "trades": 18,
+        "longs": 3,
+        "score": 0.3366528169793936,
+        "averageBps": 18.485370325632708,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.02982287710517606,
+            "trades": 18
+          }
+        ],
+        "funding": 0.0018837010103423142
+      },
+      "qualified": false
+    }
+  ],
+  "candidates": [],
+  "smallSampleDiagnostics": [
+    {
+      "rule": {
+        "family": "follow-flow",
+        "sessions": 1,
+        "threshold": 2,
+        "filter": "all",
+        "hold": 288
+      },
+      "rank": 0.3839692453874643,
+      "discovery": {
+        "net": 0.08924678084163085,
+        "drawdown": 0.12447773268108864,
+        "days": 21,
+        "weeks": 16,
+        "trades": 21,
+        "longs": 18,
+        "score": 0.3839692453874643,
+        "averageBps": 48.84335932512664,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.08924678084163085,
+            "trades": 21
+          }
+        ],
+        "funding": -0.015343694385256507
+      },
+      "validation": {
+        "net": 0.06602103472227094,
+        "drawdown": 0.11658644584069044,
+        "days": 20,
+        "weeks": 17,
+        "trades": 20,
+        "longs": 15,
+        "score": 0.6278818738891488,
+        "averageBps": 36.26419075324726,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.06602103472227094,
+            "trades": 20
+          }
+        ],
+        "funding": -0.00443375680417736
+      },
+      "qualified": false,
+      "baseline": {
+        "net": 0.11930061331883524,
+        "drawdown": 0.12635603352382196,
+        "days": 19,
+        "weeks": 16,
+        "trades": 19,
+        "longs": 9,
+        "score": 0.6730684107373075,
+        "averageBps": 66.65468671329853,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.11930061331883524,
+            "trades": 19
+          }
+        ],
+        "funding": 0.0023773800589716697
+      },
+      "stressed": {
+        "net": 0.09308157770383918,
+        "drawdown": 0.13170715954354428,
+        "days": 19,
+        "weeks": 16,
+        "trades": 19,
+        "longs": 9,
+        "score": 0.5346805737359185,
+        "averageBps": 54.108931256941965,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.09308157770383918,
+            "trades": 19
+          }
+        ],
+        "funding": 0.0023587129693574144
+      },
+      "passed": false
+    },
+    {
+      "rule": {
+        "family": "fade-flow",
+        "sessions": 3,
+        "threshold": 2,
+        "filter": "price-conflict",
+        "hold": 96
+      },
+      "rank": 0.3366528169793936,
+      "discovery": {
+        "net": 0.2351486270332348,
+        "drawdown": 0.1008054667558349,
+        "days": 23,
+        "weeks": 16,
+        "trades": 23,
+        "longs": 3,
+        "score": 1.3699721669940848,
+        "averageBps": 95.82118344857808,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.2351486270332348,
+            "trades": 23
+          }
+        ],
+        "funding": 0.006209113611312498
+      },
+      "validation": {
+        "net": 0.02982287710517606,
+        "drawdown": 0.08124300905527748,
+        "days": 18,
+        "weeks": 13,
+        "trades": 18,
+        "longs": 3,
+        "score": 0.3366528169793936,
+        "averageBps": 18.485370325632708,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.02982287710517606,
+            "trades": 18
+          }
+        ],
+        "funding": 0.0018837010103423142
+      },
+      "qualified": false,
+      "baseline": {
+        "net": 0.029728698101127105,
+        "drawdown": 0.07399220655315031,
+        "days": 17,
+        "weeks": 14,
+        "trades": 17,
+        "longs": 6,
+        "score": 0.5241370955054794,
+        "averageBps": 18.396906070442718,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.029728698101127105,
+            "trades": 17
+          }
+        ],
+        "funding": 1.4437190426030803e-7
+      },
+      "stressed": {
+        "net": 0.007415141721233365,
+        "drawdown": 0.08126979961118286,
+        "days": 17,
+        "weeks": 14,
+        "trades": 17,
+        "longs": 6,
+        "score": 0.13009175047502533,
+        "averageBps": 5.498338059697493,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.007415141721233365,
+            "trades": 17
+          }
+        ],
+        "funding": -0.0000023563543860574487
+      },
+      "passed": false
+    }
+  ],
+  "timingCheck": [
+    {
+      "rule": {
+        "family": "follow-flow",
+        "sessions": 1,
+        "threshold": 2,
+        "filter": "all",
+        "hold": 288
+      },
+      "normalDiscovery": {
+        "net": 0.08924678084163085,
+        "drawdown": 0.12447773268108864,
+        "days": 21,
+        "weeks": 16,
+        "trades": 21,
+        "longs": 18,
+        "score": 0.3839692453874643,
+        "averageBps": 48.84335932512664,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.08924678084163085,
+            "trades": 21
+          }
+        ],
+        "funding": -0.015343694385256507
+      },
+      "normalValidation": {
+        "net": 0.06602103472227094,
+        "drawdown": 0.11658644584069044,
+        "days": 20,
+        "weeks": 17,
+        "trades": 20,
+        "longs": 15,
+        "score": 0.6278818738891488,
+        "averageBps": 36.26419075324726,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.06602103472227094,
+            "trades": 20
+          }
+        ],
+        "funding": -0.00443375680417736
+      },
+      "nextDayDelayed": [
+        {
+          "net": -0.020483226328905535,
+          "drawdown": 0.16250247659840522,
+          "days": 21,
+          "weeks": 15,
+          "trades": 21,
+          "longs": 18,
+          "score": -0.07599452276921001,
+          "averageBps": 2.747632758978267,
+          "markets": [
+            {
+              "coin": "BTC",
+              "net": -0.020483226328905535,
+              "trades": 21
+            }
+          ],
+          "funding": -0.012723809400073624
+        },
+        {
+          "net": -0.040568591182371105,
+          "drawdown": 0.12652278640554848,
+          "days": 20,
+          "weeks": 17,
+          "trades": 20,
+          "longs": 15,
+          "score": -0.42063209777278276,
+          "averageBps": -18.453980015568014,
+          "markets": [
+            {
+              "coin": "BTC",
+              "net": -0.040568591182371105,
+              "trades": 20
+            }
+          ],
+          "funding": -0.004798302339762638
+        },
+        {
+          "net": 0.12315071695638724,
+          "drawdown": 0.13976698507380558,
+          "days": 19,
+          "weeks": 15,
+          "trades": 19,
+          "longs": 9,
+          "score": 0.7648773574878021,
+          "averageBps": 67.45170251668208,
+          "markets": [
+            {
+              "coin": "BTC",
+              "net": 0.12315071695638724,
+              "trades": 19
+            }
+          ],
+          "funding": 0.0013646882508947522
+        }
+      ]
+    },
+    {
+      "rule": {
+        "family": "fade-flow",
+        "sessions": 3,
+        "threshold": 2,
+        "filter": "price-conflict",
+        "hold": 96
+      },
+      "normalDiscovery": {
+        "net": 0.2351486270332348,
+        "drawdown": 0.1008054667558349,
+        "days": 23,
+        "weeks": 16,
+        "trades": 23,
+        "longs": 3,
+        "score": 1.3699721669940848,
+        "averageBps": 95.82118344857808,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.2351486270332348,
+            "trades": 23
+          }
+        ],
+        "funding": 0.006209113611312498
+      },
+      "normalValidation": {
+        "net": 0.02982287710517606,
+        "drawdown": 0.08124300905527748,
+        "days": 18,
+        "weeks": 13,
+        "trades": 18,
+        "longs": 3,
+        "score": 0.3366528169793936,
+        "averageBps": 18.485370325632708,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.02982287710517606,
+            "trades": 18
+          }
+        ],
+        "funding": 0.0018837010103423142
+      },
+      "nextDayDelayed": [
+        {
+          "net": -0.14655740695845465,
+          "drawdown": 0.19432012787065855,
+          "days": 23,
+          "weeks": 17,
+          "trades": 23,
+          "longs": 3,
+          "score": -1.1062091557510711,
+          "averageBps": -64.62120946692086,
+          "markets": [
+            {
+              "coin": "BTC",
+              "net": -0.14655740695845465,
+              "trades": 23
+            }
+          ],
+          "funding": 0.004749031404838174
+        },
+        {
+          "net": -0.13114115752261957,
+          "drawdown": 0.14841763011617615,
+          "days": 18,
+          "weeks": 13,
+          "trades": 18,
+          "longs": 3,
+          "score": -2.267852494008544,
+          "averageBps": -76.7863627341705,
+          "markets": [
+            {
+              "coin": "BTC",
+              "net": -0.13114115752261957,
+              "trades": 18
+            }
+          ],
+          "funding": 0.0016686450928787883
+        },
+        {
+          "net": -0.09501034612608439,
+          "drawdown": 0.16077834326684926,
+          "days": 17,
+          "weeks": 14,
+          "trades": 17,
+          "longs": 6,
+          "score": -1.1536514847182133,
+          "averageBps": -56.15154446312756,
+          "markets": [
+            {
+              "coin": "BTC",
+              "net": -0.09501034612608439,
+              "trades": 17
+            }
+          ],
+          "funding": -0.00013432951455909063
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,493 @@
+{
+  "costs": [
+    {
+      "fill": 0.00085,
+      "stop": 0.0003
+    },
+    {
+      "fill": 0.0015,
+      "stop": 0.0007
+    }
+  ],
+  "delayMinutes": 15,
+  "periods": [
+    [
+      "2024-02-01",
+      "2025-01-01"
+    ],
+    [
+      "2025-01-01",
+      "2026-01-01"
+    ],
+    [
+      "2026-01-01",
+      "2026-11-01"
+    ]
+  ],
+  "sessions": 683,
+  "fedEvents": [
+    7,
+    8,
+    7
+  ],
+  "rules": 60,
+  "earlyPasses": 0,
+  "earlierLeaders": [
+    {
+      "rule": {
+        "family": "fed",
+        "action": "follow",
+        "threshold": 1.5,
+        "hold": 32
+      },
+      "rank": 0.17408283619948864,
+      "discovery": {
+        "net": 0.05809583327197765,
+        "drawdown": 0.0241288380739062,
+        "days": 5,
+        "weeks": 5,
+        "trades": 9,
+        "longs": 4,
+        "score": 1.1471512925357783,
+        "averageBps": 193.07589665780014,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.04201768957743579,
+            "trades": 2
+          },
+          {
+            "coin": "ETH",
+            "net": 0.03787992536950502,
+            "trades": 3
+          },
+          {
+            "coin": "SOL",
+            "net": 0.0943898848689908,
+            "trades": 4
+          }
+        ],
+        "funding": 0.00009397204188184957
+      },
+      "validation": {
+        "net": 0.005601258043861801,
+        "drawdown": 0.029887997247663223,
+        "days": 4,
+        "weeks": 4,
+        "trades": 9,
+        "longs": 3,
+        "score": 0.17408283619948864,
+        "averageBps": 20.433398117312986,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.022634127510857804,
+            "trades": 3
+          },
+          {
+            "coin": "ETH",
+            "net": 0.0228570209093939,
+            "trades": 3
+          },
+          {
+            "coin": "SOL",
+            "net": 0.01658088073304942,
+            "trades": 3
+          }
+        ],
+        "funding": -0.00005435554458594578
+      },
+      "qualified": false
+    },
+    {
+      "rule": {
+        "family": "equity-confirm",
+        "action": "follow",
+        "threshold": 0.75,
+        "hold": 32
+      },
+      "rank": -0.3011821412106806,
+      "discovery": {
+        "net": -0.02971047008190597,
+        "drawdown": 0.13977862177163913,
+        "days": 47,
+        "weeks": 32,
+        "trades": 112,
+        "longs": 45,
+        "score": -0.3011821412106806,
+        "averageBps": -7.35841495880581,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.0352405580311721,
+            "trades": 41
+          },
+          {
+            "coin": "ETH",
+            "net": 0.0927549039033333,
+            "trades": 35
+          },
+          {
+            "coin": "SOL",
+            "net": -0.14664575611787412,
+            "trades": 36
+          }
+        ],
+        "funding": 0.0020369827458487796
+      },
+      "validation": {
+        "net": 0.03538682326311493,
+        "drawdown": 0.18276608052601195,
+        "days": 83,
+        "weeks": 42,
+        "trades": 201,
+        "longs": 93,
+        "score": 0.19251729239643112,
+        "averageBps": 6.137298990955444,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.21412552223117165,
+            "trades": 70
+          },
+          {
+            "coin": "ETH",
+            "net": 0.10057139437729945,
+            "trades": 67
+          },
+          {
+            "coin": "SOL",
+            "net": 0.219714597643212,
+            "trades": 64
+          }
+        ],
+        "funding": -0.0003976634822940559
+      },
+      "qualified": false
+    },
+    {
+      "rule": {
+        "family": "cash-open",
+        "action": "follow",
+        "threshold": 0.75,
+        "hold": 16
+      },
+      "rank": -0.4480871934753628,
+      "discovery": {
+        "net": -0.06700956088263255,
+        "drawdown": 0.182958828184686,
+        "days": 158,
+        "weeks": 46,
+        "trades": 334,
+        "longs": 144,
+        "score": -0.4480871934753628,
+        "averageBps": -4.67823170180209,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.06000743609132819,
+            "trades": 130
+          },
+          {
+            "coin": "ETH",
+            "net": -0.02915550787293608,
+            "trades": 108
+          },
+          {
+            "coin": "SOL",
+            "net": -0.11186573868364202,
+            "trades": 96
+          }
+        ],
+        "funding": 0.001554743551271303
+      },
+      "validation": {
+        "net": -0.059187959669735335,
+        "drawdown": 0.22259215357018924,
+        "days": 169,
+        "weeks": 52,
+        "trades": 372,
+        "longs": 163,
+        "score": -0.2896928974803677,
+        "averageBps": -4.715662976510052,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.35244277180981565,
+            "trades": 128
+          },
+          {
+            "coin": "ETH",
+            "net": 0.0755768547534672,
+            "trades": 123
+          },
+          {
+            "coin": "SOL",
+            "net": 0.09930203804715032,
+            "trades": 121
+          }
+        ],
+        "funding": -0.00021645357407703005
+      },
+      "qualified": false
+    },
+    {
+      "rule": {
+        "family": "equity-divergence",
+        "action": "fade",
+        "threshold": 0.75,
+        "hold": 4
+      },
+      "rank": -0.5685324868190094,
+      "discovery": {
+        "net": 0.04664992899223219,
+        "drawdown": 0.017991616277260536,
+        "days": 9,
+        "weeks": 7,
+        "trades": 18,
+        "longs": 15,
+        "score": 1.1824341768974505,
+        "averageBps": 77.57061317383993,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.02400007848704555,
+            "trades": 8
+          },
+          {
+            "coin": "ETH",
+            "net": 0.035665563490419716,
+            "trades": 4
+          },
+          {
+            "coin": "SOL",
+            "net": 0.08028414499923109,
+            "trades": 6
+          }
+        ],
+        "funding": 0.00003530555315792544
+      },
+      "validation": {
+        "net": -0.010756254133014398,
+        "drawdown": 0.02205091619356747,
+        "days": 20,
+        "weeks": 13,
+        "trades": 33,
+        "longs": 17,
+        "score": -0.5685324868190094,
+        "averageBps": -9.462977050098825,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.01306823638785004,
+            "trades": 11
+          },
+          {
+            "coin": "ETH",
+            "net": -0.028786988530472346,
+            "trades": 12
+          },
+          {
+            "coin": "SOL",
+            "net": -0.016550010256422,
+            "trades": 10
+          }
+        ],
+        "funding": 0.000024776253084446098
+      },
+      "qualified": false
+    },
+    {
+      "rule": {
+        "family": "etf-fixing",
+        "action": "follow",
+        "threshold": 1.5,
+        "hold": 32
+      },
+      "rank": -0.9849921595307609,
+      "discovery": {
+        "net": 0.035879806714901985,
+        "drawdown": 0.03126244088527663,
+        "days": 19,
+        "weeks": 16,
+        "trades": 29,
+        "longs": 13,
+        "score": 0.6401169924927597,
+        "averageBps": 39.997708356268625,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.01652019089428025,
+            "trades": 13
+          },
+          {
+            "coin": "ETH",
+            "net": 0.043841220236660705,
+            "trades": 9
+          },
+          {
+            "coin": "SOL",
+            "net": 0.04727800901377255,
+            "trades": 7
+          }
+        ],
+        "funding": -0.00013974767053191362
+      },
+      "validation": {
+        "net": -0.04561445832991562,
+        "drawdown": 0.0652971053838921,
+        "days": 22,
+        "weeks": 21,
+        "trades": 38,
+        "longs": 19,
+        "score": -0.9849921595307609,
+        "averageBps": -35.43567146111447,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.04818658614340687,
+            "trades": 16
+          },
+          {
+            "coin": "ETH",
+            "net": -0.04086538862751543,
+            "trades": 13
+          },
+          {
+            "coin": "SOL",
+            "net": -0.04779140021882522,
+            "trades": 9
+          }
+        ],
+        "funding": -0.00039388050528936123
+      },
+      "qualified": false
+    }
+  ],
+  "candidates": [],
+  "smallSampleDiagnostics": [
+    {
+      "rule": {
+        "family": "fed",
+        "action": "follow",
+        "threshold": 1.5,
+        "hold": 32
+      },
+      "rank": 0.17408283619948864,
+      "discovery": {
+        "net": 0.05809583327197765,
+        "drawdown": 0.0241288380739062,
+        "days": 5,
+        "weeks": 5,
+        "trades": 9,
+        "longs": 4,
+        "score": 1.1471512925357783,
+        "averageBps": 193.07589665780014,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": 0.04201768957743579,
+            "trades": 2
+          },
+          {
+            "coin": "ETH",
+            "net": 0.03787992536950502,
+            "trades": 3
+          },
+          {
+            "coin": "SOL",
+            "net": 0.0943898848689908,
+            "trades": 4
+          }
+        ],
+        "funding": 0.00009397204188184957
+      },
+      "validation": {
+        "net": 0.005601258043861801,
+        "drawdown": 0.029887997247663223,
+        "days": 4,
+        "weeks": 4,
+        "trades": 9,
+        "longs": 3,
+        "score": 0.17408283619948864,
+        "averageBps": 20.433398117312986,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.022634127510857804,
+            "trades": 3
+          },
+          {
+            "coin": "ETH",
+            "net": 0.0228570209093939,
+            "trades": 3
+          },
+          {
+            "coin": "SOL",
+            "net": 0.01658088073304942,
+            "trades": 3
+          }
+        ],
+        "funding": -0.00005435554458594578
+      },
+      "qualified": false,
+      "baseline": {
+        "net": -0.01604551597483539,
+        "drawdown": 0.026670762189172303,
+        "days": 3,
+        "weeks": 3,
+        "trades": 7,
+        "longs": 1,
+        "score": -1.3060645180527015,
+        "averageBps": -68.68699536341794,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.020575809829508795,
+            "trades": 2
+          },
+          {
+            "coin": "ETH",
+            "net": -0.00847380036956491,
+            "trades": 2
+          },
+          {
+            "coin": "SOL",
+            "net": -0.019086937725433017,
+            "trades": 3
+          }
+        ],
+        "funding": -0.000016916160834532313
+      },
+      "stressed": {
+        "net": -0.018635256155962843,
+        "drawdown": 0.027566240785651397,
+        "days": 3,
+        "weeks": 3,
+        "trades": 7,
+        "longs": 1,
+        "score": -1.2338522694805636,
+        "averageBps": -79.9119346373677,
+        "markets": [
+          {
+            "coin": "BTC",
+            "net": -0.022672052231482165,
+            "trades": 2
+          },
+          {
+            "coin": "ETH",
+            "net": -0.010756458930484936,
+            "trades": 2
+          },
+          {
+            "coin": "SOL",
+            "net": -0.022477257305922316,
+            "trades": 3
+          }
+        ],
+        "funding": 0.000003536414513168018
+      },
+      "passed": false
+    }
+  ]
+}
