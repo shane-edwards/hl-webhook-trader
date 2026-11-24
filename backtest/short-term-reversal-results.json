@@ -1,0 +1,222 @@
+{
+  "stocks": {
+    "tested": 36,
+    "markets": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "XLK",
+      "XLF",
+      "XLE",
+      "GLD",
+      "TLT"
+    ],
+    "periods": [
+      [
+        "2023-03-01",
+        "2025-01-01"
+      ],
+      [
+        "2025-01-01",
+        "2026-01-01"
+      ],
+      [
+        "2026-01-01",
+        "2026-11-21"
+      ]
+    ],
+    "picks": [],
+    "diagnostic": [
+      {
+        "rule": {
+          "rsi": 5,
+          "side": 1,
+          "maxHold": 5,
+          "exitOnAverage": false,
+          "filterLength": 200
+        },
+        "first": {
+          "net": 0.046324216777393845,
+          "drawdown": 0.021976536053578744,
+          "score": 1.429946186489727,
+          "trades": 61,
+          "dates": 43,
+          "averageBps": 61.61395565302131,
+          "positiveMarkets": 7
+        },
+        "second": {
+          "net": 0.02961994836851578,
+          "drawdown": 0.020747858936220664,
+          "score": 1.3432450552401913,
+          "trades": 26,
+          "dates": 20,
+          "averageBps": 92.2562338690877,
+          "positiveMarkets": 6
+        },
+        "rank": 1.3432450552401913
+      },
+      {
+        "rule": {
+          "rsi": 5,
+          "side": 1,
+          "maxHold": 8,
+          "exitOnAverage": false,
+          "filterLength": 200
+        },
+        "first": {
+          "net": 0.06841111847067283,
+          "drawdown": 0.023382547944233,
+          "score": 1.7457431662138256,
+          "trades": 59,
+          "dates": 40,
+          "averageBps": 90.77706998056819,
+          "positiveMarkets": 6
+        },
+        "second": {
+          "net": 0.04113662963745557,
+          "drawdown": 0.03372965814334816,
+          "score": 1.2454281188293352,
+          "trades": 26,
+          "dates": 21,
+          "averageBps": 127.0537196593935,
+          "positiveMarkets": 4
+        },
+        "rank": 1.2454281188293352
+      }
+    ]
+  },
+  "crypto": {
+    "tested": 72,
+    "markets": [
+      "BTC",
+      "ETH",
+      "LINK",
+      "ADA",
+      "DOGE"
+    ],
+    "periods": [
+      [
+        "2021-09-01",
+        "2024-01-01"
+      ],
+      [
+        "2024-01-01",
+        "2025-01-01"
+      ],
+      [
+        "2025-01-01",
+        "2026-11-01"
+      ]
+    ],
+    "picks": [],
+    "diagnostic": [
+      {
+        "rule": {
+          "rsi": 10,
+          "side": -1,
+          "maxHold": 5,
+          "exitOnAverage": false,
+          "filterLength": 200
+        },
+        "first": {
+          "net": 0.06597055817191833,
+          "drawdown": 0.19858084882353866,
+          "score": 0.18575023157374937,
+          "trades": 171,
+          "dates": 127,
+          "averageBps": 27.090679333796924,
+          "positiveMarkets": 2
+        },
+        "second": {
+          "net": 0.013100718665726596,
+          "drawdown": 0.11358128302796366,
+          "score": 0.08260323978511899,
+          "trades": 43,
+          "dates": 32,
+          "averageBps": 25.639103978919355,
+          "positiveMarkets": 3
+        },
+        "rank": 0.08260323978511899
+      },
+      {
+        "rule": {
+          "rsi": 5,
+          "side": -1,
+          "maxHold": 5,
+          "exitOnAverage": false,
+          "filterLength": 200
+        },
+        "first": {
+          "net": -0.039700837385107324,
+          "drawdown": 0.17076820570066165,
+          "score": -0.1696476062229418,
+          "trades": 89,
+          "dates": 67,
+          "averageBps": -0.21076110718936383,
+          "positiveMarkets": 3
+        },
+        "second": {
+          "net": 0.04391936452109935,
+          "drawdown": 0.0806608658448621,
+          "score": 0.4331858656232528,
+          "trades": 23,
+          "dates": 21,
+          "averageBps": 94.64030788850239,
+          "positiveMarkets": 3
+        },
+        "rank": -0.1696476062229418
+      }
+    ]
+  },
+  "independentEtf": {
+    "rule": {
+      "rsi": 5,
+      "side": 1,
+      "maxHold": 5,
+      "exitOnAverage": false,
+      "filterLength": 200
+    },
+    "reserve": [
+      "DIA",
+      "EEM",
+      "EFA",
+      "XLY",
+      "XLC",
+      "XLI",
+      "XLB",
+      "XLP",
+      "XLU",
+      "XLV",
+      "VNQ",
+      "SMH"
+    ],
+    "validation": {
+      "net": 0.03350455184817758,
+      "drawdown": 0.01068708724395917,
+      "score": 2.3718434398493518,
+      "trades": 36,
+      "dates": 23,
+      "averageBps": 109.58998888037662,
+      "positiveMarkets": 8
+    },
+    "holdout": {
+      "net": 0.005635458235725865,
+      "drawdown": 0.03441516530009059,
+      "score": 0.2352456187334233,
+      "trades": 28,
+      "dates": 22,
+      "averageBps": 15.702755900685,
+      "positiveMarkets": 3
+    },
+    "reserveHoldout": {
+      "net": 0.019653943097671656,
+      "drawdown": 0.02004609739177199,
+      "score": 0.7912658325901752,
+      "trades": 45,
+      "dates": 33,
+      "averageBps": 54.24980719492363,
+      "positiveMarkets": 7
+    },
+    "passes": false
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "markets": [
+    "BTC",
+    "ETH",
+    "LINK",
+    "ADA",
+    "DOGE"
+  ],
+  "unavailable": [
+    "SOL",
+    "XRP",
+    "LTC"
+  ],
+  "variants": 24,
+  "windows": [
+    [
+      "2021-06-01",
+      "2024-01-01"
+    ],
+    [
+      "2024-01-01",
+      "2025-01-01"
+    ],
+    [
+      "2025-01-01",
+      "2026-11-01"
+    ]
+  ],
+  "qualified": 0,
+  "finalists": [],
+  "separate": [],
+  "benchmark": [
+    {
+      "net": -0.5630879739263912,
+      "drawdown": 0.8833826875268961,
+      "rebalances": 1,
+      "changes": 5,
+      "fundingPaid": 0.17326334149412678,
+      "costsPaid": 0.002418891388434255,
+      "depleted": false,
+      "score": -0.6915450309447628,
+      "exposure": 1.4117260459680274
+    },
+    {
+      "net": 0.7829343123913004,
+      "drawdown": 0.5231234593500343,
+      "rebalances": 1,
+      "changes": 5,
+      "fundingPaid": 0.203989696183361,
+      "costsPaid": 0.004487116687893833,
+      "depleted": false,
+      "score": 0.699889552660273,
+      "exposure": 1.0916616984459824
+    },
+    {
+      "net": -0.5514545093411631,
+      "drawdown": 0.7356449738226363,
+      "rebalances": 1,
+      "changes": 5,
+      "fundingPaid": 0.06009748598660995,
+      "costsPaid": 0.002266364010984647,
+      "depleted": false,
+      "score": -0.871429217019738,
+      "exposure": 1.0713300531625707
+    }
+  ],
+  "diagnostics": [
+    {
+      "rule": {
+        "signal": "channel",
+        "days": 42,
+        "annualVol": 0.28,
+        "short": false
+      },
+      "discovery": {
+        "net": 0.23613240367485622,
+        "drawdown": 0.26567029092503314,
+        "rebalances": 134,
+        "changes": 123,
+        "fundingPaid": 0.06406952952691569,
+        "costsPaid": 0.011721044338363205,
+        "depleted": false,
+        "score": 0.8365104490419317,
+        "exposure": 0.18187980626569145
+      },
+      "validation": {
+        "net": 0.2129805362998245,
+        "drawdown": 0.2200610776564701,
+        "rebalances": 53,
+        "changes": 66,
+        "fundingPaid": 0.05180130088004377,
+        "costsPaid": 0.011639332248165154,
+        "depleted": false,
+        "score": 0.7285690688385782,
+        "exposure": 0.23207173862006372
+      },
+      "rank": 0.7285690688385782
+    },
+    {
+      "rule": {
+        "signal": "channel",
+        "days": 42,
+        "annualVol": 0.45,
+        "short": false
+      },
+      "discovery": {
+        "net": 0.3203176086220687,
+        "drawdown": 0.3842798565429667,
+        "rebalances": 134,
+        "changes": 123,
+        "fundingPaid": 0.10331161468474138,
+        "costsPaid": 0.016882705668815876,
+        "depleted": false,
+        "score": 0.7325144660535969,
+        "exposure": 0.2755205038205663
+      },
+      "validation": {
+        "net": 0.24574313374825785,
+        "drawdown": 0.3310416962942997,
+        "rebalances": 53,
+        "changes": 66,
+        "fundingPaid": 0.08086146502035249,
+        "costsPaid": 0.01736164702045008,
+        "depleted": false,
+        "score": 0.5753109927822428,
+        "exposure": 0.35745493489010033
+      },
+      "rank": 0.5753109927822428
+    },
+    {
+      "rule": {
+        "signal": "slope",
+        "days": 126,
+        "annualVol": 0.28,
+        "short": false
+      },
+      "discovery": {
+        "net": 0.06553186680750867,
+        "drawdown": 0.2722973313749869,
+        "rebalances": 134,
+        "changes": 69,
+        "fundingPaid": 0.05823605656626741,
+        "costsPaid": 0.007018191192819048,
+        "depleted": false,
+        "score": 0.2962994278153237,
+        "exposure": 0.16937164133033325
+      },
+      "validation": {
+        "net": 0.32166162536767495,
+        "drawdown": 0.1681015170991078,
+        "rebalances": 53,
+        "changes": 21,
+        "fundingPaid": 0.061512707676042715,
+        "costsPaid": 0.0076922033790273745,
+        "depleted": false,
+        "score": 1.0231692042838414,
+        "exposure": 0.2605890051903451
+      },
+      "rank": 0.2962994278153237
+    }
+  ]
+}

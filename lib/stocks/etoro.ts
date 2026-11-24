@@ -120,16 +120,17 @@ export class EtoroClient {
     };
   }
 
-  async instrument(symbol: string, timeoutMs = 6000) {
-    const cached = instruments.get(symbol);
+  async instrument(symbol: string, timeoutMs = 6000, assetClass: 'etf' | 'stocks' = symbol === 'SPY' ? 'etf' : 'stocks') {
+    const key = `${assetClass}:${symbol}`;
+    const cached = instruments.get(key);
     if (cached && cached.expires > Date.now()) return cached.value;
     const { results } = await this.request<{ results: Instrument[] }>(`/v2/market-data/instruments/search?query=${encodeURIComponent(symbol)}`, undefined, undefined, timeoutMs);
-    const eligible = results.filter(i => i.type?.toLowerCase() === (symbol === 'SPY' ? 'etf' : 'stocks') && Number.isSafeInteger(i.instrumentId) && i.instrumentId > 0);
+    const eligible = results.filter(i => i.type?.toLowerCase() === assetClass && Number.isSafeInteger(i.instrumentId) && i.instrumentId > 0);
     // Some US tickers carry a country suffix when other exchanges share the base ticker.
     const suffixed = eligible.filter(i => i.symbol?.toUpperCase() === `${symbol}.US`);
     const matches = suffixed.length ? suffixed : eligible.filter(i => i.symbol?.toUpperCase() === symbol);
     if (matches.length !== 1) return null;
-    instruments.set(symbol, { value: matches[0], expires: Date.now() + 86_400_000 });
+    instruments.set(key, { value: matches[0], expires: Date.now() + 86_400_000 });
     return matches[0];
   }
 

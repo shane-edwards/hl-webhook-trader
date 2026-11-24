@@ -1,0 +1,237 @@
+{
+  "markets": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "rows": [
+    99356,
+    99356,
+    99356
+  ],
+  "costs": [
+    {
+      "fill": 0.00085,
+      "gap": 0.0003
+    },
+    {
+      "fill": 0.0015,
+      "gap": 0.0007
+    }
+  ],
+  "campaign": "Binance paired 15-minute spot and USD-M perpetuals, with actual funding",
+  "periods": [
+    [
+      "2024-03-01",
+      "2025-01-01"
+    ],
+    [
+      "2025-01-01",
+      "2026-01-01"
+    ],
+    [
+      "2026-01-01",
+      "2026-11-01"
+    ]
+  ],
+  "intraday": {
+    "tested": 144,
+    "qualifiedEarly": 0,
+    "winners": [],
+    "bestEarlier": [
+      {
+        "rule": {
+          "family": "absorption",
+          "side": 1,
+          "pressure": 0.3,
+          "volume": 1,
+          "hold": 4,
+          "horizon": "intraday"
+        },
+        "discovery": {
+          "net": 0,
+          "drawdown": 0,
+          "trades": 0,
+          "activeDays": 0,
+          "positiveMarkets": 0,
+          "score": 0,
+          "averageBps": null,
+          "exposure": 0
+        },
+        "validation": {
+          "net": 0.00012706572691212337,
+          "drawdown": 0.0005755805751491705,
+          "trades": 1,
+          "activeDays": 1,
+          "positiveMarkets": 1,
+          "score": 0.9999999999999984,
+          "averageBps": 3.811971807368142,
+          "exposure": 0.00004756468797564688
+        },
+        "rank": 0
+      },
+      {
+        "rule": {
+          "family": "spot-lead",
+          "side": 1,
+          "pressure": 0.2,
+          "volume": 1.6,
+          "hold": 12,
+          "horizon": "intraday"
+        },
+        "discovery": {
+          "net": 0.0000458760068067221,
+          "drawdown": 0.0013022884771529686,
+          "trades": 2,
+          "activeDays": 2,
+          "positiveMarkets": 1,
+          "score": 0.059488048394760594,
+          "averageBps": 0.7011489680426195,
+          "exposure": 0.0002950254175744372
+        },
+        "validation": {
+          "net": 0,
+          "drawdown": 0,
+          "trades": 0,
+          "activeDays": 0,
+          "positiveMarkets": 0,
+          "score": 0,
+          "averageBps": null,
+          "exposure": 0
+        },
+        "rank": 0
+      },
+      {
+        "rule": {
+          "family": "absorption",
+          "side": -1,
+          "pressure": 0.2,
+          "volume": 1,
+          "hold": 24,
+          "horizon": "intraday"
+        },
+        "discovery": {
+          "net": 0.0021879405527318596,
+          "drawdown": 0.011057315392818401,
+          "trades": 7,
+          "activeDays": 9,
+          "positiveMarkets": 1,
+          "score": 0.16853880369566657,
+          "averageBps": 9.823244246347514,
+          "exposure": 0.0012254901960784314
+        },
+        "validation": {
+          "net": -0.0016066847286649866,
+          "drawdown": 0.019918916853104207,
+          "trades": 19,
+          "activeDays": 21,
+          "positiveMarkets": 1,
+          "score": -0.07172660782684122,
+          "averageBps": -1.8209906524644885,
+          "exposure": 0.0032914764079147642
+        },
+        "rank": -0.07172660782684122
+      }
+    ]
+  },
+  "swing": {
+    "tested": 144,
+    "qualifiedEarly": 0,
+    "winners": [],
+    "bestEarlier": [
+      {
+        "rule": {
+          "family": "aligned-flow",
+          "side": 1,
+          "pressure": 0.02,
+          "volume": 1.6,
+          "hold": 192,
+          "horizon": "swing"
+        },
+        "discovery": {
+          "net": 0,
+          "drawdown": 0,
+          "trades": 0,
+          "activeDays": 0,
+          "positiveMarkets": 0,
+          "score": 0,
+          "averageBps": null,
+          "exposure": 0
+        },
+        "validation": {
+          "net": 0.01012375880445382,
+          "drawdown": 0.013175510504384813,
+          "trades": 1,
+          "activeDays": 3,
+          "positiveMarkets": 1,
+          "score": 0.5956869108268295,
+          "averageBps": 303.7127641336333,
+          "exposure": 0.0018359969558599696
+        },
+        "rank": 0
+      },
+      {
+        "rule": {
+          "family": "perp-crowding",
+          "side": 1,
+          "pressure": 0.02,
+          "volume": 1,
+          "hold": 192,
+          "horizon": "swing"
+        },
+        "discovery": {
+          "net": 0,
+          "drawdown": 0,
+          "trades": 0,
+          "activeDays": 0,
+          "positiveMarkets": 0,
+          "score": 0,
+          "averageBps": null,
+          "exposure": 0
+        },
+        "validation": {
+          "net": 0.01755727805505236,
+          "drawdown": 0.010324559159416102,
+          "trades": 1,
+          "activeDays": 3,
+          "positiveMarkets": 1,
+          "score": 0.9999999999999997,
+          "averageBps": 526.7183416515944,
+          "exposure": 0.0018359969558599696
+        },
+        "rank": 0
+      },
+      {
+        "rule": {
+          "family": "perp-crowding",
+          "side": -1,
+          "pressure": 0.02,
+          "volume": 1,
+          "hold": 192,
+          "horizon": "swing"
+        },
+        "discovery": {
+          "net": 0,
+          "drawdown": 0,
+          "trades": 0,
+          "activeDays": 0,
+          "positiveMarkets": 0,
+          "score": 0,
+          "averageBps": null,
+          "exposure": 0
+        },
+        "validation": {
+          "net": 0,
+          "drawdown": 0,
+          "trades": 0,
+          "activeDays": 0,
+          "positiveMarkets": 0,
+          "score": 0,
+          "averageBps": null,
+          "exposure": 0
+        },
+        "rank": 0
+      }
+    ]
+  }
+}

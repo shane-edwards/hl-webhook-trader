@@ -1,0 +1,242 @@
+{
+  "windows": [
+    [
+      "2021-06-01",
+      "2024-01-01"
+    ],
+    [
+      "2024-01-01",
+      "2026-01-01"
+    ],
+    [
+      "2026-01-01",
+      "2026-11-21"
+    ]
+  ],
+  "discovery": [
+    {
+      "symbol": "AAPL",
+      "events": 21
+    },
+    {
+      "symbol": "NVDA",
+      "events": 20
+    },
+    {
+      "symbol": "META",
+      "events": 21
+    },
+    {
+      "symbol": "TSLA",
+      "events": 21
+    },
+    {
+      "symbol": "JPM",
+      "events": 21
+    },
+    {
+      "symbol": "XOM",
+      "events": 2
+    },
+    {
+      "symbol": "WMT",
+      "events": 21
+    },
+    {
+      "symbol": "AMD",
+      "events": 22
+    },
+    {
+      "symbol": "CAT",
+      "events": 22
+    },
+    {
+      "symbol": "LLY",
+      "events": 21
+    }
+  ],
+  "independentSymbols": [
+    {
+      "symbol": "MSFT",
+      "events": 21
+    },
+    {
+      "symbol": "AMZN",
+      "events": 22
+    },
+    {
+      "symbol": "GOOGL",
+      "events": 21
+    },
+    {
+      "symbol": "COST",
+      "events": 20
+    },
+    {
+      "symbol": "UNH",
+      "events": 21
+    },
+    {
+      "symbol": "AVGO",
+      "events": 22
+    },
+    {
+      "symbol": "BA",
+      "events": 22
+    },
+    {
+      "symbol": "MU",
+      "events": 21
+    },
+    {
+      "symbol": "PLTR",
+      "events": 19
+    }
+  ],
+  "tested": 24,
+  "selected": {
+    "rule": {
+      "growth": 0.15,
+      "days": 3,
+      "relativeTrend": false
+    },
+    "discovery": {
+      "net": 0.14551893713553143,
+      "drawdown": 0.03916304041091956,
+      "score": 1.5896430226697207,
+      "trades": 26,
+      "days": 24,
+      "positiveSymbols": 7,
+      "perTrade": 0.021506293911954688,
+      "excessPerTrade": 0.02202637684790223,
+      "openAtEnd": 0
+    },
+    "validation": {
+      "net": 0.11932097157514066,
+      "drawdown": 0.03402373832808525,
+      "score": 2.0030695875598896,
+      "trades": 24,
+      "days": 23,
+      "positiveSymbols": 4,
+      "perTrade": 0.01895240249914372,
+      "excessPerTrade": 0.012535747558759644,
+      "openAtEnd": 0
+    },
+    "rank": 1.5896430226697207
+  },
+  "holdout": {
+    "net": 0.029763422367234726,
+    "drawdown": 0.07612996661026905,
+    "score": 0.3907065686281748,
+    "trades": 32,
+    "days": 27,
+    "positiveSymbols": 8,
+    "perTrade": 0.0043457348007631055,
+    "excessPerTrade": 0.0004956288155225988,
+    "openAtEnd": 0
+  },
+  "stressed": {
+    "net": 0.021550504434099782,
+    "drawdown": 0.07885231997407238,
+    "score": 0.28731222905047354,
+    "trades": 32,
+    "days": 27,
+    "positiveSymbols": 7,
+    "perTrade": 0.0033418906266654454,
+    "excessPerTrade": -0.0005082153585750614,
+    "openAtEnd": 0
+  },
+  "paper": false,
+  "diagnostic": [
+    {
+      "rule": {
+        "growth": 0.5,
+        "days": 3,
+        "relativeTrend": false
+      },
+      "discovery": {
+        "net": 0.16837176878657378,
+        "drawdown": 0.013225937849254299,
+        "score": 2.1090680711362855,
+        "trades": 19,
+        "days": 18,
+        "positiveSymbols": 6,
+        "perTrade": 0.033415953665006846,
+        "excessPerTrade": 0.0318648655257993,
+        "openAtEnd": 0
+      },
+      "validation": {
+        "net": 0.0757504104073814,
+        "drawdown": 0.006257165183693902,
+        "score": 2.3660354744433025,
+        "trades": 10,
+        "days": 10,
+        "positiveSymbols": 3,
+        "perTrade": 0.02940400680074805,
+        "excessPerTrade": 0.019499313135630292,
+        "openAtEnd": 0
+      },
+      "rank": 2.1090680711362855
+    },
+    {
+      "rule": {
+        "growth": 0.3,
+        "days": 3,
+        "relativeTrend": false
+      },
+      "discovery": {
+        "net": 0.17047123069907544,
+        "drawdown": 0.013225937849254299,
+        "score": 2.1316767240290355,
+        "trades": 20,
+        "days": 18,
+        "positiveSymbols": 6,
+        "perTrade": 0.0321077890621036,
+        "excessPerTrade": 0.0302949830412574,
+        "openAtEnd": 0
+      },
+      "validation": {
+        "net": 0.10540577564856712,
+        "drawdown": 0.030634820254066164,
+        "score": 2.0131193543616503,
+        "trades": 18,
+        "days": 17,
+        "positiveSymbols": 5,
+        "perTrade": 0.022443796711832005,
+        "excessPerTrade": 0.014867740854084674,
+        "openAtEnd": 0
+      },
+      "rank": 2.0131193543616503
+    },
+    {
+      "rule": {
+        "growth": 0.5,
+        "days": 3,
+        "relativeTrend": true
+      },
+      "discovery": {
+        "net": 0.13188120064887343,
+        "drawdown": 0.010501355288224712,
+        "score": 2.1912005316462286,
+        "trades": 13,
+        "days": 12,
+        "positiveSymbols": 6,
+        "perTrade": 0.038723033114580335,
+        "excessPerTrade": 0.03553488173923031,
+        "openAtEnd": 0
+      },
+      "validation": {
+        "net": 0.05632954830417414,
+        "drawdown": 0.006257165183693902,
+        "score": 1.9429971617944197,
+        "trades": 8,
+        "days": 8,
+        "positiveSymbols": 3,
+        "perTrade": 0.0276012242197525,
+        "excessPerTrade": 0.019036122125708196,
+        "openAtEnd": 0
+      },
+      "rank": 1.9429971617944197
+    }
+  ]
+}

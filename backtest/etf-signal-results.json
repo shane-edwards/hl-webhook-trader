@@ -1,0 +1,331 @@
+{
+  "sources": [
+    "eToro paired bid/ask ETF quotes",
+    "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  ],
+  "periods": [
+    [
+      "2023-02-01",
+      "2025-01-01"
+    ],
+    [
+      "2025-01-01",
+      "2026-01-01"
+    ],
+    [
+      "2026-01-01",
+      "2026-11-21"
+    ]
+  ],
+  "intraday": {
+    "tried": 36,
+    "testedSymbols": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "XLK",
+      "XLF"
+    ],
+    "fedDays": [
+      "2023-02-01",
+      "2023-03-22",
+      "2023-05-03",
+      "2023-06-14",
+      "2023-07-26",
+      "2023-09-20",
+      "2023-11-01",
+      "2023-12-13",
+      "2024-01-31",
+      "2024-03-20",
+      "2024-05-01",
+      "2024-06-12",
+      "2024-07-31",
+      "2024-09-18",
+      "2024-11-07",
+      "2024-12-18",
+      "2025-01-29",
+      "2025-03-19",
+      "2025-05-07",
+      "2025-06-18",
+      "2025-07-30",
+      "2025-09-17",
+      "2025-10-29",
+      "2025-12-10",
+      "2026-01-28",
+      "2026-03-18",
+      "2026-04-29",
+      "2026-06-17",
+      "2026-07-29",
+      "2026-09-16",
+      "2026-10-28"
+    ],
+    "finalists": [],
+    "diagnostic": [
+      {
+        "rule": {
+          "family": "fed-reaction",
+          "side": 1,
+          "trigger": 0.0015,
+          "window": 1
+        },
+        "discovery": {
+          "net": -0.0006886124213175693,
+          "drawdown": 0.005810158453117387,
+          "trades": 21,
+          "activeDays": 7,
+          "score": -0.07361839669136315,
+          "averageBps": -1.639553384088974,
+          "positiveMarkets": 2
+        },
+        "validation": {
+          "net": 0.000004565113933763243,
+          "drawdown": 0.003750507489418742,
+          "trades": 6,
+          "activeDays": 3,
+          "score": 0.0009517420801395109,
+          "averageBps": 0.038042616114676346,
+          "positiveMarkets": 3
+        },
+        "rank": -0.07361839669136315
+      },
+      {
+        "rule": {
+          "family": "fed-reaction",
+          "side": 1,
+          "trigger": 0.003,
+          "window": 1
+        },
+        "discovery": {
+          "net": 0.002135363222259379,
+          "drawdown": 0.003501293056733301,
+          "trades": 13,
+          "activeDays": 5,
+          "score": 0.29479220348909324,
+          "averageBps": 8.212935470227913,
+          "positiveMarkets": 3
+        },
+        "validation": {
+          "net": -0.0017767906286205726,
+          "drawdown": 0.0037571823332923637,
+          "trades": 3,
+          "activeDays": 3,
+          "score": -0.43915235396482327,
+          "averageBps": -29.613177143676243,
+          "positiveMarkets": 0
+        },
+        "rank": -0.43915235396482327
+      },
+      {
+        "rule": {
+          "family": "fed-reaction",
+          "side": 1,
+          "trigger": 0.003,
+          "window": 2
+        },
+        "discovery": {
+          "net": 0.0017784168660825994,
+          "drawdown": 0.0026659585412188713,
+          "trades": 13,
+          "activeDays": 5,
+          "score": 0.3177998920304134,
+          "averageBps": 6.840064869547557,
+          "positiveMarkets": 3
+        },
+        "validation": {
+          "net": -0.0019499748235496384,
+          "drawdown": 0.0034125606422271693,
+          "trades": 3,
+          "activeDays": 3,
+          "score": -0.5244201388920288,
+          "averageBps": -32.49958039249225,
+          "positiveMarkets": 0
+        },
+        "rank": -0.5244201388920288
+      },
+      {
+        "rule": {
+          "family": "fed-reaction",
+          "side": 1,
+          "trigger": 0.0015,
+          "window": 2
+        },
+        "discovery": {
+          "net": -0.004751876921516018,
+          "drawdown": 0.006503602759079241,
+          "trades": 21,
+          "activeDays": 7,
+          "score": -0.5796677674777123,
+          "averageBps": -11.313992670276079,
+          "positiveMarkets": 2
+        },
+        "validation": {
+          "net": -0.002100400428697302,
+          "drawdown": 0.003562986247374833,
+          "trades": 6,
+          "activeDays": 3,
+          "score": -0.5645072264243897,
+          "averageBps": -17.503336905810176,
+          "positiveMarkets": 1
+        },
+        "rank": -0.5796677674777123
+      },
+      {
+        "rule": {
+          "family": "fed-reaction",
+          "side": 1,
+          "trigger": 0.005,
+          "window": 1
+        },
+        "discovery": {
+          "net": 0.003369101178370082,
+          "drawdown": 0.0023660525138545774,
+          "trades": 7,
+          "activeDays": 4,
+          "score": 0.7444882459346274,
+          "averageBps": 24.06500841692887,
+          "positiveMarkets": 4
+        },
+        "validation": {
+          "net": -0.00284014286153933,
+          "drawdown": 0.0037571823332923637,
+          "trades": 2,
+          "activeDays": 2,
+          "score": -0.7303364583152642,
+          "averageBps": -71.00357153848195,
+          "positiveMarkets": 0
+        },
+        "rank": -0.7303364583152642
+      }
+    ]
+  },
+  "swing": {
+    "tried": 36,
+    "assets": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "XLK",
+      "XLF",
+      "XLE",
+      "GLD",
+      "TLT"
+    ],
+    "missingSessionsExcluded": 9,
+    "benchmark": [
+      {
+        "net": 0.4403831966560181,
+        "drawdown": 0.09874147128229294,
+        "trades": 0,
+        "activeDays": 0,
+        "score": 2.2623922703131107,
+        "averageBps": null,
+        "positiveMarkets": 0
+      },
+      {
+        "net": 0.15353436433236922,
+        "drawdown": 0.18851496100157095,
+        "trades": 0,
+        "activeDays": 0,
+        "score": 0.8319250761155047,
+        "averageBps": null,
+        "positiveMarkets": 0
+      },
+      {
+        "net": 0.042527417771074605,
+        "drawdown": 0.09168524949314327,
+        "trades": 0,
+        "activeDays": 0,
+        "score": 0.31970766213956164,
+        "averageBps": null,
+        "positiveMarkets": 0
+      }
+    ],
+    "selected": null,
+    "holdout": null,
+    "stressed": null,
+    "passes": false,
+    "diagnostic": [
+      {
+        "rule": {
+          "lookback": 20,
+          "hold": 20,
+          "count": 1,
+          "regime": false
+        },
+        "discovery": {
+          "net": 0.23523159048465425,
+          "drawdown": 0.18055288241602174,
+          "trades": 22,
+          "activeDays": 22,
+          "score": 0.8896211205430865,
+          "averageBps": 106.92345022029738,
+          "positiveMarkets": 1
+        },
+        "validation": {
+          "net": 0.42281223528360323,
+          "drawdown": 0.10497764769011197,
+          "trades": 12,
+          "activeDays": 12,
+          "score": 2.045309399920095,
+          "averageBps": 352.3435294030027,
+          "positiveMarkets": 1
+        },
+        "rank": 0.8896211205430865
+      },
+      {
+        "rule": {
+          "lookback": 20,
+          "hold": 20,
+          "count": 1,
+          "regime": true
+        },
+        "discovery": {
+          "net": 0.23523159048465425,
+          "drawdown": 0.18055288241602174,
+          "trades": 22,
+          "activeDays": 22,
+          "score": 0.8896211205430865,
+          "averageBps": 106.92345022029738,
+          "positiveMarkets": 1
+        },
+        "validation": {
+          "net": 0.42281223528360323,
+          "drawdown": 0.10497764769011197,
+          "trades": 12,
+          "activeDays": 12,
+          "score": 2.045309399920095,
+          "averageBps": 352.3435294030027,
+          "positiveMarkets": 1
+        },
+        "rank": 0.8896211205430865
+      },
+      {
+        "rule": {
+          "lookback": 40,
+          "hold": 20,
+          "count": 2,
+          "regime": true
+        },
+        "discovery": {
+          "net": 0.14639402997020556,
+          "drawdown": 0.15851974601077934,
+          "trades": 44,
+          "activeDays": 23,
+          "score": 0.633836478088395,
+          "averageBps": 33.27137044777407,
+          "positiveMarkets": 1
+        },
+        "validation": {
+          "net": 0.26814936379727383,
+          "drawdown": 0.08535782267692826,
+          "trades": 23,
+          "activeDays": 12,
+          "score": 1.6966682030052467,
+          "averageBps": 116.5866799118575,
+          "positiveMarkets": 1
+        },
+        "rank": 0.633836478088395
+      }
+    ]
+  }
+}
