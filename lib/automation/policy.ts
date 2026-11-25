@@ -84,15 +84,20 @@ export async function readPaperResults(db: Db, userId: string, candidate: Eviden
     .eq('state', 'filled').not('closed_at', 'is', null).order('closed_at', { ascending: false }).limit(75);
   if (result.error) throw new Error('Could not read the versioned eToro Demo book.');
   return paperThreshold((result.data as StockJournalOrder[]).flatMap(row => {
-    if (row.statement_result && row.closed_at) return [{ at: row.closed_at, pnl: row.statement_result.netUsd }];
-    const gross = brokerStockGross(row);
-    if (gross == null || !row.closed_at || row.fill_metrics?.feesUsd == null || row.fill_metrics.taxesUsd == null) return [];
-    // Demo cash evidence uses broker execution prices and a conservative allowance for the exit fee.
-    const estimate = (row.estimated_costs ?? []).filter(cost => cost.currency.toUpperCase() === 'USD' && ['transactionFee', 'sdrt', 'markup'].includes(cost.costType))
-      .reduce((sum, cost) => sum + Math.max(0, cost.value), 0);
-    const paid = row.fill_metrics.feesUsd + row.fill_metrics.taxesUsd;
-    return [{ at: row.closed_at, pnl: gross - paid - Math.max(1, estimate, paid) }];
+    const pnl = stockDemoNet(row);
+    return row.closed_at && pnl != null ? [{ at: row.closed_at, pnl }] : [];
   }));
+}
+
+export function stockDemoNet(row: Pick<StockJournalOrder, 'closed_at' | 'statement_result' | 'fill_metrics' | 'close_execution' | 'estimated_costs'>) {
+  if (!row.closed_at) return null;
+  if (row.statement_result) return row.statement_result.netUsd;
+  const gross = brokerStockGross(row);
+  if (gross == null || row.fill_metrics?.feesUsd == null || row.fill_metrics.taxesUsd == null) return null;
+  const estimate = (row.estimated_costs ?? []).filter(cost => cost.currency.toUpperCase() === 'USD' && ['transactionFee', 'sdrt', 'markup'].includes(cost.costType))
+    .reduce((sum, cost) => sum + Math.max(0, cost.value), 0);
+  const paid = row.fill_metrics.feesUsd + row.fill_metrics.taxesUsd;
+  return gross - paid - Math.max(1, estimate, paid);
 }
 
 // Resolve the actual paper runner, including older profiles that follow the best daily candidate.

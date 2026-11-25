@@ -1,5 +1,12 @@
 import type { HyperliquidClient } from '@/lib/hyperliquid/client';
 
+export const PAPER_COST = .00065;
+
+export function openPaperPnl(row: {side: string; size: number; entry_price: number; notional_usd: number; funding_paid?: number | null}, price: number) {
+  return (row.side === 'long' ? 1 : -1) * row.size * (price - row.entry_price)
+    - row.notional_usd * 2 * PAPER_COST - Number(row.funding_paid ?? 0);
+}
+
 /** Price the requested cash amount (or the exact closing quantity) against a fresh book. */
 export async function paperFill(hl: HyperliquidClient, symbol: string, side: 'buy' | 'sell',
   amount: { usd: number } | { quantity: number }, maxSlippage: number, clock: () => number) {

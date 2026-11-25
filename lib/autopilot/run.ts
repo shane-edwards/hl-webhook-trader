@@ -1,5 +1,5 @@
 import { closeUnverifiedEntry } from './recovery';
-import { paperFill } from './paper-fill';
+import { PAPER_COST, openPaperPnl, paperFill } from './paper-fill';
 import { getUserFills, getUserFunding } from '@/lib/hyperliquid/public';
 import { attributeCosts, exitFromFills } from '@/lib/reconcile';
 import { accountResource, liveEntryReservation, withTradingLock } from '@/lib/trading-lock';
@@ -25,8 +25,6 @@ import { estimateFill, liquidityVerdict } from '@/lib/liquidity';
 type Db = SupabaseClient<any, any, any>;
 export type Mode = 'paper' | 'live';
 
-/** Cost charged to paper fills so the paper record is not flattering: taker fee + slippage. */
-const PAPER_COST = 0.00065;
 
 export interface AutopilotConfig {
   mode: Mode;
@@ -237,8 +235,7 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
   const unrealized = (mode === 'paper' ? markedRows : []).reduce((sum, p) => {
     const m = market.get(p.symbol);
     const price = Number(paperMids?.[p.symbol] ?? m?.bars[m.last].c ?? p.entry_price);
-    return sum + (p.side === 'long' ? 1 : -1) * p.size * (price - Number(p.entry_price))
-      - p.notional_usd * 2 * PAPER_COST - Number(p.funding_paid ?? 0);
+    return sum + openPaperPnl(p, price);
   }, 0);
   const dailyRisk = mode === 'live' && hl.getDailyRisk ? await hl.getDailyRisk() : null;
   const cashFlowBaseline = Number(stateRow?.cash_flow_baseline ?? dailyRisk?.netDeposits ?? 0);
