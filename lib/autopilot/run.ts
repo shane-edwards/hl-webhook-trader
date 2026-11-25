@@ -118,7 +118,7 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
   const quotes = new Map<string,Awaited<ReturnType<HyperliquidClient['getBookSnapshot']>>>();
   const paperFeed = { getBookSnapshot: async (symbol:string) => {
     const saved = quotes.get(symbol);
-    if (saved && clock() - saved.time < 5_000) return saved;
+    if (saved?.time != null && clock() - saved.time < 5_000) return saved;
     const book = await hl.getBookSnapshot(symbol);
     quotes.set(symbol,book);
     return book;
