@@ -142,7 +142,7 @@ function replay(input: Inputs, rule: Rule, from: number, end: number, edge: numb
         break;
       }
       const fill: ForwardFill = { entry: opening.t, exit: bars[exitIndex].t, price: entry, exitPrice: exitPrice * (1-direction*edge), net: ret };
-      book.recent = [...book.recent, fill].slice(-12);
+      book.recent = [...book.recent, fill].slice(-30);
       book.count++;
       book.lastExit = fill.exit;
       book.equity *= 1 + ret;

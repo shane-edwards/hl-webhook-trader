@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Activity, ArrowRight, ChevronDown, ChevronRight, CircleCheck, FlaskConical, Layers, Radio } from 'lucide-react';
 import { CryptoPaperComparison } from '@/components/journey/CryptoPaperComparison';
+import { PaperTrades } from '@/components/journey/PaperTrades';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,7 @@ export default function StrategiesPage() {
   const [busy, setBusy] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityLimit, setActivityLimit] = useState(12);
+  const [paperRefresh, setPaperRefresh] = useState(0);
   const request = useRef(0);
   function navigate(market: string, id?: string) {
     const params = new URLSearchParams();
@@ -138,9 +140,10 @@ export default function StrategiesPage() {
   const last = markets.map(m => m.discovery.lastCompleted).filter((t): t is string => !!t).sort().at(-1);
   const rankedActivity = [...activity].sort((a,b) => priority(a) - priority(b));
   function priority(r: StrategyRow) { return r.status === 'Backtesting' ? 0 : r.status === 'Backtest queued' ? 1 : r.paper ? 2 : r.through ? 3 : 4; }
-  return <><Header onRefresh={() => void load()} refreshing={busy} /><div className="mx-auto max-w-5xl space-y-5 px-4 py-5 lg:px-8 lg:py-8">
+  return <><Header onRefresh={() => { void load(); setPaperRefresh(n => n + 1); }} refreshing={busy} /><div className="mx-auto max-w-5xl space-y-5 px-4 py-5 lg:px-8 lg:py-8">
     <div className="inline-flex rounded-lg border bg-card p-1" aria-label="Market">{['all','stocks','crypto'].map(m =>
       <Button key={m} size="sm" variant={filter === m ? 'secondary' : 'ghost'} aria-pressed={filter === m} onClick={() => navigate(m)}>{m === 'all' ? 'All markets' : marketName(m)}</Button>)}</div>
+    <PaperTrades market={filter} refresh={paperRefresh} />
     {error && <p role="alert">{error} <button className="underline" onClick={() => void load()}>Retry</button></p>}
     {!data && !error && <p role="status">Loading strategies…</p>}
     {data && <>
@@ -157,7 +160,7 @@ export default function StrategiesPage() {
       <section className="surface p-5">
         <h2 className="font-semibold">Strategy discovery</h2>
         <div className="mt-4 grid grid-cols-3 gap-2">
-          {[[completed, 'Searches · 24h'], [rows.filter(r => r.stage === 'paper').length, 'In paper'], [rows.filter(r => r.stage === 'ready').length, 'Ready for live']].map(([value, label]) =>
+          {[[completed, 'Searches · 24h'], [rows.filter(r => r.stage === 'paper').length, 'Paper strategies'], [rows.filter(r => r.stage === 'ready').length, 'Ready for live']].map(([value, label]) =>
             <div key={label}><div className="text-lg font-semibold tabular-nums">{value}</div><div className="text-xs text-muted-foreground">{label}</div></div>)}
         </div>
         <p className="mt-3 text-sm text-muted-foreground">{pending > 0 ? `${pending} backtest${pending === 1 ? '' : 's'} queued or running` :
