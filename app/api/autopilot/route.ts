@@ -5,7 +5,7 @@ import { findIdea } from '@/lib/automation/ideas';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { configFromSettings, runAutopilot } from '@/lib/autopilot/run';
-import { BARS_NEEDED, entrySignal } from '@/lib/autopilot/signals';
+import { BARS_NEEDED, entrySignal, isLiveEligible, strategyDirection } from '@/lib/autopilot/signals';
 import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { readPages } from '@/lib/supabase/pages';
 import { computeIndicators, STRATEGIES, WARMUP_BARS } from '@/lib/autopilot/strategies';
@@ -35,12 +35,16 @@ export async function GET(request: Request) {
   const strategies = STRATEGIES.map(s => ({
     id: s.id, name: s.name, style: s.style, description: s.description, horizon: s.horizon,
     evidence: evidence.strategies.filter(e => e.id === s.id),
+    // The sides automatic Live entries may take with shorts off and on: null = Paper only, false = long only, true = both.
+    live: { longOnly: strategyDirection(s.id, false, false), withShorts: strategyDirection(s.id, true, false) },
   }));
   // The cross-coin basket is not a per-market rule, so it is described here rather than in STRATEGIES.
   strategies.push({
     id: MOMENTUM_ID, name: 'Cross-coin momentum (long/short basket)', style: 'Breakout' as const, horizon: `Rebalanced every ${MOMENTUM_HOLD_DAYS} days`,
     description: `Ranks up to ${MOMENTUM_UNIVERSE.length} coins by ${MOMENTUM_LOOKBACK_DAYS}-day return. Buys the strongest quarter and shorts the weakest quarter. It uses its own market list and needs space for at least four positions. Historical results do not include the protective stops now used in both modes.`,
     evidence: [false, true].map(allowShort => ({ id: MOMENTUM_ID, allowShort, liveEligible: false, early: momentumEvidence.early, late: momentumEvidence.late, recent: momentumEvidence.recent })) as never,
+    // The basket always holds shorts, so it needs the long/short evidence whatever the shorts setting is.
+    live: { longOnly: isLiveEligible(MOMENTUM_ID, true) || null, withShorts: isLiveEligible(MOMENTUM_ID, true) || null },
   });
   const base = {
     strategies, evidenceThrough: evidence.generatedThrough, evidenceCoins: evidence.coins,

@@ -133,6 +133,8 @@ export class HyperliquidClient {
     this.lastNonce = nonce;
     const signature = await signL1Action(this.wallet, action, nonce, this.isMainnet, expiresAfter);
 
+    // Set once the exchange has answered: from then on a failure is the database's, not the exchange's.
+    let answered = false;
     try {
       const res = await fetch(`${this.baseUrl}/exchange`, {
         method: 'POST',
@@ -145,6 +147,7 @@ export class HyperliquidClient {
         throw new Error(`Hyperliquid exchange error ${res.status}: ${text}`);
       }
       const result = await res.json();
+      answered = true;
       if (ctx && actionId) {
         const saved = await ctx.db.from('exchange_actions').update({ status: 'confirmed', response: result }).eq('id', actionId);
         // Preserve an acknowledged fill so the caller can protect it, even if
@@ -154,12 +157,23 @@ export class HyperliquidClient {
       return result;
     } catch (err) {
       if (ctx) {
-        await ctx.db.rpc('halt_trading_account', { resource_key: ctx.resource });
-        await ctx.db.from('settings').update({ trading_halted: true, flatten_pending: true }).eq('user_id', ctx.userId);
+        // Only an order that is not reduce-only can add exposure. When such an
+        // order has an unknown outcome the account is halted and flattened.
+        // A cancel, a leverage update, a stop or target, or a reduce-only close
+        // cannot add exposure: it is recorded as uncertain and the error goes
+        // back to the caller, which keeps the old stop, retries or closes.
+        const addsExposure = wireAction.orders?.some(o => !o.r) ?? false;
+        if (addsExposure) {
+          await ctx.db.rpc('halt_trading_account', { resource_key: ctx.resource });
+          await ctx.db.from('settings').update({ trading_halted: true, flatten_pending: true }).eq('user_id', ctx.userId);
+        } else if (answered) {
+          // The exchange confirmed the action and the database then failed: halt, as above.
+          await ctx.db.rpc('halt_trading_account', { resource_key: ctx.resource });
+        }
         if (actionId) await ctx.db.from('exchange_actions').update({ status: 'uncertain' }).eq('id', actionId);
         // A delayed entry must expire before we verify the account and close
         // any fill. Otherwise it could arrive after recovery has gone flat.
-        if (wireAction.orders?.some(o => !o.r)) await new Promise(resolve => setTimeout(resolve, Math.max(0, expiresAfter - Date.now()) + 250));
+        if (addsExposure) await new Promise(resolve => setTimeout(resolve, Math.max(0, expiresAfter - Date.now()) + 250));
         // An entry may have filled despite a lost response. Risk-reducing
         // closure is safe to repeat and continues to be allowed while halted.
         for (const order of wireAction.orders?.filter(o => !o.r) ?? []) {

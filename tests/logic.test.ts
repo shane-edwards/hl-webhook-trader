@@ -191,20 +191,38 @@ function fakeExchange(opts: { closes: number[]; accountValue: number; position?:
   const calls: string[] = [];
   const dayStart = Date.UTC(2026, 0, 10) - (opts.lastCandleAgeDays ?? 1) * 86_400_000;
   const price = opts.closes[opts.closes.length - 1];
+  // The position follows the orders, and stops rest until cancelled, as on the exchange.
+  let position = opts.position ? { ...opts.position } : null;
+  let stops: Array<{ oid: number; size: number; triggerPx: number; side: 'buy' | 'sell' }> = [];
+  let seq = 0;
   const hl = {
     getDailyCandles: async () => opts.closes.map((close, i) => ({ time: dayStart - (opts.closes.length - 1 - i) * 86_400_000, close })),
     getAccountSummary: async () => ({ totalValue: opts.accountValue, unrealizedPnl: 0, marginUsed: 0, withdrawable: opts.accountValue }),
-    getPosition: async () => (opts.position ? { ...opts.position, symbol: 'BTC', markPrice: price } : null),
+    getPosition: async () => (position ? { ...position, symbol: 'BTC', markPrice: price } : null),
     getMarkPrice: async () => price,
     getAsset: async () => ({ index: 0, meta: { name: 'BTC', szDecimals: 5, maxLeverage: 40 } }),
     setLeverage: async (_c: string, lev: number) => { calls.push(`leverage:${lev}`); },
     placeIocOrder: async (o: { isBuy: boolean; size: number; reduceOnly: boolean }) => {
       calls.push(`order:${o.isBuy ? 'buy' : 'sell'}:${o.size.toFixed(5)}:${o.reduceOnly}`);
+      const signed = (position ? (position.side === 'long' ? position.size : -position.size) : 0) + (o.isBuy ? o.size : -o.size);
+      position = Math.abs(signed) < 1e-9 ? null : { side: signed > 0 ? 'long' : 'short', size: Math.abs(signed) };
       return { orderId: '1', fillPrice: price, sizeInContracts: o.size };
     },
     closePosition: async () => {
       calls.push('close');
-      return { fillPrice: price, filledSize: opts.position!.size, side: opts.position!.side, fullyClosed: true };
+      const closed = position!;
+      position = null;
+      return { fillPrice: price, filledSize: closed.size, side: closed.side, fullyClosed: true };
+    },
+    placeTriggerOrders: async (p: { side: 'long' | 'short'; legs: Array<{ kind: 'sl' | 'tp'; triggerPx: number; size: number }> }) => p.legs.map(l => {
+      calls.push(`stop:${l.size.toFixed(5)}@${l.triggerPx.toFixed(2)}`);
+      stops.push({ oid: ++seq, size: l.size, triggerPx: l.triggerPx, side: p.side === 'long' ? 'sell' : 'buy' });
+      return String(seq);
+    }),
+    getOpenOrders: async () => stops.map(o => ({ coin: 'BTC', ...o, isTrigger: true, reduceOnly: true, limitPx: o.triggerPx, orderType: 'Stop Market' })),
+    cancelOrders: async (_c: string, oids: Array<string | number>) => {
+      for (const oid of oids) calls.push(`cancel:${oid}`);
+      stops = stops.filter(o => !oids.map(Number).includes(o.oid));
     },
   } as unknown as HyperliquidClient;
   return { hl, calls, now, price };
@@ -225,7 +243,10 @@ test('runner: live run buys up to target with headroom leverage', async () => {
   const { hl, calls, now, price } = fakeExchange({ closes: calmUp, accountValue: 10_000 });
   const r = await runStrategyOnce(hl, cfg(false), now);
   assert.equal(r.status, 'traded');
-  assert.deepEqual(calls, ['leverage:3', `order:buy:${(20_000 / price).toFixed(5)}:false`]);
+  // The buy is followed by a stop for the whole position, 15% under the mark price.
+  const size = (20_000 / price).toFixed(5);
+  assert.deepEqual(calls, ['leverage:3', `order:buy:${size}:false`, `stop:${size}@${(price * 0.85).toFixed(2)}`]);
+  assert.ok(Math.abs(r.stopPrice! - price * 0.85) < 1e-6);
 });
 
 test('runner: closes the position when the trend is down, holds when already at target', async () => {
@@ -234,6 +255,7 @@ test('runner: closes the position when the trend is down, holds when already at 
   assert.equal(r.status, 'traded');
   assert.deepEqual(a.calls, ['close']);
   assert.equal(r.tradedSize, -0.1);
+  assert.equal(r.stopPrice, null); // flat: nothing to protect
 
   const b = fakeExchange({ closes: down, accountValue: 10_000 });
   assert.equal((await runStrategyOnce(b.hl, cfg(false), b.now)).status, 'held');

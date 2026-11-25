@@ -17,9 +17,12 @@ export async function processWebhookQueue(): Promise<number> {
   let processed = 0;
   for (const job of jobs.data ?? []) {
     const { data: settings } = await db.from('settings').select('*').eq('user_id', job.user_id).single();
-    const hl = hlClientFromSettings(settings);
+    // A stored key that cannot be read (rotated ENCRYPTION_KEY, damaged value) must fail
+    // this one job. Left to throw, it would leave the job queued and stop every later scan.
+    let hl: ReturnType<typeof hlClientFromSettings> = null;
+    try { hl = hlClientFromSettings(settings); } catch { hl = null; }
     if (!hl) {
-      await db.from('webhook_jobs').update({ status: 'error', result: { error: 'Wallet unavailable' } }).eq('id', job.id);
+      await db.from('webhook_jobs').update({ status: 'error', result: { error: 'Wallet unavailable' } }).eq('id', job.id).eq('status', 'queued');
       continue;
     }
     try {

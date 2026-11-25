@@ -163,17 +163,25 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
   const sl = parseFloat(stopLoss), tp = parseFloat(takeProfit), tp2 = parseFloat(takeProfit2), share = parseFloat(tp1Share), trailPct = parseFloat(trail);
   const userLev = parseFloat(leverage);
   const maxUsd = Number(settings?.max_position_size_usd ?? 0);
+  // No manual trade is sent without a stop (the server refuses it too). With the stop field empty the
+  // order still carries one: a trailing stop on a market order, otherwise the default from Settings.
+  const defaultSl = Number(settings?.default_stop_loss_percent);
+  const hasDefaultSl = defaultSl >= 0.05 && defaultSl <= 50;
+  const trailing = isMarket && trailPct > 0;
+  const stopSource: 'ticket' | 'trail' | 'default' | 'none' = sl > 0 ? 'ticket' : trailing ? 'trail' : hasDefaultSl ? 'default' : 'none';
+  // Distance of the stop the order will actually have, for sizing, the chart and the loss shown.
+  const stopPct = stopSource === 'ticket' ? sl : stopSource === 'trail' ? trailPct : stopSource === 'default' ? defaultSl : NaN;
 
   const sized = useMemo(() => {
     if (sizeMode !== 'risk') return null;
-    return sizeByRisk({ equity: equity ?? 0, risk: parseFloat(risk), riskUnit, stopPct: sl, maxPositionUsd: maxUsd, maxLeverage: market?.maxLeverage ?? 50 });
-  }, [sizeMode, equity, risk, riskUnit, sl, maxUsd, market]);
+    return sizeByRisk({ equity: equity ?? 0, risk: parseFloat(risk), riskUnit, stopPct, maxPositionUsd: maxUsd, maxLeverage: market?.maxLeverage ?? 50 });
+  }, [sizeMode, equity, risk, riskUnit, stopPct, maxUsd, market]);
 
   const size = sizeMode === 'risk' ? sized?.sizeUsd ?? 0 : parseFloat(sizeUsd);
   // In risk mode the leverage is raised to whatever the size needs; it never changes the amount at risk.
   const lev = sizeMode === 'risk' && sized && !sized.error ? Math.max(userLev || 1, sized.leverageNeeded) : userLev;
   const margin = size > 0 && lev > 0 ? size / lev : null;
-  const riskUsd = size > 0 && sl > 0 ? (size * sl) / 100 : null;
+  const riskUsd = size > 0 && stopPct > 0 ? (size * stopPct) / 100 : null;
   const managed = isMarket && ((share > 0 && share < 100 && tp > 0) || trailPct > 0);
   const limitWrongSide = isLimit && limit > 0 && price != null && (side === 'long' ? limit >= price : limit <= price);
 
@@ -188,12 +196,12 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
     for (const l of up?.resistances ?? []) out.push({ kind: 'higher', label: `${tag} res.`, price: l.price });
     if (entry) {
       out.push({ kind: 'entry', label: isLimit ? 'Limit' : 'Entry', price: entry });
-      if (sl > 0) out.push({ kind: 'stop', label: 'Stop', price: entry * (1 - (dir * sl) / 100) });
+      if (stopPct > 0) out.push({ kind: 'stop', label: 'Stop', price: entry * (1 - (dir * stopPct) / 100) });
       if (tp > 0) out.push({ kind: 'target', label: tp2 > 0 && managed ? 'Target 1' : 'Target', price: entry * (1 + (dir * tp) / 100) });
       if (tp2 > 0 && managed) out.push({ kind: 'target', label: 'Target 2', price: entry * (1 + (dir * tp2) / 100) });
     }
     return out;
-  }, [frame, frameExtra, entry, isLimit, sl, tp, tp2, dir, managed]);
+  }, [frame, frameExtra, entry, isLimit, stopPct, tp, tp2, dir, managed]);
 
   const warnings = useMemo(() => (frameExtra && entry ? frameWarnings(frameExtra, timeframe, side, entry, tp > 0 ? entry * (1 + (dir * tp) / 100) : null) : []), [frameExtra, timeframe, side, entry, tp, dir]);
   const replay = (tfEvidence as TfEvidence).timeframes?.find(t => t.timeframe === timeframe);
@@ -211,7 +219,8 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
   }, [open, isMarket, symbol, side, size, nSlices]);
 
   const blocked =
-    !(size >= 10) ? (sized?.error ?? 'Size must be at least $10')
+    stopSource === 'none' ? `A stop-loss is required: a manual trade is not sent without one. Enter a stop-loss${isMarket ? ' or a trailing stop' : ''}, or save a default stop-loss in Settings.`
+    : !(size >= 10) ? (sized?.error ?? 'Size must be at least $10')
     : nSlices > 1 && size / nSlices < 10 ? 'Each slice must be at least $10'
     : isMarket && book?.verdict.level === 'block' ? book.verdict.message
     : !(lev >= 1) ? 'Enter leverage'
@@ -415,8 +424,11 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="tt-sl">Stop-loss %</Label>
-                <Input id="tt-sl" type="number" inputMode="decimal" min="0.05" step="0.1" placeholder="None" value={stopLoss} onChange={e => { setStopLoss(e.target.value); setEdited(x => ({ ...x, sl: true })); }} />
-                {entry && sl > 0 && <p className="num text-[11px] text-muted-foreground">≈ ${formatPrice(entry * (1 - (dir * sl) / 100))}</p>}
+                <Input id="tt-sl" type="number" inputMode="decimal" min="0.05" step="0.1" placeholder={hasDefaultSl ? `Default ${defaultSl}` : 'Required'} value={stopLoss} onChange={e => { setStopLoss(e.target.value); setEdited(x => ({ ...x, sl: true })); }} />
+                {entry && stopPct > 0 && <p className="num text-[11px] text-muted-foreground">≈ ${formatPrice(entry * (1 - (dir * stopPct) / 100))}</p>}
+                {stopSource === 'default' && <p className="text-[11px] text-muted-foreground">Left empty: your default stop of {defaultSl}% from Settings is used.</p>}
+                {stopSource === 'trail' && <p className="text-[11px] text-muted-foreground">Left empty: the trailing stop starts {trailPct}% from entry.</p>}
+                {stopSource === 'none' && <p className="text-[11px] text-warning">Required: a manual trade is not sent without a stop.</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="tt-tp">Take-profit %</Label>
@@ -529,8 +541,8 @@ export function TradeTicket({ settings, onTraded, preset }: Props) {
               <div className="flex justify-between px-3 py-2"><dt className="text-muted-foreground">Margin used</dt><dd className="num">{margin ? `$${margin.toFixed(2)} at ${Math.round(lev)}×` : '—'}</dd></div>
               <div className="flex justify-between px-3 py-2">
                 <dt className="text-muted-foreground">Loss if the stop is hit</dt>
-                <dd className={cn('num', riskUsd ? 'text-loss' : 'text-warning')}>
-                  {riskUsd ? `≈ -$${riskUsd.toFixed(2)}${equity ? ` (${((riskUsd / equity) * 100).toFixed(2)}% of account)` : ''}` : 'No stop set'}
+                <dd className={cn('num', riskUsd ? 'text-loss' : stopPct > 0 ? 'text-muted-foreground' : 'text-warning')}>
+                  {riskUsd ? `≈ -$${riskUsd.toFixed(2)}${equity ? ` (${((riskUsd / equity) * 100).toFixed(2)}% of account)` : ''}` : stopPct > 0 ? '—' : 'No stop set'}
                 </dd>
               </div>
             </dl>

@@ -4,12 +4,14 @@ import { gradeStock } from '../lib/stocks/grade';
 import { EtoroClient } from '../lib/stocks/etoro';
 import { researchStock, type StockBar } from '../lib/stocks/research';
 import { freshStockAsk, previousStockSession, stockMarketClock } from '../lib/stocks/session';
-import { dailyTradeSignal, earningsRebound, stockEntryWindow } from '../lib/stocks/trade-signals';
+import { currentStockEntry, dailyStockEntry, dailyTradeSignal, earningsRebound, stockEntryWindow, stockTradeDailyBars } from '../lib/stocks/trade-signals';
 import { type IntradayBar } from '../lib/stocks/etoro';
+import { regularStockSessions } from '../lib/stocks/intraday';
 import { INSIDE_DAY_SYMBOLS, supportsStockTradeRule } from '../lib/stocks/trade-rules';
 import { approvedStockStop, prepareStockOrder } from '../lib/stocks/leverage';
-import { reconcileStockOrder } from '../lib/stocks/autopilot';
+import { manageStockOrder, reconcileStockOrder } from '../lib/stocks/autopilot';
 import { earningsReplayFill, earningsReplayWindows, stockBacktest } from '../lib/stocks/backtest';
+import { memoryDb } from './helpers';
 
 test('earnings replay uses the qualifying session and the actual 3:50 bid rather than the closing quote', () => {
   const filings = [
@@ -147,6 +149,47 @@ test('stock execution rejects delayed quotes and quotes after an early NYSE clos
   assert.equal(freshStockAsk(quote, open + 25_000), null);
   assert.equal(stockMarketClock(Date.parse('2026-11-26T15:30:00Z')).open, false);
   assert.equal(previousStockSession(open), '2026-11-25');
+});
+
+test('the session after an early close reads that early close as the previous daily bar for entries and exits', async () => {
+  const now = Date.parse('2026-11-30T14:45Z');
+  const dates: string[] = [];
+  for (let t = Date.parse('2026-08-03T15:00Z'); t < now; t += 86_400_000) {
+    if (stockMarketClock(t).tradingDay) dates.push(stockMarketClock(t).day);
+  }
+  assert.deepEqual(dates.slice(-3), ['2026-11-24', '2026-11-25', '2026-11-27']);
+  const paired = dates.flatMap((day, i) => {
+    const anchor = Date.parse(`${day}T15:00Z`);
+    const open = anchor + (570 - stockMarketClock(anchor).minutes) * 60_000;
+    const inside = i === dates.length - 2, last = i === dates.length - 1;
+    const quote = last ? 102 : 100;
+    // Candles after the 1:00 p.m. close of 2026-11-27 carry prices that must not reach its daily bar.
+    return Array.from({ length: 13 }, (_, j): IntradayBar => last && j >= 7
+      ? { t: open + j * 30 * 60_000, bidOpen: 90, askOpen: 90.05, bidClose: 90, bidLow: 50, bidHigh: 200, volume: 100 }
+      : { t: open + j * 30 * 60_000, bidOpen: quote, askOpen: quote + 0.05, bidClose: quote, bidLow: inside ? 99 : 98, bidHigh: last ? 105 : inside ? 101 : 102, volume: 100 });
+  });
+  const broker = {
+    intradayCandles: async (_id: number, from: number, to: number) => paired.filter(bar => bar.t >= from && bar.t < to),
+    portfolio: async () => ({ positions: [{ id: 9, instrumentId: 1001, side: 'Long' }], pending: 0 }),
+  } as unknown as EtoroClient;
+  const previous = previousStockSession(now);
+  assert.equal(previous, '2026-11-27');
+  const bars = await stockTradeDailyBars(broker, 1001, 'inside-day', now);
+  assert.deepEqual(bars.slice(-2).map(bar => bar.day), ['2026-11-25', '2026-11-27']);
+  assert.deepEqual([bars.at(-1)!.bidClose, bars.at(-1)!.high, bars.at(-1)!.low], [102, 105, 98]);
+  assert.ok(dailyStockEntry(bars, 'inside-day', now));
+  assert.ok(await currentStockEntry(broker, 'AAPL', 1001, 'inside-day', now));
+  const order: Parameters<typeof manageStockOrder>[3] = {
+    id: 'order', environment: 'demo', connection_version: 'version', state: 'filled', position_ids: [9],
+    request: { action: 'open', transaction: 'buy', instrumentId: 1001, orderType: 'mkt', amount: 100, orderCurrency: 'usd', settlementType: 'real', leverage: 1 },
+    strategy: 'inside-day', signal_day: '2026-11-25', strategy_exit_at: null, updated_at: new Date(now - 86_400_000).toISOString(),
+    close_requests: {}, protection_state: null,
+  };
+  const { db } = memoryDb({ etoro_stock_orders: [{ ...order, user_id: 'user' }] });
+  assert.equal(await manageStockOrder(db, broker, 'user', order, 'version', previous, now), 'Holding the open strategy position');
+  // The intraday rule studies keep excluding the shortened session.
+  assert.equal(regularStockSessions(paired, 30).sessions.at(-1)!.day, '2026-11-25');
+  assert.equal(regularStockSessions(paired, 30).sessions.length, bars.length - 1);
 });
 
 function trend(growth: number): StockBar[] {

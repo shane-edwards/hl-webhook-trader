@@ -27,7 +27,9 @@ export async function stockTradeDailyBars(broker: EtoroClient, instrumentId: num
   if (rule !== 'inside-day') return broker.candles(instrumentId, 240, now, true, true);
   // This setup was replayed on regular-session prices, so extended-hours prints cannot trigger it.
   const paired = await broker.intradayCandles(instrumentId, now - 120 * DAY, now, undefined, '30m', true);
-  return regularDailyBars(regularStockSessions(paired, 30).sessions.filter(session => session.day < stockMarketClock(now).day));
+  // An early close still counts as the previous session, so its 9:30 a.m. to 1:00 p.m. bars form a daily bar here.
+  // Assumes eToro serves the usual 30-minute candles for that shortened session (seven, 9:30 a.m. to 12:30 p.m. ET).
+  return regularDailyBars(regularStockSessions(paired, 30, 'include').sessions.filter(session => session.day < stockMarketClock(now).day));
 }
 
 const midpoint = (bar: IntradayBar) => (bar.bidOpen + bar.askOpen) / 2;

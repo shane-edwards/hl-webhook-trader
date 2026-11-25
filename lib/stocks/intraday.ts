@@ -1,4 +1,5 @@
 import type { IntradayBar } from './etoro';
+import { stockSessionClose } from './session';
 
 export const STOCK_INTRADAY_RULES = [
   { id: 'orb', name: '5-minute opening breakout', description: 'Break above the first five-minute high before 10:30 a.m. ET. This is the baseline for the volume filter.', source: 'https://www.tradingview.com/script/Rvy6qSBY-5-Min-ORB-with-Volume-Spike/' },
@@ -13,17 +14,21 @@ export type IntradayTrade = { day: string; minutes: number; netBps: number; stre
 export type IntradayCost = { slipBps: number; fee: number; stressSlipBps: number; stressFee: number };
 const sessionClock = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const notional = 10_000;
-// Listed NYSE early closes for the study and recent-replay calendar range.
-const shortened = new Set(['2025-07-03', '2025-11-28', '2025-12-24', '2026-11-27', '2026-12-24', '2027-11-26', '2028-07-03', '2028-11-24']);
 
-export function regularStockSessions(input: IntradayBar[], interval: 5 | 30 = 5) {
+/**
+ * Groups candles into complete regular sessions. Early-close sessions are left out by default, because the
+ * intraday rule studies and replays index bars by their position in a full 390-minute session. The live
+ * daily-bar path passes 'include' so an early close still yields that day's bar from its 9:30 a.m. to 1:00 p.m. session.
+ */
+export function regularStockSessions(input: IntradayBar[], interval: 5 | 30 = 5, earlyCloses: 'exclude' | 'include' = 'exclude') {
   const grouped = new Map<string, Map<number, IntradayBar>>();
   for (const bar of input) {
     const parts = Object.fromEntries(sessionClock.formatToParts(bar.t).map(p => [p.type, p.value]));
     const minute = Number(parts.hour) * 60 + Number(parts.minute);
     if (minute < 570 || minute >= 960 || (minute - 570) % interval !== 0 || bar.t % (interval * 60_000) !== 0) continue;
     const day = `${parts.year}-${parts.month}-${parts.day}`;
-    if (shortened.has(day) || [0, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay())) continue;
+    const close = stockSessionClose(day);
+    if ((close !== 960 && (earlyCloses === 'exclude' || minute >= close)) || [0, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay())) continue;
     const group = grouped.get(day) ?? new Map<number, IntradayBar>();
     if (group.has(minute)) throw new Error('Duplicate regular-session candle');
     group.set(minute, bar);
@@ -31,7 +36,7 @@ export function regularStockSessions(input: IntradayBar[], interval: 5 | 30 = 5)
   }
   const sessions: StockSession[] = [];
   for (const [day, group] of [...grouped].sort(([a], [b]) => a.localeCompare(b))) {
-    if (group.size === 390 / interval) sessions.push({ day, bars: [...group.values()].sort((a, b) => a.t - b.t) });
+    if (group.size === (stockSessionClose(day) - 570) / interval) sessions.push({ day, bars: [...group.values()].sort((a, b) => a.t - b.t) });
   }
   return { sessions, incomplete: grouped.size - sessions.length };
 }

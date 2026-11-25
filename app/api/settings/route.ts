@@ -10,6 +10,7 @@ import { generateWebhookSecret } from '@/lib/utils';
 import { STRATEGIES } from '@/lib/autopilot/strategies';
 import { MOMENTUM_ID } from '@/lib/autopilot/momentum';
 import { configFromSettings } from '@/lib/autopilot/run';
+import { liveStartProblem } from '@/lib/autopilot/signals';
 
 export const dynamic = 'force-dynamic';
 
@@ -203,9 +204,12 @@ export async function PUT(request: Request) {
     if (update.autopilot_enabled === true) {
       if (cfg.strategies.length === 0) return bad('Select a strategy first');
       if (cfg.mode === 'live') {
+        const problem = liveStartProblem(cfg.strategies, cfg.allowShort);
+        if (problem) return bad(problem);
         if (body.confirmLiveAutopilot !== true) return bad('Confirm Live Autopilot before starting');
         if (!hlClientFromSettings({ ...current, ...update })) return bad('Connect a Hyperliquid wallet first');
         if (body.isTestnet !== (process.env.HL_TESTNET === 'true' || current.is_testnet === true)) return bad('Exchange network changed. Refresh and review again.');
+        // Records that the owner reviewed this Live start. It never widens which rules may trade.
         update.autopilot_live_rules_confirmed = true;
       }
     }

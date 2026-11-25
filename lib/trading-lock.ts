@@ -15,7 +15,14 @@ export function accountResource(hl: HyperliquidClient, userId: string): string {
   return `${hl.isTestnet ? 'testnet' : 'mainnet'}:${(hl.address ?? userId).toLowerCase()}`;
 }
 
-export async function withTradingLock<T>(hl: HyperliquidClient | null, db: Db, userId: string, work: () => Promise<T>, paper = false): Promise<T> {
+export interface TradingLockOptions {
+  /** Keep asking for the lease for up to this long when another worker holds it. Default 0: fail at once. */
+  waitMs?: number;
+  /** Pause between attempts while waiting. */
+  pollMs?: number;
+}
+
+export async function withTradingLock<T>(hl: HyperliquidClient | null, db: Db, userId: string, work: () => Promise<T>, paper = false, options: TradingLockOptions = {}): Promise<T> {
   const resource = paper ? `paper:${userId}` : hl ? accountResource(hl, userId) : `wallet:${userId}`;
   const current = tradingContext.getStore();
   if (current?.resource === resource) {
@@ -23,9 +30,17 @@ export async function withTradingLock<T>(hl: HyperliquidClient | null, db: Db, u
     try { return await work(); } finally { restore(); }
   }
   const owner = randomUUID();
-  const { data, error } = await db.rpc('acquire_trading_lock', { resource_key: resource, lease_owner: owner });
-  if (error) throw new Error(`Trading coordination unavailable: ${error.message}. Apply migration 008.`);
-  if (!data) throw new Error('This account is already processing a trading operation. Retry shortly.');
+  const waitMs = Number.isFinite(options.waitMs) ? Math.max(0, options.waitMs!) : 0;
+  const pollMs = Number.isFinite(options.pollMs) ? Math.max(10, options.pollMs!) : 1_000;
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const { data, error } = await db.rpc('acquire_trading_lock', { resource_key: resource, lease_owner: owner });
+    if (error) throw new Error(`Trading coordination unavailable: ${error.message}. Apply migration 008.`);
+    if (data) break;
+    const left = deadline - Date.now();
+    if (left <= 0) throw new Error('This account is already processing a trading operation. Retry shortly.');
+    await new Promise(resolve => setTimeout(resolve, Math.min(pollMs, left)));
+  }
   return tradingContext.run({ userId, resource, owner }, async () => {
     const restore = !paper && hl?.setActionContext ? hl.setActionContext(db, resource, owner, userId) : () => {};
     try { return await work(); }

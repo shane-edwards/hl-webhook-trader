@@ -10,14 +10,21 @@ function bars(start: string): IntradayBar[] {
 }
 
 test('regular stock session recognizes both UTC offsets and rejects incomplete and early-close sessions', () => {
-  const result = regularStockSessions([
+  const input = [
     ...bars('2026-03-06T14:30:00Z'),
     ...bars('2026-03-09T13:30:00Z'),
     ...bars('2026-03-10T13:30:00Z').slice(1),
     ...bars('2026-11-27T14:30:00Z'),
-  ]);
+  ];
+  const result = regularStockSessions(input);
   assert.deepEqual(result.sessions.map(s => s.day), ['2026-03-06', '2026-03-09']);
   assert.equal(result.incomplete, 1);
+  // The live daily-bar path asks for early closes: only the 9:30 a.m. to 1:00 p.m. bars form that session.
+  const live = regularStockSessions(input, 5, 'include');
+  assert.deepEqual(live.sessions.map(s => [s.day, s.bars.length]), [['2026-03-06', 78], ['2026-03-09', 78], ['2026-11-27', 42]]);
+  assert.equal(live.sessions[2].bars.at(-1)!.t, Date.parse('2026-11-27T17:55:00Z'));
+  assert.equal(live.incomplete, 1);
+  assert.equal(regularStockSessions(bars('2026-11-27T14:30:00Z').slice(0, 41), 5, 'include').sessions.length, 0);
 });
 
 test('intraday breakout fills at next ask and takes a gap stop before an ambiguous target', () => {

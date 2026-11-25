@@ -51,7 +51,8 @@ export async function DELETE(
     const position = await hl.getPosition(trade.symbol);
     if (!position) {
       const now = new Date().toISOString();
-      const { data: cancelled, error } = await supabase
+      // Trade records are written by the server only (migration 023); always scoped to this user.
+      const { data: cancelled, error } = await serviceClient
         .from('trades')
         .update({ status: 'cancelled', exit_time: now, notes: 'No matching position on the exchange', updated_at: now })
         .eq('user_id', user.id)
@@ -89,7 +90,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'notes must be a string' }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await createServiceClient()
     .from('trades')
     .update({ notes: notes == null ? null : notes.slice(0, 2000), updated_at: new Date().toISOString() })
     .eq('id', id)

@@ -24,7 +24,11 @@ interface Evidence {
   early: { annualReturn: number };
   recent?: { annualReturn: number };
 }
-interface StrategyInfo { id: string; name: string; style: string; description: string; horizon: string; evidence: Evidence[] }
+interface StrategyInfo {
+  id: string; name: string; style: string; description: string; horizon: string; evidence: Evidence[];
+  /** Sides automatic Live entries may take with shorts off and on: null = Paper only, false = long only, true = long and short. */
+  live: { longOnly: boolean | null; withShorts: boolean | null };
+}
 interface Position {
   id: string; symbol: string; strategy_id: string; side: 'long' | 'short'; status: 'open' | 'closed';
   recovery_pending?: boolean; entry_price: number; notional_usd: number; stop_price: number; entry_time: string; entry_reason: string | null;
@@ -54,6 +58,12 @@ const LEVEL_STYLE: Record<EventRow['level'], string> = { trade: 'bg-primary', in
 const STALE_MS = 20 * 60_000;
 /** The cross-coin basket has no per-position stop; the stored figure is a far-away placeholder. */
 const BASKET_ID = 'xs_momentum_90';
+
+/** The side(s) a rule enters automatically in Live, or null when its automatic entries stay on Paper. */
+function liveSides(s: StrategyInfo, shorts: boolean): 'long only' | 'long and short' | null {
+  const direction = shorts ? s.live.withShorts : s.live.longOnly;
+  return direction === null ? null : direction ? 'long and short' : 'long only';
+}
 
 /** Mark-to-market result of an open position: price move only, before the cost of closing it. */
 function unrealised(p: Position, price: number | undefined): { usd: number; pct: number } | null {
@@ -210,9 +220,15 @@ export default function AutopilotPage() {
   const wins = closed.filter(p => Number(p.pnl) > 0).length;
   const lastRun = state?.last_run_at ? new Date(state.last_run_at).getTime() : null;
   const stale = enabled && (lastRun === null || now - lastRun > STALE_MS);
-  const supportedByEvidence = (s: StrategyInfo) => s.evidence.some(e => e.liveEligible && (!e.allowShort || allowShort));
+  const supportedByEvidence = (s: StrategyInfo) => liveSides(s, allowShort) !== null;
   const savedIds = settings?.autopilot_strategies ?? [];
   const ready = (data?.strategies ?? []).filter(s => savedIds.includes(s.id));
+  // Automatic Live entries are limited to rules that passed the backtest. The rest of the selection only trades on Paper.
+  const savedShorts = settings?.autopilot_allow_short ?? false;
+  const liveReady = ready.filter(s => liveSides(s, savedShorts) !== null);
+  const paperOnly = ready.filter(s => liveSides(s, savedShorts) === null);
+  const liveNames = liveReady.map(s => `${s.name} (${liveSides(s, savedShorts)})`).join(', ');
+  const paperOnlyNames = paperOnly.map(s => s.name).join(', ');
   const label = mode === 'paper' ? 'Paper' : data?.isTestnet ? 'Live · Testnet' : 'Live';
   const changes = symbols !== (settings?.autopilot_symbols ?? []).join(', ')
     || JSON.stringify(selected) !== JSON.stringify(savedIds) || allowShort !== (settings?.autopilot_allow_short ?? false)
@@ -233,18 +249,20 @@ export default function AutopilotPage() {
           <>
             {/* Control */}
             <section className="surface p-5" aria-label="Autopilot control">
+              {/* On a phone the title and strategy list take the full width and the controls drop below them. */}
               <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="flex items-center gap-3 min-w-0 basis-full sm:basis-0 sm:flex-1">
                   <div className={cn('flex items-center justify-center w-11 h-11 rounded-xl shrink-0', enabled ? (mode === 'live' ? 'bg-profit/10 text-profit' : 'bg-warning/10 text-warning') : 'bg-secondary text-muted-foreground')}>
                     <Bot className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-base font-semibold">{label} Autopilot</h2>
                       <Badge variant={!enabled || state?.halted_reason ? 'secondary' : mode === 'live' ? 'profit' : 'warning'}>{!enabled || state?.halted_reason ? 'Paused' : 'Running'}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {ready.map(s => s.name).join(', ') || 'Choose a strategy below'} · {settings.autopilot_symbols?.length ?? 0} markets
+                      {(mode === 'live' && ready.length ? liveNames || 'No selected strategy can trade Live' : ready.map(s => s.name).join(', ')) || 'Choose a strategy below'} · {settings.autopilot_symbols?.length ?? 0} markets
+                      {mode === 'live' && paperOnly.length > 0 && ` · Paper only: ${paperOnlyNames}`}
                     </p>
                   </div>
                 </div>
@@ -256,7 +274,7 @@ export default function AutopilotPage() {
                     disabled={busy !== null || changes}
                     options={[{ value: 'paper', label: 'Paper' }, { value: 'live', label: 'Live' }]}
                   />
-                  <Button onClick={() => enabled ? put({ autopilot_enabled: false }, 'New entries paused') : mode === 'live' ? setConfirmLive('start') : put({ autopilot_enabled: true }, 'Paper Autopilot started')} disabled={busy !== null || (!enabled && (changes || !ready.length || !!state?.halted_reason || (mode === 'live' && !data.hasWallet)))}>
+                  <Button onClick={() => enabled ? put({ autopilot_enabled: false }, 'New entries paused') : mode === 'live' ? setConfirmLive('start') : put({ autopilot_enabled: true }, 'Paper Autopilot started')} disabled={busy !== null || (!enabled && (changes || !ready.length || !!state?.halted_reason || (mode === 'live' && (!data.hasWallet || !liveReady.length))))}>
                     {enabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                     {enabled ? 'Pause entries' : mode === 'paper' ? 'Start paper' : 'Start live'}
                   </Button>
@@ -264,7 +282,8 @@ export default function AutopilotPage() {
               </div>
               {mode === 'live' && !data.hasWallet && <p className="mt-3 text-sm text-muted-foreground"><Link className="text-primary underline" href="/settings">Connect a Hyperliquid wallet</Link> to trade on the exchange.</p>}
               {mode === 'paper' && !enabled && !changes && <p className="mt-3 text-sm text-muted-foreground">Review your strategy below, then choose Start paper to practice with simulated funds.</p>}
-              {mode === 'live' && enabled && !settings.autopilot_live_rules_confirmed && <p className="mt-3 text-sm text-warning">Pause and restart Live to apply the full strategy list.</p>}
+              {mode === 'live' && ready.length > 0 && !liveReady.length && <p className="mt-3 text-sm text-warning">None of the selected strategies has passed the backtest required for automatic Live entries. Select one marked Live eligible, or continue in Paper.</p>}
+              {mode === 'live' && liveReady.length > 0 && paperOnly.length > 0 && <p className="mt-3 text-sm text-muted-foreground">Live places automatic orders for {liveNames} only. {paperOnlyNames} {paperOnly.length === 1 ? 'has' : 'have'} not passed the backtest and will not open automatic Live trades.</p>}
               {changes && <p className="mt-3 text-sm text-warning">Save or discard your changes below before starting or switching modes.</p>}
 
               {state?.halted_reason && (
@@ -294,6 +313,7 @@ export default function AutopilotPage() {
                   <Button variant="outline" disabled={busy !== null || changes || !manualSymbol || !ready.length} onClick={findSignals}>{busy === 'signals' ? 'Checking…' : 'Find signals'}</Button>
                 </div>
               </div>
+              {mode === 'live' && paperOnly.length > 0 && <p className="text-xs text-muted-foreground">A manual Live trade can use any selected rule, including Paper-only ones. You review each order before it is sent.</p>}
               {signals?.length === 0 && <p role="status" className="text-sm text-muted-foreground">{manualSymbol === 'BASKET' ? 'No basket available. Check the open positions and position limit.' : `No current setup for ${manualSymbol}.`}</p>}
               {signals?.map(signal => (
                 <div key={signal.id} className="flex flex-wrap justify-between items-center gap-2 border-t pt-3">
@@ -315,12 +335,12 @@ export default function AutopilotPage() {
               <section className="xl:col-span-2 space-y-3" aria-label="Strategies">
                 <div className="flex items-baseline justify-between">
                   <h2 className="text-sm font-semibold">Strategies</h2>
-                  <p className="text-xs text-muted-foreground">Shared across Paper and Live</p>
+                  <p className="text-xs text-muted-foreground text-right">Paper trades every selected rule. Automatic Live entries use only rules marked Live eligible.</p>
                 </div>
                 {[...data.strategies].sort((a, b) => Number(supportedByEvidence(b)) - Number(supportedByEvidence(a))).map(s => {
                   const e = s.evidence.find(x => x.allowShort === allowShort);
                   const on = selected.includes(s.id);
-                  const ok = e?.liveEligible === true;
+                  const sides = liveSides(s, allowShort);
                   return (
                     <div key={s.id} className={cn('surface p-4 transition-colors', on && 'border-primary/40')}>
                       <div className="flex items-start gap-3">
@@ -328,7 +348,7 @@ export default function AutopilotPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="text-sm font-semibold">{s.name}</h3>
-                            <Badge variant={ok ? 'profit' : 'secondary'} className="text-[10px] py-0">{ok ? 'Passed backtest' : 'Experimental'}</Badge>
+                            <Badge variant={sides ? 'profit' : 'secondary'} className="text-[10px] py-0">{!sides ? 'Paper only' : allowShort ? `Live eligible · ${sides}` : 'Live eligible'}</Badge>
                             <span className="text-[11px] text-muted-foreground">{s.horizon}</span>
                           </div>
                           <details className="mt-2 text-xs text-muted-foreground">
@@ -481,12 +501,12 @@ export default function AutopilotPage() {
           <DialogHeader>
             <DialogTitle>Start {label} Autopilot?</DialogTitle>
             <DialogDescription>
-              {ready.map(s => s.name).join(', ')} can place orders automatically on Hyperliquid {data?.isTestnet ? 'testnet' : 'with real money'}. {ready.some(s => !s.evidence.some(e => e.allowShort === allowShort && e.liveEligible)) && 'Your selection includes experimental rules.'} The configured risk per trade is {settings?.autopilot_risk_per_trade_pct}%.
+              {liveNames} can place orders automatically on Hyperliquid {data?.isTestnet ? 'testnet' : 'with real money'}. {paperOnly.length > 0 && `${paperOnlyNames} ${paperOnly.length === 1 ? 'has' : 'have'} not passed the backtest and will not open automatic Live trades. `}Confirming does not add any other rule. The configured risk per trade is {settings?.autopilot_risk_per_trade_pct}%.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmLive(null)}>Cancel</Button>
-            <Button variant="destructive" disabled={!data?.hasWallet || busy !== null} onClick={() => { setConfirmLive(null); void put({ autopilot_enabled: true, confirmLiveAutopilot: true, isTestnet: data?.isTestnet }, 'Live Autopilot started'); }}>Confirm start</Button>
+            <Button variant="destructive" disabled={!data?.hasWallet || !liveReady.length || busy !== null} onClick={() => { setConfirmLive(null); void put({ autopilot_enabled: true, confirmLiveAutopilot: true, isTestnet: data?.isTestnet }, 'Live Autopilot started'); }}>Confirm start</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
