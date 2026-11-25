@@ -8,7 +8,7 @@ export function openPaperPnl(row: {side: string; size: number; entry_price: numb
 }
 
 /** Price the requested cash amount (or the exact closing quantity) against a fresh book. */
-export async function paperFill(hl: HyperliquidClient, symbol: string, side: 'buy' | 'sell',
+export async function paperFill(hl: Pick<HyperliquidClient,'getBookSnapshot'>, symbol: string, side: 'buy' | 'sell',
   amount: { usd: number } | { quantity: number }, maxSlippage: number, clock: () => number) {
   const book = await hl.getBookSnapshot(symbol);
   const now = clock();

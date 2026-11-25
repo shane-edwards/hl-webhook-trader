@@ -1,6 +1,6 @@
 import { STOCK_TRADE_SYMBOLS } from '@/lib/stocks/trade-rules';
 
-export const SEARCH_REVISION = 8;
+export const SEARCH_REVISION = 9;
 // Increment when changing any signal, fill, funding or exit semantics for frozen rules.
 export const RULE_INTERPRETER_VERSION = 1;
 export const SEARCH_REFRESH_MS = 7 * 86_400_000;

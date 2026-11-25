@@ -8,6 +8,9 @@ import { runFastPass } from '../lib/upkeep';
 import { strategyDirection } from '../lib/autopilot/signals';
 import type { HyperliquidClient } from '../lib/hyperliquid/client';
 import { runMomentumLive } from '../lib/autopilot/momentum-live';
+import { controlledCryptoConfig } from '../lib/automation/trading';
+import { SEARCH_ASSETS } from '../lib/strategy-search/model';
+import type { AutomationProfile } from '../lib/automation/model';
 
 const HOUR = 3_600_000;
 
@@ -151,6 +154,18 @@ test('independent paper fills every distinct rule on the same coin despite portf
   const crash = { t:now,o:last.c,h:last.c,l:last.c*.5,c:last.c*.6 };
   await runAutopilot(client([...bars.slice(1),crash]),db,'u1',{...config,manageOnly:true},now+HOUR);
   assert.ok(tables.autopilot_positions.every(p => p.status === 'closed' && Number(p.pnl)<0));
+});
+
+test('all-signal paper scans supported markets and rules with an empty research shortlist', () => {
+  const profile = {market:'crypto',mode:'paper',enabled:true,entries_paused:false} as AutomationProfile;
+  const policy = {decision:'paper' as const,allPaperSignals:true,profile,detail:'',candidate:null,results:null};
+  const scan = controlledCryptoConfig(cfg,policy,false)!;
+  assert.equal(scan.mode,'paper');
+  assert.equal(scan.allowShort,true);
+  for (const symbol of SEARCH_ASSETS.crypto) assert.ok(scan.paperTests?.some(t => t.symbol === symbol && t.rule === 'volume_breakout'));
+  assert.ok(scan.strategies.includes('xs_momentum_90'));
+  assert.equal(controlledCryptoConfig(cfg,{...policy, decision:'live'},false),null);
+  assert.equal(controlledCryptoConfig(cfg,{...policy,profile:{...profile,entries_paused:true}},false),null);
 });
 
 test('autopilot (paper): opens once per signal, sizes by risk, then stops out and books the loss', async t => {

@@ -42,6 +42,7 @@ export interface AutopilotConfig {
   liveRulesConfirmed?: boolean;
   automationVersion?: string;
   paperTests?: { symbol:string; rule:string; version:string }[];
+  allPaperSignals?: boolean;
   maxOrderUsd?: number;
   dollarLossBudget?: number;
   checkEntries?: () => Promise<boolean>;
@@ -114,27 +115,54 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
   const open = new Map<string, PositionRow>((openRows ?? []).filter(r => r.strategy_id !== MOMENTUM_ID).map(r => [r.id, { ...r, entry_price: +r.entry_price, size: +r.size, notional_usd: +r.notional_usd, stop_price: +r.stop_price, entry_bar_t: +r.entry_bar_t }]));
   const openSymbols = () => [...open.values()].map(row => row.symbol);
   const samples = mode === 'paper' && !cfg.manualEntry ? cfg.paperTests : undefined;
+  const quotes = new Map<string,Awaited<ReturnType<HyperliquidClient['getBookSnapshot']>>>();
+  const paperFeed = { getBookSnapshot: async (symbol:string) => {
+    const saved = quotes.get(symbol);
+    if (saved && clock() - saved.time < 5_000) return saved;
+    const book = await hl.getBookSnapshot(symbol);
+    quotes.set(symbol,book);
+    return book;
+  } };
+  const missingFunding = new Set<string>();
 
   const exchangePositions = mode === 'live' ? new Map((await hl.getPositions()).map(p => [p.symbol, p])) : null;
 
   // ---- per-market data ----
   const market = new Map<string, { bars: Bar[]; ind: ReturnType<typeof computeIndicators>; last: number }>();
-  for (const symbol of new Set([...cfg.symbols, ...openSymbols()])) {
+  async function loadMarket(symbol:string) {
     try {
       const bars = await hl.getHourlyCandles(symbol, BARS_NEEDED);
-      if (bars.length < WARMUP_BARS + 2) { log({ level: 'warn', symbol, message: `Only ${bars.length} hourly candles available; skipped` }); continue; }
-      if (now - bars[bars.length - 1].t > 3 * HOUR_MS) { log({ level: 'warn', symbol, message: 'Price data is stale; skipped' }); continue; }
+      if (bars.length < WARMUP_BARS + 2) { log({ level: 'warn', symbol, message: `Only ${bars.length} hourly candles available; skipped` }); return; }
+      if (now - bars[bars.length - 1].t > 3 * HOUR_MS) { log({ level: 'warn', symbol, message: 'Price data is stale; skipped' }); return; }
       market.set(symbol, { bars, ind: computeIndicators(bars), last: bars.length - 1 });
     } catch (err) {
       log({ level: 'error', symbol, message: `Could not load candles: ${err instanceof Error ? err.message : err}` });
     }
   }
+  const symbols = [...new Set([...cfg.symbols, ...openSymbols()])];
+  const batchSize = samples ? 4 : 1;
+  for (let i=0; i<symbols.length; i+=batchSize) await Promise.all(symbols.slice(i,i+batchSize).map(loadMarket));
 
   if (mode === 'paper') {
     const paperPositions = [...open.values(), ...(openRows ?? []).filter(p => p.strategy_id === MOMENTUM_ID)];
+    const earliest = new Map<string,number>();
+    const fundingBySymbol = new Map<string,Awaited<ReturnType<HyperliquidClient['getFundingRates']>>>();
+    for (const p of paperPositions) earliest.set(p.symbol, Math.min(earliest.get(p.symbol) ?? Infinity,
+      Number(p.last_funding_time ?? Date.parse(p.entry_time))));
     for (const p of paperPositions) {
       const since = p.last_funding_time ?? new Date(p.entry_time).getTime();
-      const rates = hl.getFundingRates ? await hl.getFundingRates(p.symbol, since + 1, now) : [];
+      if (missingFunding.has(p.symbol)) continue;
+      if (!fundingBySymbol.has(p.symbol)) {
+        try { fundingBySymbol.set(p.symbol,hl.getFundingRates ? await hl.getFundingRates(p.symbol, earliest.get(p.symbol)! + 1, now) : []); }
+        catch (error) {
+          if (!samples) throw error;
+          missingFunding.add(p.symbol);
+          log({level:'warn',symbol:p.symbol,message:'Waiting for funding data on this market.'});
+          continue;
+        }
+      }
+      const rates = fundingBySymbol.get(p.symbol)!.filter(r => r.time > since);
+      if (!rates.length) continue;
       const dir = p.side === 'long' ? 1 : -1;
       const bars = market.get(p.symbol)?.bars ?? (rates.length && hl.getHourlyCandles ? await hl.getHourlyCandles(p.symbol, Math.min(5000, Math.ceil((now - since) / HOUR_MS) + 2)) : []);
       const paid = rates.reduce((sum, r) => {
@@ -160,6 +188,7 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
 
   // ---- 1. manage what is already open ----
   for (const p of [...open.values()]) {
+    if (missingFunding.has(p.symbol)) continue;
     const m = market.get(p.symbol);
     const strategy = getStrategy(p.strategy_id);
     try {
@@ -205,7 +234,7 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
         const dir = p.side === 'long' ? 1 : -1;
         const hit = m?.bars.find(b => b.t >= Date.parse(p.entry_time) && (dir === 1 ? b.l <= p.stop_price : b.h >= p.stop_price));
         if (hit) { const gapPrice = dir === 1 ? Math.min(p.stop_price, hit.o) : Math.max(p.stop_price, hit.o); await settle(p, gapPrice, 'stop hit', 2 * PAPER_COST + 0.0005); continue; }
-        observedExit = await paperFill(hl, p.symbol, dir === 1 ? 'sell' : 'buy', { quantity: p.size }, cfg.slippagePercent, clock);
+        observedExit = await paperFill(paperFeed, p.symbol, dir === 1 ? 'sell' : 'buy', { quantity: p.size }, cfg.slippagePercent, clock);
         if (dir === 1 ? observedExit.price <= p.stop_price : observedExit.price >= p.stop_price) {
           await settle(p, observedExit.price, 'stop hit', 2 * PAPER_COST);
           continue;
@@ -256,15 +285,16 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
   const basketSelected = cfg.strategies.includes(MOMENTUM_ID);
   const manualBasket = cfg.manualEntry?.id === MOMENTUM_ID ? cfg.manualEntry.plan : undefined;
   let basketPositions = (openRows ?? []).filter(p => p.strategy_id === MOMENTUM_ID);
-  if ((!cfg.manualEntry || manualBasket) && (basketSelected || basketPositions.length)) {
+  if ((!cfg.manualEntry || manualBasket) && (basketSelected || basketPositions.length) && !basketPositions.some(p => missingFunding.has(p.symbol))) {
     try {
-      const canOpen = risk.canOpen && !recovering && !cfg.manageOnly && basketSelected && (!cfg.checkEntries || await cfg.checkEntries());
+      const independentBasket = mode === 'paper' && cfg.allPaperSignals === true;
+      const canOpen = (independentBasket || risk.canOpen) && !recovering && !cfg.manageOnly && basketSelected && (!cfg.checkEntries || await cfg.checkEntries());
       if (mode === 'paper') {
         const exposure = equity * (cfg.portfolio?.maxGrossExposureX ?? 3) - [...open.values()].reduce((sum, p) => sum + p.notional_usd, 0);
-        const m = await runMomentumPaper(hl, db, userId, paperEquity, now, {
-          canOpen, maxPositions: cfg.risk.maxPositions - open.size,
-          availableNotional: Math.min(exposure, equity * cfg.risk.riskPerTradePct / MOMENTUM_STOP_PCT),
-          occupied: new Set([...openSymbols(), ...(cfg.reservedSymbol ? [cfg.reservedSymbol] : [])]),
+        const m = await runMomentumPaper(hl, db, userId, independentBasket ? 10_000 : paperEquity, now, {
+          canOpen, maxPositions: independentBasket ? Infinity : cfg.risk.maxPositions - open.size,
+          availableNotional: independentBasket ? Infinity : Math.min(exposure, equity * cfg.risk.riskPerTradePct / MOMENTUM_STOP_PCT),
+          occupied: new Set(independentBasket ? [] : [...openSymbols(), ...(cfg.reservedSymbol ? [cfg.reservedSymbol] : [])]),
           manualPlan: manualBasket, slippagePercent: cfg.slippagePercent,
         });
         if (manualBasket && m.opened) manualOpened = true;
@@ -292,6 +322,7 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
     const pending = new Set(mode === 'live' && hl.getOpenOrders ? (await hl.getOpenOrders()).filter(o => !o.reduceOnly).map(o => o.coin) : []);
     for (const symbol of manual ? [manual.symbol] : cfg.symbols) {
       if (recovering) break;
+      if (missingFunding.has(symbol)) continue;
       if (pending.has(symbol)) continue;
       if (!samples && (openSymbols().includes(symbol) || basketSymbols.has(symbol))) continue;
       const m = market.get(symbol);
@@ -309,7 +340,9 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
         if (samples && [...open.values()].some(p => p.symbol === symbol && p.strategy_id === id && p.entry_bar_t === barT)) continue;
         if (cfg.checkEntries && !await cfg.checkEntries()) break;
 
-        const version = samples?.find(row => row.symbol === symbol && row.rule === id)?.version ?? cfg.automationVersion;
+        const testedVersion = samples?.find(row => row.symbol === symbol && row.rule === id)?.version ?? cfg.automationVersion;
+        // A short sample is independent of the long-only strategy version used for live review.
+        const version = samples && side === 'short' ? testedVersion + '.short' : testedVersion;
         const notional = samples ? 1_000 : capAutomationNotional(sizeNotional(equity, sig.stopPct, cfg.risk), sig.stopPct, cfg.dollarLossBudget, cfg.maxOrderUsd);
         if (!samples) {
           const gate = canOpenPosition(open.size + basketPositions.length, notional, cfg.risk);
@@ -328,7 +361,7 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
             if (cfg.checkEntries && !await cfg.checkEntries()) break;
           }
           // Reserve the signal bar first; the unique index makes a second scan of the same bar a no-op.
-          const paper = mode === 'paper' ? await paperFill(hl, symbol, side === 'long' ? 'buy' : 'sell', { usd: notional }, entrySlippage, clock) : null;
+          const paper = mode === 'paper' ? await paperFill(paperFeed, symbol, side === 'long' ? 'buy' : 'sell', { usd: notional }, entrySlippage, clock) : null;
           if (samples && cfg.checkEntries && !await cfg.checkEntries()) break;
           const price = paper?.price ?? m.bars[m.last].c;
           if (!Number.isFinite(price) || price <= 0) throw new Error('Current price unavailable');
