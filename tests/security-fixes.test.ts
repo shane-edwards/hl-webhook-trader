@@ -97,7 +97,7 @@ test('an unreadable stored key fails its own webhook job and leaves the queue ru
   assert.equal(updates.length, 1);
 });
 
-test('migration 023 leaves settings and trade records writable by the server only', async () => {
+test('migrations 023 and 025 leave settings and trade records writable by the server only', async () => {
   const pg = new PGlite({ extensions: { uuid_ossp } });
   try {
     await pg.exec(`
@@ -129,6 +129,13 @@ test('migration 023 leaves settings and trade records writable by the server onl
       for (const privilege of ['INSERT', 'UPDATE', 'DELETE']) assert.equal(await can(role, 'trades', privilege), false, `${role} ${privilege} trades`);
     }
     assert.equal(await can('authenticated', 'trades', 'SELECT'), true, 'a signed-in session can still read its own trades');
+
+    // Migration 025: a visitor who is not signed in loses the table privilege as well.
+    assert.equal(await can('anon', 'trades', 'SELECT'), true);
+    await pg.exec(readFileSync('supabase/migrations/025_revoke_anon_trades.sql', 'utf8'));
+    await pg.exec(readFileSync('supabase/migrations/025_revoke_anon_trades.sql', 'utf8'));
+    assert.equal(await can('anon', 'trades', 'SELECT'), false);
+    assert.equal(await can('authenticated', 'trades', 'SELECT'), true);
   } finally {
     await pg.close();
   }

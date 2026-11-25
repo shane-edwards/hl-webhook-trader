@@ -224,7 +224,7 @@ export default function SettingsPage() {
                   <div className="space-y-1.5">
                     <Label>Default Stop-Loss (%)</Label>
                     <Input type="number" min="0.05" max="50" step="0.1" placeholder="None" value={stopLoss} onChange={e => setStopLoss(e.target.value)} />
-                    <p className="text-xs text-muted-foreground">Placed on the exchange after every webhook entry</p>
+                    <p className="text-xs text-muted-foreground">Placed on the exchange after every webhook entry. With none here, an alert must send its own stop_loss_pct or its entry is refused</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label>Default Take-Profit (%)</Label>

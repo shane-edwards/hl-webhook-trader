@@ -65,9 +65,11 @@ export function stockPortfolioRisk(book: Book) {
   return { equity, gross, positions, group, overlappingExposure };
 }
 
-export function stockPortfolioEntry(settings: StockPortfolio, risk: NonNullable<ReturnType<typeof stockPortfolioRisk>>, instrumentId: number, exposure: number) {
-  if (risk.positions.has(instrumentId)) return 'Ticker already held';
-  if (risk.positions.size >= settings.maxPositions) return 'Position limit reached';
+// addToHeld is for manual buys, which may add to a held ticker. That leaves the instrument count unchanged, so only the exposure limits apply.
+export function stockPortfolioEntry(settings: StockPortfolio, risk: NonNullable<ReturnType<typeof stockPortfolioRisk>>, instrumentId: number, exposure: number, addToHeld = false) {
+  const held = risk.positions.has(instrumentId);
+  if (held && !addToHeld) return 'Ticker already held';
+  if (!held && risk.positions.size >= settings.maxPositions) return 'Position limit reached';
   if (risk.gross + exposure > settings.maxExposure) return 'Gross exposure limit';
   if (stockGroupExposure(risk.group, instrumentId) + exposure > settings.maxGroup) return 'Concentration limit';
   return null;

@@ -131,7 +131,7 @@ In your TradingView alert:
 
 For plain (non-strategy) alerts send `"action"` instead: `buy`/`long`, `sell`/`short`, `close`. Because TradingView uses "sell" for both "exit long" and "go short", an opposite-side `action` only **closes** the open position; it does not reverse.
 
-Optional fields: `leverage` (whole number) and `size_usd` override the defaults from Settings; `stop_loss_pct` and `take_profit_pct` (percent from entry, e.g. `1.5`) place a stop-loss and take-profit on the exchange right after the entry fills.
+Optional fields: `leverage` (whole number) and `size_usd` override the defaults from Settings; `stop_loss_pct` and `take_profit_pct` (percent from entry, e.g. `1.5`) place a stop-loss and take-profit on the exchange right after the entry fills. Every entry needs a stop: if an alert sends no `stop_loss_pct` and no default stop-loss is saved in Settings, the entry is refused (a reversal then only closes the existing position) and you get an alert saying so.
 
 Rules the webhook enforces:
 

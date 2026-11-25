@@ -111,6 +111,19 @@ export function planSignal(input: PlanInput): Plan {
   return { type: 'reverse', side: direction };
 }
 
+export const NO_STOP_REASON = 'No stop-loss: the alert sends no stop_loss_pct and no default stop-loss is saved in Settings';
+
+/**
+ * No webhook entry goes out without a stop. With none on the alert and none saved in Settings, an
+ * entry is refused, and a reversal only closes the position it would have replaced. `refused` is
+ * set when the plan was cut back, so the caller can tell the owner.
+ */
+export function requireEntryStop(plan: Plan, stopLossPct: number | null): { plan: Plan; refused: string | null } {
+  if (stopLossPct != null || plan.type === 'close' || plan.type === 'none') return { plan, refused: null };
+  if (plan.type === 'reverse') return { plan: { type: 'close' }, refused: `${NO_STOP_REASON}. The existing position was closed and no ${plan.side} was opened` };
+  return { plan: { type: 'none', reason: `${NO_STOP_REASON}. No ${plan.side} was opened` }, refused: `${NO_STOP_REASON}. No ${plan.side} was opened` };
+}
+
 /** Copy of the payload that is safe to store: the secret never goes into logs or trade rows. */
 export function redactPayload(body: unknown): Record<string, unknown> {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return {};
