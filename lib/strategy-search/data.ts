@@ -178,7 +178,7 @@ export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: st
     return archivePositioning(pair.symbol,now,(data?.tail ?? []) as unknown as PositionDay[]);
   }
   const [last, history, positioning] = await Promise.all([
-    db.from('automation_runs').select('books:report->data->search->forward,experiments:work->0->experiments,cutoff:work->0->discoveryThrough').eq('user_id', user)
+    db.from('automation_runs').select('books:report->data->search->forward,round:report->data->search->round,experiments:work->0->experiments,cutoff:work->0->discoveryThrough').eq('user_id', user)
       .eq('market', pair.market).eq('kind', 'focused').eq('idea_id', searchKey(pair)).eq('status', 'completed')
       .order('completed_at', { ascending: false }).limit(8),
     pair.market === 'stocks' ? stockHistory(db, user, pair, now) : binanceArchive(pair, now),
@@ -192,7 +192,7 @@ export async function runSearch(db: Db, user: string, pair: SearchPair, asOf: st
   const archive = last.data.flatMap(r => Number(r.cutoff) <= discoveryThrough && Array.isArray(r.experiments) ? r.experiments : []) as unknown as Experiment[];
   const experiments: Experiment[] = [];
   let report = searchHistory(pair, history, pair.market === 'stocks' ? 'eToro bid/ask cash-stock history' : 'Binance spot candles',
-    { previous: archive, record: experiments });
+    { previous: archive, record: experiments, round: Number(last.data[0]?.round ?? 0) + 1 });
   let forwardBars = history;
   if (pair.market === 'crypto' && (searchOutcomes(report).some(outcome => admitsForward(outcome.verdict)) || previous.some(b => b.state === 'tracking' || b.state === 'data-gap'))) {
     forwardBars = attachContext(await perpetualBars(pair, now), positioning.context);
