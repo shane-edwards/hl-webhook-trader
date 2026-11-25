@@ -7,6 +7,7 @@ import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { configFromSettings, runAutopilot } from '@/lib/autopilot/run';
 import { BARS_NEEDED, entrySignal } from '@/lib/autopilot/signals';
 import { marketDataClient } from '@/lib/hyperliquid/from-settings';
+import { readPages } from '@/lib/supabase/pages';
 import { computeIndicators, STRATEGIES, WARMUP_BARS } from '@/lib/autopilot/strategies';
 import evidence from '@/lib/autopilot/evidence.json';
 import scalpSearch from '@/lib/autopilot/scalp-evidence.json';
@@ -90,13 +91,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Could not load current signals.' }, { status: 502 });
     }
   }
-  const [state, positions, events] = await Promise.all([
+  const [state, open, recent, events] = await Promise.all([
     supabase.from('autopilot_state').select('*').eq('user_id', user.id).eq('mode', mode).maybeSingle(),
-    supabase.from('autopilot_positions').select('*').eq('user_id', user.id).eq('mode', mode).order('entry_time', { ascending: false }).limit(60),
+    readPages((from,to) => supabase.from('autopilot_positions').select('*').eq('user_id',user.id).eq('mode',mode).eq('status','open')
+      .order('entry_time',{ascending:false}).order('id').range(from,to)),
+    supabase.from('autopilot_positions').select('*').eq('user_id', user.id).eq('mode', mode).eq('status','closed').order('entry_time', { ascending: false }).limit(60),
     supabase.from('autopilot_events').select('*').eq('user_id', user.id).eq('mode', mode).order('created_at', { ascending: false }).limit(40),
   ]);
   // Current prices for the open positions, so the page can show where each one stands right now.
-  const openSymbols = new Set((positions.data ?? []).filter(p => p.status === 'open').map(p => p.symbol as string));
+  const openSymbols = new Set(open.map(p => p.symbol as string));
   const prices: Record<string, number> = {};
   if (openSymbols.size) {
     try {
@@ -114,7 +117,7 @@ export async function GET(request: Request) {
     hasWallet: !!settings.hl_private_key_encrypted || !!process.env.HL_PRIVATE_KEY,
     isTestnet: process.env.HL_TESTNET === 'true' || settings.is_testnet === true,
     state: state.data ?? null,
-    positions: positions.data ?? [],
+    positions: [...open, ...(recent.data ?? [])],
     events: events.data ?? [],
   });
 }

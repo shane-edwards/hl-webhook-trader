@@ -35,7 +35,7 @@ export function namedRow(idea: StrategyIdea, e: Evidence | undefined, asOf: stri
   const stage = live ? 'live' : ready ? 'ready' : tracking || brokerTracking ? 'paper' : 'activity';
   const useBroker = (ready || live || brokerTracking) && !!broker;
   const paper: PaperScore | undefined = useBroker ? { count: broker.closed, net: broker.net, drawdown: broker.drawdown, unit: 'usd',
-    source: idea.market === 'stocks' ? 'eToro Demo' : 'Crypto paper fills' } : hasTrial ? { count: trial.fills.length,
+    source: idea.market === 'stocks' ? 'eToro Demo' : 'Crypto paper fills' } : hasTrial ? { count: trial.count ?? trial.fills.length,
     net: trial.equity - 1, drawdown: trial.drawdown, unit: 'fraction', source: 'Forward simulation' } : undefined;
   let status = backtest;
   if (live) status = !profile?.enabled || profile.entries_paused ? 'Entries paused' : !ready ? 'Waiting for qualifying evidence' : 'Live entries enabled';
@@ -44,12 +44,12 @@ export function namedRow(idea: StrategyIdea, e: Evidence | undefined, asOf: stri
   else if (useBroker) status = broker.closed < 10 ? `${broker.closed} of 10 closed trades` :
     broker.days < 5 ? `${broker.days} of 5 trading days` : 'Waiting for paper results to qualify';
   else if (hasTrial) status = trial.state === 'data-gap' ? 'Waiting for market data' : trial.state === 'stopped' ? 'Stopped at drawdown limit' :
-    trial.state === 'completed' ? 'Paper trial complete' : `${trial.fills.length} of 30 closed trades`;
+    trial.state === 'completed' ? 'Paper trial complete' : `${trial.count ?? trial.fills.length} closed trades`;
   const liveStatus = live ? status : ready ? 'Ready for your approval' : !idea.executable ? 'Paper only' :
     !passed ? 'Requires a passed backtest' : idea.market === 'stocks' && !demo ? 'Requires eToro Demo fills' : 'Awaiting qualifying paper fills';
   return { id: idea.id, name: idea.name, frame: ideaSearchFrame(idea), market: idea.market, symbol: idea.symbol, version,
     backtest, stage, status, paper, live: liveStatus, backtestNet: e?.stress, backtestTrades: e?.holdoutTrades, through: e?.through,
-    admission: hasTrial && trial.admission === 'sample' ? 'Small-sample trial' : undefined };
+    admission: hasTrial && trial.admission === 'sample' ? 'Small-sample trial' : hasTrial && trial.admission === 'exploratory' ? 'Exploratory paper test' : undefined };
 }
 
 function ruleSettings(rule: NonNullable<SearchReport['rule']>) {
@@ -72,9 +72,9 @@ export function searchRows(report: SearchReport, enabled: boolean): StrategyRow[
       [{ net: o.stress.net, trades: o.stress.trades, through: report.through }] : [])[0];
     rows.set(id, { id, ...pair, name: `${book.rule.side === 'short' ? 'Short' : 'Long'} · ${ruleName(book.rule)}`, stage: active ? 'paper' : 'activity', rule: ruleSettings(book.rule),
       status: active && !enabled ? 'Research paused' : book.state === 'data-gap' ? 'Waiting for market data' :
-        active ? `${book.count} of 30 closed trades` : book.state === 'stopped' ? 'Stopped at drawdown limit' :
+        active ? `${book.count} closed trades` : book.state === 'stopped' ? 'Stopped at drawdown limit' :
         book.state === 'completed' ? 'Paper trial complete' : 'Archived',
-      backtest: small ? 'Promising · Small sample' : 'Passed at enrollment', through: test?.through, backtestNet: test?.net,
+      backtest: book.admission === 'exploratory' ? 'Exploratory paper test' : small ? 'Promising · Small sample' : 'Passed at enrollment', through: test?.through, backtestNet: test?.net,
       backtestTrades: test?.trades, live: 'Paper only', paper: { count: book.count, net: book.equity - 1,
         drawdown: book.drawdown, unit: 'fraction', source: 'Forward simulation' } });
   }

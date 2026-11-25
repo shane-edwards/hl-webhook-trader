@@ -3,11 +3,13 @@ import { brokerStockGross } from '@/lib/stocks/strategy-guard';
 import type { StockJournalOrder } from '@/lib/stocks/execution-journal';
 import { automationVersion, paperThreshold, type AutomationMarket, type AutomationProfile, type Evidence, type RunReport } from './model';
 import { findIdea, ideaId } from './ideas';
+import { trialAdmission } from './forward-trials';
 
 type Db = ReturnType<typeof createServiceClient>;
 const day = 86_400_000;
 export type PaperResults = ReturnType<typeof paperThreshold>;
 export type AutomationDecision = { profile: AutomationProfile | null; candidate: Evidence | null; results: PaperResults | null;
+  paperTests?: Evidence[];
   decision: 'legacy' | 'paused' | 'research' | 'paper' | 'live' | 'waiting'; detail: string };
 
 export async function readAutomationProfile(db: Db, userId: string, market: AutomationMarket) {
@@ -47,7 +49,7 @@ export async function exactCandidate(db: Db, userId: string, market: AutomationM
   return latest?.qualified ? latest : null;
 }
 
-export async function opportunityCandidates(db: Db, userId: string, market: AutomationMarket) {
+export async function opportunityCandidates(db: Db, userId: string, market: AutomationMarket, exploratory = false) {
   const fresh = new Date(Date.now() - 4 * day).toISOString();
   const [daily, focused] = await Promise.all([
     db.from('automation_runs').select('report, as_of').eq('user_id', userId).eq('market', market).eq('kind', 'daily').eq('status', 'completed')
@@ -62,7 +64,7 @@ export async function opportunityCandidates(db: Db, userId: string, market: Auto
     const idea = findIdea(ideaId(market, item.rule, item.symbol));
     if (idea?.executable && item.version === automationVersion(market, item.symbol, item.rule) && !latest.has(item.version)) latest.set(item.version, item);
   }
-  return [...latest.values()].filter(item => item.qualified).sort((a, b) => b.stress - a.stress);
+  return [...latest.values()].filter(item => exploratory ? trialAdmission(item) !== null : item.qualified).sort((a, b) => b.stress - a.stress);
 }
 
 export async function liveOpportunityCandidates(db: Db, userId: string, market: AutomationMarket, versions?: readonly string[]) {
@@ -111,7 +113,7 @@ export async function paperVersionsInUse(db: Db, userId: string, market: Automat
     if (!demo.data) return versions;
   }
   if (profile.scan_for_opportunities) {
-    for (const candidate of await opportunityCandidates(db, userId, market)) versions.add(candidate.version);
+    for (const candidate of await opportunityCandidates(db, userId, market, market === 'crypto')) versions.add(candidate.version);
   } else {
     const version = profile.paper_version ?? (await latestCandidates(db, userId, market))[0]?.version;
     if (version) versions.add(version);
@@ -136,7 +138,10 @@ export async function automationDecision(db: Db, userId: string, market: Automat
       if (!connection.data) return response('waiting', `Connect eToro ${mode === 'paper' ? 'Demo' : 'Real'} to start scanning.`);
     }
     const live = mode === 'live' ? await liveOpportunityCandidates(db, userId, market, profile.live_scan_versions ?? []) : [];
-    const candidates = mode === 'live' ? live.map(row => row.candidate) : await opportunityCandidates(db, userId, market);
+    const independent = mode === 'paper' && market === 'crypto';
+    const candidates = mode === 'live' ? live.map(row => row.candidate) : await opportunityCandidates(db, userId, market, independent);
+    if (independent && candidates.length)
+      return { ...response('paper', 'Forward testing every eligible signal.', candidates[0]), paperTests: candidates };
     if (!candidates.length) return response('waiting', 'Waiting for a strategy to pass its backtest.');
     const candidate = pickSignal ? await pickSignal(candidates, mode) : candidates[0];
     return candidate ? response(mode, mode === 'live' ? 'Scanning approved Live strategies.' : 'Scanning qualified strategies in Paper.', candidate,

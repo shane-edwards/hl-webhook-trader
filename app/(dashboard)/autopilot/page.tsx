@@ -307,7 +307,7 @@ export default function AutopilotPage() {
               <Stat label={mode === 'paper' ? 'Paper balance' : 'Day-start equity'} value={mode === 'paper' ? formatCurrency(Number(state?.paper_equity ?? 10000)) : state?.day_start_equity ? formatCurrency(Number(state.day_start_equity)) : '—'} hint={mode === 'paper' ? 'Started at $10,000' : 'Live account'} />
               <Stat label="Closed trades" value={String(closed.length)} hint={closed.length ? `${wins} won · ${closed.length - wins} lost` : 'None yet'} />
               <Stat label="Realised P&L" value={formatCurrency(closedPnl)} hint="After fees, this mode" tone={closedPnl > 0 ? 'up' : closedPnl < 0 ? 'down' : 'neutral'} />
-              <Stat label="Open positions" value={`${open.length} / ${settings.autopilot_max_positions ?? 3}`} />
+              <Stat label="Open positions" value={String(open.length)} />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6 items-start">

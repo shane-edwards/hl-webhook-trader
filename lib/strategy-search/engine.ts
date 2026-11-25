@@ -142,17 +142,12 @@ function replay(input: Inputs, rule: Rule, from: number, end: number, edge: numb
         break;
       }
       const fill: ForwardFill = { entry: opening.t, exit: bars[exitIndex].t, price: entry, exitPrice: exitPrice * (1-direction*edge), net: ret };
-      book.recent = [...book.recent, fill].slice(-30);
+      book.recent.push(fill);
       book.count++;
       book.lastExit = fill.exit;
       book.equity *= 1 + ret;
       book.peak = Math.max(book.peak, book.equity);
       book.drawdown = Math.max(book.drawdown, 1 - book.equity / book.peak);
-      if (book.drawdown > .16 || book.count >= 30) {
-        book.state = book.drawdown > .16 ? 'stopped' : 'completed';
-        book.cursor = fill.exit;
-        break;
-      }
     }
     const group = Math.floor(bars[exitIndex].t / cluster);
     groups.set(group, (groups.get(group) ?? 0) + ret);
@@ -198,7 +193,8 @@ const clusterDays = (pair: SearchPair) => isIntradayStock(pair) ? 3 * DAY : 7 * 
 const edge = (pair: SearchPair, side?: SearchSide) => pair.market === 'crypto' ? .0008 : side === 'short' ? .0019 : .0004;
 
 function withOutcomes(report: SearchReport, outcomes: SearchOutcome[]) {
-  const first = outcomes.find(item => item.verdict === 'paper-candidate') ?? outcomes.find(item => item.verdict === 'small-sample') ?? outcomes[0];
+  const first = outcomes.find(item => item.verdict === 'paper-candidate') ?? outcomes.find(item => item.verdict === 'small-sample') ??
+    outcomes.find(item => item.verdict === 'exploratory') ?? outcomes[0];
   return first ? { ...report, ...first, alternatives: outcomes.filter(item => item !== first) } : report;
 }
 
@@ -251,7 +247,7 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
     const cost = edge(pair, side);
     const stockShort = stock && side === 'short';
     const input = searchInputs(bars, cut, side);
-    const winners = new Map<'catalog'|'generated', { winner: Rule; rank: number; familiar: boolean }>();
+    const winners = new Map<'catalog'|'generated', { winner: Rule; rank: number; familiar: boolean; valid: boolean }>();
     const familiarKeys = new Set<string>();
     const epoch = Math.floor(bars.at(-1)!.t / (7 * DAY)) + (memory?.round ?? 0) * 29;
     const discoveryMid = Math.floor((WARMUP + cut) / 2);
@@ -284,17 +280,20 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
       const validation = replay(input, rule, cut + (rule.family === 'sequence' ? rule.maxBars : 0), final, cost * 2, cluster, stockShort);
       const valid = [train, validation].every(period => period.trades >= 20 && period.groups >= 7 && period.net > 0 &&
         period.drawdown <= .20 && (period.score ?? 0) >= 1.25);
-      if (!valid) continue;
-      report.validationPassed++;
-      if (rule.family === 'sequence') report.generation.validated++;
+      if (!valid && ![train, validation].every(p => p.trades >= 4 && p.groups >= 2 && p.net > 0 && p.score != null)) continue;
+      if (valid) {
+        report.validationPassed++;
+        if (rule.family === 'sequence') report.generation.validated++;
+      }
       const rank = Math.min(train.score!, validation.score!);
       const group = rule.family === 'sequence' ? 'generated' : 'catalog';
       const familiar = group === 'generated' && familiarKeys.has(ruleKey(rule));
       const best = winners.get(group);
-      if (!best || (best.familiar && !familiar) || (best.familiar === familiar && rank > best.rank))
-        winners.set(group, { winner: rule, rank, familiar });
+      if (!best || (valid && !best.valid) || (valid === best.valid &&
+          ((best.familiar && !familiar) || (best.familiar === familiar && rank > best.rank))))
+        winners.set(group, { winner: rule, rank, familiar, valid });
     }
-    for (const { winner, rank } of winners.values()) {
+    for (const { winner, rank, valid } of winners.values()) {
       const start = final + (winner.recipe ? winner.maxBars : 0);
       const holdout = replay(input, winner, start, bars.length, cost, cluster, stockShort);
       const groups: number[] = [];
@@ -302,12 +301,15 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
       const robustness = winner.recipe ? { delayed: replay(input, winner, start, bars.length, cost * 2, cluster, stockShort, undefined, 1),
         lowerGroupReturn: blockLowerBound(groups) } : undefined;
       const benchmark = (side === 'short' ? -1 : 1) * (Math.exp(Math.log(bars.at(-1)!.c / bars[start].o) * stress.exposure) - 1);
-      const sound = (!winner.recipe?.context || covered(bars.slice(start), winner.recipe.context)) &&
+      const hasContext = !winner.recipe?.context || covered(bars.slice(start), winner.recipe.context);
+      const sound = valid && hasContext &&
         holdout.net > 0 && stress.net > Math.max(0, benchmark) &&
         stress.drawdown <= .16 && (stress.score ?? 0) >= 3.3 &&
         (!robustness || (robustness.lowerGroupReturn > 0 && robustness.delayed.net > 0 && robustness.delayed.drawdown <= .16));
       const enough = stress.trades >= 25 && stress.groups >= 9;
-      const verdict = sound && enough ? 'paper-candidate' : sound && stress.trades >= 4 && stress.groups >= 2 ? 'small-sample' : 'holdout-failed';
+      const exploratory = hasContext && holdout.net > 0 && stress.net > 0 && stress.trades >= 2 && stress.groups >= 2;
+      const verdict = sound && enough ? 'paper-candidate' : sound && stress.trades >= 4 && stress.groups >= 2 ? 'small-sample' :
+        exploratory ? 'exploratory' : 'holdout-failed';
       finalists.push({ rank, outcome: { verdict, rule: winner,
         holdout, stress, venue: null, benchmark, note: report.note, robustness } });
     }
@@ -316,7 +318,7 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
   return withOutcomes({ ...report, verdict: 'no-candidate', testedOnLaterData: finalists.length }, outcomes);
 }
 
-export const admitsForward = (verdict: SearchOutcome['verdict']) => verdict === 'paper-candidate' || verdict === 'small-sample';
+export const admitsForward = (verdict: SearchOutcome['verdict']) => verdict === 'paper-candidate' || verdict === 'small-sample' || verdict === 'exploratory';
 
 export function checkPerpVenue(report: SearchReport, bars: SearchBar[]): SearchReport {
   if (report.pair.market !== 'crypto' || !searchOutcomes(report).some(o => admitsForward(o.verdict))) return report;
@@ -329,7 +331,7 @@ export function checkPerpVenue(report: SearchReport, bars: SearchBar[]): SearchR
     if (factor && bars.filter(b => Number.isFinite(b[factor])).length < .95 * bars.length)
       return { ...outcome, verdict: 'venue-failed', note: 'Incomplete historical signal data on the venue test' };
     const venue = replay(searchInputs(bars, bars.length, rule.side), rule, WARMUP, bars.length, edge(report.pair, rule.side) * 2, clusterDays(report.pair));
-    const passed = venue.trades >= 12 && venue.groups >= 3 && venue.net > 0 && venue.drawdown <= .16;
+    const passed = outcome.verdict === 'exploratory' || (venue.trades >= 12 && venue.groups >= 3 && venue.net > 0 && venue.drawdown <= .16);
     return { ...outcome, verdict: passed ? outcome.verdict : 'venue-failed', venue };
   }));
 }
@@ -364,15 +366,17 @@ export function advanceForward(report: SearchReport, previous: ForwardBook[], ba
     book.state = 'tracking';
     book.cursor = bars[bars.length - 2].t;
     delete book.pending;
+    // Keep a tail for display plus every fill from this checkpoint for the trade ledger.
+    book.recent = book.recent.slice(-12);
     replay(input, book.rule, next, bars.length, 2 * edge(pair, side), clusterDays(pair), pair.market === 'stocks' && side === 'short', book);
     return book;
   });
   for (const outcome of searchOutcomes(report)) {
     const rule = outcome.rule;
     if (!rule || !admitsForward(outcome.verdict) || !outcome.stress || !(outcome.stress.net > 0) ||
-        (pair.market === 'crypto' && !(outcome.venue && outcome.venue.net > 0)) ||
+        (pair.market === 'crypto' && !(outcome.venue && (outcome.verdict === 'exploratory' || outcome.venue.net > 0))) ||
         books.some(b => b.version === RULE_INTERPRETER_VERSION && ruleKey(b.rule) === ruleKey(rule))) continue;
-    books.push({ admission: outcome.verdict === 'small-sample' ? 'sample' : 'passed',
+    books.push({ admission: outcome.verdict === 'exploratory' ? 'exploratory' : outcome.verdict === 'small-sample' ? 'sample' : 'passed',
       backtest: { net: outcome.stress.net, trades: outcome.stress.trades, through: report.through }, version: RULE_INTERPRETER_VERSION, rule, started: enrolledAt, cursor: enrolledAt, lastExit: 0, count: 0,
       equity: 1, peak: 1, drawdown: 0, recent: [], state: 'tracking' });
   }
