@@ -13,11 +13,11 @@ const now = Date.UTC(2026,0,3);
 const asOf = new Date(now).toISOString();
 const profile = { market:'stocks', enabled:true, entries_paused:false, mode:'research' } as AutomationProfile;
 
-test('positive higher-cost holdouts can enter exploratory paper without full approval', () => {
+test('evaluated rules enter exploratory paper even with losing or empty holdouts', () => {
   assert.equal(trialAdmission(e),'sample');
-  for (const patch of [{early:0},{benchmark:.02},{drawdown:.13}])
+  for (const patch of [{early:0},{benchmark:.02},{drawdown:.13},{stress:-.01},{holdoutTrades:0}])
     assert.equal(trialAdmission({...e,...patch}),'exploratory');
-  for (const patch of [{stress:-.01},{holdoutTrades:0},{reason:'Incomplete data'}])
+  for (const patch of [{stress:NaN},{reason:'Incomplete data'}])
     assert.equal(trialAdmission({...e,...patch}),null);
 });
 

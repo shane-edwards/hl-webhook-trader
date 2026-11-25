@@ -280,12 +280,12 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
       const validation = replay(input, rule, cut + (rule.family === 'sequence' ? rule.maxBars : 0), final, cost * 2, cluster, stockShort);
       const valid = [train, validation].every(period => period.trades >= 20 && period.groups >= 7 && period.net > 0 &&
         period.drawdown <= .20 && (period.score ?? 0) >= 1.25);
-      if (!valid && ![train, validation].every(p => p.trades >= 4 && p.groups >= 2 && p.net > 0 && p.score != null)) continue;
+      if (train.trades + validation.trades === 0) continue;
       if (valid) {
         report.validationPassed++;
         if (rule.family === 'sequence') report.generation.validated++;
       }
-      const rank = Math.min(train.score!, validation.score!);
+      const rank = Math.min(train.score ?? -1e6, validation.score ?? -1e6);
       const group = rule.family === 'sequence' ? 'generated' : 'catalog';
       const familiar = group === 'generated' && familiarKeys.has(ruleKey(rule));
       const best = winners.get(group);
@@ -307,7 +307,7 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
         stress.drawdown <= .16 && (stress.score ?? 0) >= 3.3 &&
         (!robustness || (robustness.lowerGroupReturn > 0 && robustness.delayed.net > 0 && robustness.delayed.drawdown <= .16));
       const enough = stress.trades >= 25 && stress.groups >= 9;
-      const exploratory = hasContext && holdout.net > 0 && stress.net > 0 && stress.trades >= 2 && stress.groups >= 2;
+      const exploratory = hasContext;
       const verdict = sound && enough ? 'paper-candidate' : sound && stress.trades >= 4 && stress.groups >= 2 ? 'small-sample' :
         exploratory ? 'exploratory' : 'holdout-failed';
       finalists.push({ rank, outcome: { verdict, rule: winner,
@@ -331,8 +331,8 @@ export function checkPerpVenue(report: SearchReport, bars: SearchBar[]): SearchR
     if (factor && bars.filter(b => Number.isFinite(b[factor])).length < .95 * bars.length)
       return { ...outcome, verdict: 'venue-failed', note: 'Incomplete historical signal data on the venue test' };
     const venue = replay(searchInputs(bars, bars.length, rule.side), rule, WARMUP, bars.length, edge(report.pair, rule.side) * 2, clusterDays(report.pair));
-    const passed = outcome.verdict === 'exploratory' || (venue.trades >= 12 && venue.groups >= 3 && venue.net > 0 && venue.drawdown <= .16);
-    return { ...outcome, verdict: passed ? outcome.verdict : 'venue-failed', venue };
+    const passed = venue.trades >= 12 && venue.groups >= 3 && venue.net > 0 && venue.drawdown <= .16;
+    return { ...outcome, verdict: passed ? outcome.verdict : 'exploratory', venue };
   }));
 }
 
@@ -373,7 +373,7 @@ export function advanceForward(report: SearchReport, previous: ForwardBook[], ba
   });
   for (const outcome of searchOutcomes(report)) {
     const rule = outcome.rule;
-    if (!rule || !admitsForward(outcome.verdict) || !outcome.stress || !(outcome.stress.net > 0) ||
+    if (!rule || !admitsForward(outcome.verdict) || !outcome.stress || (outcome.verdict !== 'exploratory' && !(outcome.stress.net > 0)) ||
         (pair.market === 'crypto' && !(outcome.venue && (outcome.verdict === 'exploratory' || outcome.venue.net > 0))) ||
         books.some(b => b.version === RULE_INTERPRETER_VERSION && ruleKey(b.rule) === ruleKey(rule))) continue;
     books.push({ admission: outcome.verdict === 'exploratory' ? 'exploratory' : outcome.verdict === 'small-sample' ? 'sample' : 'passed',

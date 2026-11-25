@@ -6,9 +6,11 @@ import { currentStockEntry, stockEntryWindow } from '@/lib/stocks/trade-signals'
 import { etoroFromConnection } from '@/lib/stocks/connection';
 import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { BARS_NEEDED, entrySignal } from '@/lib/autopilot/signals';
-import { computeIndicators, WARMUP_BARS } from '@/lib/autopilot/strategies';
+import { computeIndicators, WARMUP_BARS, STRATEGIES } from '@/lib/autopilot/strategies';
+import { MOMENTUM_ID } from '@/lib/autopilot/momentum';
+import { SEARCH_ASSETS } from '@/lib/strategy-search/model';
 import { automationDecision, type AutomationDecision } from './policy';
-import type { Evidence } from './model';
+import { automationVersion, type Evidence } from './model';
 
 type Db = ReturnType<typeof createServiceClient>;
 
@@ -45,9 +47,15 @@ export async function cryptoOpportunity(db: Db, userId: string, candidates: Evid
 
 export function controlledCryptoConfig(base: AutopilotConfig, policy: AutomationDecision, testnet: boolean) {
   const { candidate, profile } = policy;
+  if (policy.decision === 'paper' && policy.allPaperSignals && profile?.mode === 'paper' && profile.enabled && !profile.entries_paused) {
+    const symbols = [...new Set([...SEARCH_ASSETS.crypto,...base.symbols])];
+    const paperTests = symbols.flatMap(symbol => STRATEGIES.map(({id:rule}) => ({symbol,rule,version:automationVersion('crypto',symbol,rule)})));
+    return { ...base, mode:'paper' as const, symbols, strategies:[...STRATEGIES.map(s => s.id),MOMENTUM_ID],
+      allowShort:true, maxOrderUsd:1_000, paperTests, allPaperSignals:true };
+  }
   if (!candidate || !profile || (policy.decision !== 'paper' && policy.decision !== 'live') || (testnet && policy.decision === 'live')) return null;
   if (policy.decision === 'paper') {
-    const paperTests = policy.paperTests ?? [candidate];
+    const paperTests = [candidate];
     return { ...base, mode: 'paper' as const, symbols: [...new Set(paperTests.map(row => row.symbol))],
       strategies: [...new Set(paperTests.map(row => row.rule))], allowShort:false, maxOrderUsd:1_000, paperTests };
   }

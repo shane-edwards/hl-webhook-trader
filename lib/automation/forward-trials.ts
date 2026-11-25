@@ -11,7 +11,7 @@ export function trialAdmission(e: Evidence) {
   if (e.reason === 'Too few closed trades' && e.holdoutTrades > 0 && e.trades > e.holdoutTrades &&
       e.early > 0 && e.later > 0 && e.stress > Math.max(0, e.benchmark) && e.drawdown <= .12) return 'sample' as const;
   const evaluated = ['Too few closed trades','Returns were uneven across periods','Higher-cost results fell short of the benchmark','Drawdown exceeded the research limit'].includes(e.reason);
-  if (evaluated && e.trades > e.holdoutTrades && e.holdoutTrades >= 2 && e.later > 0 && e.stress > 0) return 'exploratory' as const;
+  if (evaluated && [e.early,e.later,e.stress,e.trades,e.holdoutTrades].every(Number.isFinite)) return 'exploratory' as const;
   return null;
 }
 
