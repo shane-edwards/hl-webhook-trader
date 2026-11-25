@@ -47,7 +47,7 @@ export async function exactCandidate(db: Db, userId: string, market: AutomationM
   return latest?.qualified ? latest : null;
 }
 
-async function opportunityCandidates(db: Db, userId: string, market: AutomationMarket) {
+export async function opportunityCandidates(db: Db, userId: string, market: AutomationMarket) {
   const fresh = new Date(Date.now() - 4 * day).toISOString();
   const [daily, focused] = await Promise.all([
     db.from('automation_runs').select('report, as_of').eq('user_id', userId).eq('market', market).eq('kind', 'daily').eq('status', 'completed')

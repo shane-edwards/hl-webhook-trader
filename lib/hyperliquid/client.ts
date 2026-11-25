@@ -316,7 +316,7 @@ export class HyperliquidClient {
   }
 
   /** Completed candles between two times, oldest first. The exchange returns at most 5,000 per call. */
-  async getCandles(coin: string, interval: '5m' | '15m' | '1h' | '4h' | '1d', startTime: number, endTime = Date.now()): Promise<Array<{ t: number; o: number; h: number; l: number; c: number; v: number }>> {
+  async getCandles(coin: string, interval: '1m' | '5m' | '15m' | '1h' | '4h' | '1d', startTime: number, endTime = Date.now()): Promise<Array<{ t: number; o: number; h: number; l: number; c: number; v: number }>> {
     const now = Date.now();
     const raw = await this.infoRequest<Array<{ t: number; T: number; o: string; h: string; l: string; c: string; v?: string }>>({
       type: 'candleSnapshot',

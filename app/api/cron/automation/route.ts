@@ -8,6 +8,7 @@ import { stockMarketClock } from '@/lib/stocks/session';
 import { notify } from '@/lib/notify';
 import { updateCryptoShadow } from '@/lib/automation/crypto-shadow';
 import { watchFundingHedges } from '@/lib/hedge-research/watch';
+import { scanPaperPortfolios } from '@/lib/automation/crypto-paper-worker';
 import { watchDiffusion } from '@/lib/automation/diffusion-shadow';
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     const now = Date.now();
     const [scheduled] = await Promise.all([queueScheduledResearch(db, now), checkShadow(db, now)]);
     const minute = new Date(now).getUTCMinutes();
-    const [result, hedge, searches, diffusion] = await Promise.all([
+    const [result, hedge, searches, diffusion, portfolios] = await Promise.all([
       minute >= 10 && minute <= 12 ? updateCryptoShadow(db, now).then(() => 'shadow recorded') : processResearchStep(db),
       minute % 5 === 4 ? watchFundingHedges(db, now) : null,
       minute % 5 === 3 ? queueMarketSearches(db, now).catch(error => {
@@ -47,13 +48,14 @@ export async function GET(request: Request) {
         console.error('[automation] retail-flow research', error);
         return null;
       }) : undefined,
+      minute % 5 === 2 ? scanPaperPortfolios(db, now).catch(() => null) : undefined,
     ]);
     const watch = hedge?.failures ? ' · funding hedge needs attention' : hedge?.captured ? ` · ${hedge.captured} hedge observations` : '';
     const research = searches === null ? ' · strategy search needs attention' : searches ? ` · ${searches} strategy tests queued` : '';
     const flows = diffusion === null ? ' · retail flow needs attention' :
       diffusion?.scanned ? ` · retail flow checked · ${diffusion.signals} signals · ${diffusion.settled} closed` : '';
-    await heartbeat(db, 'automation', searches !== null, `${scheduled} queued · ${result}${research}${watch}${flows}`);
-    return NextResponse.json({ scheduled, result, hedge, searches, diffusion });
+    await heartbeat(db, 'automation', searches !== null && portfolios !== null, `${scheduled} queued · ${result}${research}${watch}${flows}${portfolios === null ? ' · paper comparison delayed' : ''}`);
+    return NextResponse.json({ scheduled, result, hedge, searches, diffusion, portfolios });
   } catch {
     await heartbeat(db, 'automation', false, 'The research worker could not finish.');
     return NextResponse.json({ error: 'The research worker could not finish.' }, { status: 503 });
