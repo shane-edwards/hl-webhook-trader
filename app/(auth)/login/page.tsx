@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { APP_NAME } from '@/lib/brand';
 import { useRouter } from 'next/navigation';
@@ -14,8 +14,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [denied, setDenied] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  // The proxy sends a signed-in account that is not on the allowed list back here.
+  useEffect(() => {
+    setDenied(new URLSearchParams(window.location.search).get('error') === 'not_allowed');
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +64,12 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl">
           <h2 className="text-lg font-semibold mb-6 text-foreground">Sign in to your account</h2>
+
+          {denied && (
+            <p role="alert" className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-foreground">
+              This account is not permitted to use this app.
+            </p>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>

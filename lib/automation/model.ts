@@ -62,9 +62,14 @@ export function researchWindow(now: number, market: AutomationMarket) {
   return { from: isoDay(Date.parse(to) - 112 * dayMs), to };
 }
 
+/** What a version's own Paper record must show before Live review. The most recent `trades` closes are judged. */
+export const PAPER_REQUIREMENT = { trades: 30, dates: 10, maxDrawdownUsd: 100, tStat: 2 } as const;
+export const PAPER_REQUIREMENT_TEXT = `at least ${PAPER_REQUIREMENT.trades} closed Paper trades on ${PAPER_REQUIREMENT.dates} or more dates, ` +
+  `a net profit, no drawdown above $${PAPER_REQUIREMENT.maxDrawdownUsd} and a t-statistic of ${PAPER_REQUIREMENT.tStat} or more`;
+
 export function paperThreshold(closes: { at: string; pnl: number }[]) {
   const recent = closes.filter(item => Number.isFinite(item.pnl) && Number.isFinite(Date.parse(item.at)))
-    .sort((a, b) => a.at.localeCompare(b.at)).slice(-30);
+    .sort((a, b) => a.at.localeCompare(b.at)).slice(-PAPER_REQUIREMENT.trades);
   let net = 0, peak = 0, drawdown = 0;
   for (const trade of recent) {
     net += trade.pnl;
@@ -72,5 +77,11 @@ export function paperThreshold(closes: { at: string; pnl: number }[]) {
     drawdown = Math.max(drawdown, peak - net);
   }
   const days = new Set(recent.map(item => item.at.slice(0, 10))).size;
-  return { closed: recent.length, days, net, drawdown, passed: recent.length >= 10 && days >= 5 && net > 0 && drawdown <= 100 };
+  // One-sided t-statistic of the mean trade: is the average profit distinguishable from zero?
+  const n = recent.length, mean = n ? net / n : 0;
+  const deviation = n > 1 ? Math.sqrt(recent.reduce((sum, trade) => sum + (trade.pnl - mean) ** 2, 0) / (n - 1)) : 0;
+  // Identical results carry no information about variability, so they never produce a statistic.
+  const tStat = deviation > Math.abs(mean) * 1e-9 ? mean / (deviation / Math.sqrt(n)) : null;
+  return { closed: n, days, net, drawdown, tStat, passed: n >= PAPER_REQUIREMENT.trades && days >= PAPER_REQUIREMENT.dates && net > 0 &&
+    drawdown <= PAPER_REQUIREMENT.maxDrawdownUsd && tStat != null && tStat >= PAPER_REQUIREMENT.tStat };
 }

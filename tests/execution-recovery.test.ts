@@ -98,16 +98,17 @@ test('an unacknowledged eToro close that fills between scans preserves its broke
 });
 
 test('legacy paper fills stay in history and only quote-backed fills qualify a version for Live', async () => {
-  const rows = Array.from({ length: 11 }, (_, i) => ({
-    user_id: 'u', mode: 'paper', status: 'closed', automation_version: 'v', pnl: 2,
+  // Enough closes, dates and consistency to meet the paper requirement once every fill is quote-backed.
+  const rows = Array.from({ length: 30 }, (_, i) => ({
+    user_id: 'u', mode: 'paper', status: 'closed', automation_version: 'v', pnl: 2 + i % 2,
     exit_time: new Date(start - i * 86_400_000).toISOString(), paper_book_fill: i === 0,
   }));
   const { db, tables } = memoryDb({ autopilot_positions: rows });
-  const candidate = { market: 'crypto', version: 'v' } as Parameters<typeof readPaperResults>[2];
+  const candidate = { market: 'crypto', version: 'v', rule: 'trend_breakout' } as Parameters<typeof readPaperResults>[2];
   const results = await readPaperResults(db, 'u', candidate);
   assert.equal(results.closed, 1);
   assert.equal(results.passed, false);
-  assert.equal(tables.autopilot_positions.length, 11);
+  assert.equal(tables.autopilot_positions.length, 30);
   rows.forEach(row => { row.paper_book_fill = true; });
   assert.equal((await readPaperResults(db, 'u', candidate)).passed, true);
 });

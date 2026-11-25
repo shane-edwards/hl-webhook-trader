@@ -1,12 +1,20 @@
 import type { createServiceClient } from '@/lib/supabase/server';
 import { brokerStockGross } from '@/lib/stocks/strategy-guard';
 import type { StockJournalOrder } from '@/lib/stocks/execution-journal';
-import { automationVersion, paperThreshold, type AutomationMarket, type AutomationProfile, type Evidence, type RunReport } from './model';
+import { isLiveEligible } from '@/lib/autopilot/signals';
+import { automationVersion, PAPER_REQUIREMENT, paperThreshold, type AutomationMarket, type AutomationProfile, type Evidence, type RunReport } from './model';
 import { findIdea, ideaId, IDEA_RULES } from './ideas';
 
 type Db = ReturnType<typeof createServiceClient>;
 const day = 86_400_000;
-export type PaperResults = ReturnType<typeof paperThreshold>;
+/** `blocked` is set when something other than the Paper record keeps the version out of Live. `passed` is then false. */
+export type PaperResults = ReturnType<typeof paperThreshold> & { blocked?: string };
+export const LIVE_EVIDENCE_REASON = 'This rule has not passed the long-history backtest required for Live, so it stays in Paper.';
+
+/** Automation Center trades crypto long-only, so Live also needs the rule's long-only record in the long-history evidence file. */
+export function liveEvidenceBlock(candidate: Pick<Evidence, 'market' | 'rule'>) {
+  return candidate.market === 'crypto' && !isLiveEligible(candidate.rule, false) ? LIVE_EVIDENCE_REASON : null;
+}
 export type AutomationDecision = { profile: AutomationProfile | null; candidate: Evidence | null; results: PaperResults | null;
   allPaperSignals?: boolean;
   decision: 'legacy' | 'paused' | 'research' | 'paper' | 'live' | 'waiting'; detail: string };
@@ -72,13 +80,15 @@ export async function liveOpportunityCandidates(db: Db, userId: string, market: 
   return verified.filter(row => row.results.passed);
 }
 
-export async function readPaperResults(db: Db, userId: string, candidate: Evidence) {
+export async function readPaperResults(db: Db, userId: string, candidate: Evidence): Promise<PaperResults> {
   if (candidate.market === 'crypto') {
     const result = await db.from('autopilot_positions').select('pnl, exit_time').eq('user_id', userId).eq('mode', 'paper')
       .eq('automation_version', candidate.version).eq('paper_book_fill', true).eq('status', 'closed').not('pnl', 'is', null).not('exit_time', 'is', null)
-      .order('exit_time', { ascending: false }).limit(30);
+      .order('exit_time', { ascending: false }).limit(PAPER_REQUIREMENT.trades);
     if (result.error) throw new Error('Could not read the versioned crypto Paper book.');
-    return paperThreshold(result.data.map(row => ({ at: row.exit_time, pnl: Number(row.pnl) })));
+    const results = paperThreshold(result.data.map(row => ({ at: row.exit_time, pnl: Number(row.pnl) })));
+    const blocked = liveEvidenceBlock(candidate);
+    return blocked ? { ...results, passed: false, blocked } : results;
   }
   const result = await db.from('etoro_stock_orders').select('closed_at, fill_metrics, close_execution, statement_result, estimated_costs')
     .eq('user_id', userId).eq('environment', 'demo').eq('automation_version', candidate.version)
@@ -143,7 +153,9 @@ export async function automationDecision(db: Db, userId: string, market: Automat
       return { ...response('paper', 'Scanning all supported paper signals.'), allPaperSignals:true };
     const live = mode === 'live' ? await liveOpportunityCandidates(db, userId, market, profile.live_scan_versions ?? []) : [];
     const candidates = mode === 'live' ? live.map(row => row.candidate) : await opportunityCandidates(db, userId, market);
-    if (!candidates.length) return response('waiting', 'Waiting for a strategy to pass its backtest.');
+    const approved = mode === 'live' ? profile.live_scan_versions ?? [] : [];
+    if (!candidates.length) return response('waiting', approved.length && approved.every(version => liveEvidenceBlock({ market, rule: version.split('.')[3] ?? '' }))
+      ? LIVE_EVIDENCE_REASON : 'Waiting for a strategy to pass its backtest.');
     const candidate = pickSignal ? await pickSignal(candidates, mode) : candidates[0];
     return candidate ? response(mode, mode === 'live' ? 'Scanning approved Live strategies.' : 'Scanning qualified strategies in Paper.', candidate,
       live.find(row => row.candidate.version === candidate.version)?.results ?? await readPaperResults(db, userId, candidate)) :
@@ -154,7 +166,7 @@ export async function automationDecision(db: Db, userId: string, market: Automat
   if (!candidate) return response('waiting', 'Waiting for a strategy version to pass the current research checks.');
   const results = await readPaperResults(db, userId, candidate);
   if (profile.mode === 'live') {
-    if (!results.passed) return response('waiting', 'The approved version is below the current Paper requirement.', candidate, results);
+    if (!results.passed) return response('waiting', results.blocked ?? 'The approved version is below the current Paper requirement.', candidate, results);
     return response('live', 'Approved version ready for Live entry checks.', candidate, results);
   }
   if (market === 'stocks') {

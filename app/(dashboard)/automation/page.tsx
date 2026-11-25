@@ -6,7 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { AutomationMarket, Evidence, RunReport } from '@/lib/automation/model';
+import { PAPER_REQUIREMENT, PAPER_REQUIREMENT_TEXT, type AutomationMarket, type Evidence, type RunReport } from '@/lib/automation/model';
 import type { AutomationDecision, PaperResults } from '@/lib/automation/policy';
 import type { StockLabReport } from '@/lib/stocks/intraday-lab';
 import type { replayStockPortfolio } from '@/lib/stocks/portfolio-replay';
@@ -127,7 +127,9 @@ export default function AutomationCenter() {
             </div>
             {candidate ? <div className="rounded-md border border-border p-3 space-y-1">
               <p className="text-sm font-medium">{candidate.symbol} · {candidate.name}</p>
-              <p className="text-xs text-muted-foreground">{paper?.closed ?? 0} closed Paper trades · {paper?.days ?? 0} session dates · {paper?.closed ? formatCurrency(paper.net) + ' net' : 'Gathering evidence'}</p>
+              <p className="text-xs text-muted-foreground">{paper?.closed ?? 0} of {PAPER_REQUIREMENT.trades} closed Paper trades · {paper?.days ?? 0} of {PAPER_REQUIREMENT.dates} session dates · {paper?.closed ? formatCurrency(paper.net) + ' net' : 'Gathering evidence'}
+                {paper?.tStat != null && ` · t-statistic ${paper.tStat.toFixed(2)} (needs ${PAPER_REQUIREMENT.tStat} or more)`}</p>
+              <p className="text-xs text-muted-foreground">{paper?.blocked ?? `Live review needs ${PAPER_REQUIREMENT_TEXT}.${market === 'crypto' ? ' Crypto rules must also have passed the long-history backtest.' : ''}`}</p>
               {paper?.passed && mode !== 'live' && <Button size="sm" disabled={busy} variant="outline" onClick={() => { setError(''); setApproval(item); }}>Review Live approval</Button>}
             </div> : <p className="text-sm text-muted-foreground">No strategy version has passed the current research checks.</p>}
           </div>

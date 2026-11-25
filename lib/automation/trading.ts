@@ -5,7 +5,7 @@ import { isStockTradeRule, isStockTradeSymbol, STOCK_INSTRUMENTS } from '@/lib/s
 import { currentStockEntry, stockEntryWindow } from '@/lib/stocks/trade-signals';
 import { etoroFromConnection } from '@/lib/stocks/connection';
 import { marketDataClient } from '@/lib/hyperliquid/from-settings';
-import { BARS_NEEDED, entrySignal } from '@/lib/autopilot/signals';
+import { BARS_NEEDED, entrySignal, isLiveEligible } from '@/lib/autopilot/signals';
 import { computeIndicators, WARMUP_BARS, STRATEGIES } from '@/lib/autopilot/strategies';
 import { MOMENTUM_ID } from '@/lib/autopilot/momentum';
 import { SEARCH_ASSETS } from '@/lib/strategy-search/model';
@@ -59,7 +59,9 @@ export function controlledCryptoConfig(base: AutopilotConfig, policy: Automation
     return { ...base, mode: 'paper' as const, symbols: [...new Set(paperTests.map(row => row.symbol))],
       strategies: [...new Set(paperTests.map(row => row.rule))], allowShort:false, maxOrderUsd:1_000, paperTests };
   }
-  return { ...base, mode: policy.decision, symbols: [candidate.symbol], strategies: [candidate.rule], allowShort: false, liveRulesConfirmed: true,
+  // Live here is long-only, so the rule also needs its long-only record in the long-history evidence file.
+  if (!isLiveEligible(candidate.rule, false)) return null;
+  return { ...base, mode: policy.decision, symbols: [candidate.symbol], strategies: [candidate.rule], allowShort: false,
     risk: { ...base.risk, maxPositions: 1, maxLeveragePerPosition: 1 }, automationVersion: candidate.version,
     maxOrderUsd: Number(profile.max_order_usd), dollarLossBudget: Number(profile.loss_budget_usd) };
 }

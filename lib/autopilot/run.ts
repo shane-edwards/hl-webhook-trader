@@ -13,7 +13,7 @@ import type { HyperliquidClient } from '@/lib/hyperliquid/client';
 import { closePositionFully, openPosition } from '@/lib/execution';
 import { notify } from '@/lib/notify';
 import { computeIndicators, getStrategy, WARMUP_BARS, type Bar } from './strategies';
-import { BARS_NEEDED, entrySignal, HOUR_MS, strategyDirection } from './signals';
+import { BARS_NEEDED, entrySignal, HOUR_MS, isLiveEligible, strategyDirection } from './signals';
 export { isLiveEligible } from './signals';
 import { MOMENTUM_ID, MOMENTUM_STOP_PCT, runMomentumPaper } from './momentum';
 import { runMomentumLive } from './momentum-live';
@@ -39,7 +39,6 @@ export interface AutopilotConfig {
   /** Account-wide limits shared with manual and webhook trades (live mode only). */
   portfolio?: PortfolioLimits;
   manageOnly?: boolean;
-  liveRulesConfirmed?: boolean;
   automationVersion?: string;
   paperTests?: { symbol:string; rule:string; version:string }[];
   allPaperSignals?: boolean;
@@ -59,7 +58,6 @@ export function configFromSettings(s: Record<string, any>): AutopilotConfig {
     symbols: (Array.isArray(s.autopilot_symbols) ? s.autopilot_symbols : ['BTC', 'ETH', 'SOL']).map((x: unknown) => String(x).toUpperCase()).slice(0, 20),
     strategies: Array.isArray(s.autopilot_strategies) ? s.autopilot_strategies.map(String) : ['trend_breakout'],
     allowShort: s.autopilot_allow_short === true,
-    liveRulesConfirmed: s.autopilot_live_rules_confirmed === true,
     risk: {
       riskPerTradePct: n(s.autopilot_risk_per_trade_pct, DEFAULT_RISK.riskPerTradePct),
       maxPositions: n(s.autopilot_max_positions, DEFAULT_RISK.maxPositions),
@@ -302,7 +300,8 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
         for (const e of m.events) log({ ...e, strategyId: MOMENTUM_ID });
       } else {
         const basketEvents: AutopilotEvent[] = [];
-        const opened = await runMomentumLive(hl, db, userId, cfg, equity, canOpen && (cfg.liveRulesConfirmed === true || !!manualBasket), now, basketEvents, manualBasket);
+        // An open basket is still managed and closed; only a new automatic basket needs the long/short evidence.
+        const opened = await runMomentumLive(hl, db, userId, cfg, equity, canOpen && (isLiveEligible(MOMENTUM_ID, true) || !!manualBasket), now, basketEvents, manualBasket);
         if (manualBasket && opened) manualOpened = true;
         for (const e of basketEvents) log({ ...e, strategyId: MOMENTUM_ID });
       }
@@ -332,7 +331,8 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
 
       const rules = samples ? samples.filter(row => row.symbol === symbol).map(row => row.rule) : manual ? [manual.id] : cfg.strategies;
       for (const id of rules) {
-        const shortOk = strategyDirection(id, cfg.allowShort, mode === 'paper' || !!manual || cfg.liveRulesConfirmed === true);
+        // Automatic Live entries follow the evidence file. Paper and a reviewed manual entry use every selected rule.
+        const shortOk = strategyDirection(id, cfg.allowShort, mode === 'paper' || !!manual);
         if (shortOk === null) continue;
         const sig = entrySignal(id, m, now, shortOk);
         if (!sig || (manual && (sig.barT !== manual.barT || sig.side !== manual.side))) continue;

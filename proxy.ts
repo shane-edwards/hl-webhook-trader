@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { accountAllowed } from '@/lib/access';
 
 const MACHINE_PATHS = new Set([
   '/api/webhook', '/api/health', '/api/cron/strategy', '/api/cron/autopilot', '/api/cron/market',
@@ -45,6 +46,17 @@ export async function proxy(request: NextRequest) {
   // Allow auth callback
   if (pathname.startsWith('/api/auth')) {
     return supabaseResponse;
+  }
+
+  // Signed in is not the same as allowed: with ALLOWED_EMAILS set, any other
+  // account is refused everywhere, whatever the Supabase sign-up setting is.
+  if (user && !accountAllowed(user.email)) {
+    if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'This account is not permitted to use this app' }, { status: 403 });
+    if (pathname.startsWith('/login')) return supabaseResponse;
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.search = '?error=not_allowed';
+    return NextResponse.redirect(url);
   }
 
   // Redirect unauthenticated users to login

@@ -17,7 +17,7 @@ import { withTradingLock } from '@/lib/trading-lock';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { HyperliquidClient } from '@/lib/hyperliquid/client';
 import { MIN_ORDER_USD } from '@/lib/hyperliquid/client';
-import { insertTrade, protectionPrices, slippageBps } from '@/lib/execution';
+import { insertTrade, protectionPrices, requestAccountFlatten, slippageBps } from '@/lib/execution';
 import { assertWithinPortfolioLimits, type PortfolioLimits } from '@/lib/risk/portfolio';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,7 +69,8 @@ async function placeLimitEntryLocked(hl: HyperliquidClient, db: Db, p: LimitEntr
     : base).select('*').single();
   if (error) {
     // Without a record the scan could not look after the order, so do not leave it resting.
-    await hl.cancelOrders(p.symbol, [order.oid]).catch(() => {});
+    const cancelled = await hl.cancelOrders(p.symbol, [order.oid]).then(() => true, () => false);
+    if (!cancelled) throw new Error(`Order ${order.oid} could not be recorded (${error.message}) and could NOT be cancelled either: it may still be resting on ${p.symbol}. Cancel it on the exchange now.`);
     throw new Error(`Order cancelled because it could not be recorded (${error.message}). Has migration ${chase ? '007' : '006'} been run?`);
   }
   return data;
@@ -136,7 +137,8 @@ async function managePendingLocked(hl: HyperliquidClient, db: Db, userId: string
               oid: next.oid, limit_px: next.price, prior_filled_size: row.prior_filled_size, prior_filled_notional: row.prior_filled_notional, updated_at: stamp,
             }).eq('id', row.id);
             if (recorded.error) {
-              await hl.cancelOrders(row.symbol, [next.oid]);
+              // If this fails, an entry order nothing here keeps track of may still be resting: only the kill-switch recovery is sure to clear it.
+              await hl.cancelOrders(row.symbol, [next.oid]).catch(async err => { await requestAccountFlatten(hl, db, userId); throw err; });
               if (await hl.getPosition(row.symbol)) {
                 const closed = await hl.closePosition(row.symbol, opts.slippagePercent ?? 2);
                 if (!closed.fullyClosed) throw new Error('Repriced entry recording failed and closure is incomplete');
@@ -149,7 +151,9 @@ async function managePendingLocked(hl: HyperliquidClient, db: Db, userId: string
         }
       }
 
-      if (raw.fallback_started && raw.fallback_size == null) throw new Error('Market fallback outcome needs reconciliation. Further purchases are blocked. Check the exchange');
+      // A market fallback was started and its result never saved. Nothing more is bought for this row,
+      // but whatever is on the exchange still gets its stop below before the row is reported.
+      const unreconciled = !!raw.fallback_started && raw.fallback_size == null;
       let filled = row.prior_filled_size + st.filledSize + Number(raw.fallback_size ?? 0);
       let notional = row.prior_filled_notional + st.filledSize * row.limit_px + Number(raw.fallback_notional ?? 0);
       const finished = st.status === 'filled' || isDead(st.status);
@@ -167,15 +171,21 @@ async function managePendingLocked(hl: HyperliquidClient, db: Db, userId: string
           fallback = `${fill.sizeInContracts} taken at market`;
           const saved = await db.from('pending_orders').update({ fallback_size: fill.sizeInContracts, fallback_notional: fill.sizeInContracts * fill.fillPrice, updated_at: stamp }).eq('id', row.id);
           if (saved.error) {
-            const closed = await hl.closePosition(row.symbol, opts.slippagePercent ?? 2);
-            if (!closed.fullyClosed || await hl.getPosition(row.symbol)) throw new Error('Fallback recording failed and closure is incomplete');
+            try {
+              const closed = await hl.closePosition(row.symbol, opts.slippagePercent ?? 2);
+              if (!closed.fullyClosed || await hl.getPosition(row.symbol)) throw new Error('Fallback recording failed and closure is incomplete');
+            } catch (err) {
+              // Bought, not recorded and not closed: hand the account to the kill-switch recovery, which retries on every scan.
+              await requestAccountFlatten(hl, db, userId);
+              throw err;
+            }
             throw new Error(`Fallback recording failed; the position was closed immediately: ${saved.error.message}`);
           }
         }
       }
 
       // Rule 2: whatever has filled must be protected, even while the rest is still resting.
-      if (filled > 0 && (row.stop_loss_pct != null || row.take_profit_pct != null)) {
+      if (filled > 0 || unreconciled) {
         const position = await hl.getPosition(row.symbol);
         if (position && position.side === row.side) {
           const orders = await hl.getOpenOrders(row.symbol);
@@ -184,8 +194,14 @@ async function managePendingLocked(hl: HyperliquidClient, db: Db, userId: string
           // After a market fallback the children of the cancelled entry are gone or under-sized: place for the whole position.
           const short = (xs: typeof orders) => xs.reduce((a, o) => a + o.size, 0) < position.size * 0.999;
           const prices = protectionPrices(row.side, position.entryPrice, row.stop_loss_pct, row.take_profit_pct);
+          // An entry with no stop of its own that added to an earlier, stopped position must not leave that stop
+          // covering only part of it: the earlier stop's price (the tightest, if there are several) is kept and
+          // placed again for the whole position. Nothing older is cancelled here.
+          const stopPxs = stops.map(o => o.triggerPx).filter(px => px > 0);
+          const keptStopPx = row.stop_loss_pct == null && stopPxs.length > 0 && short(stops)
+            ? (row.side === 'long' ? Math.max(...stopPxs) : Math.min(...stopPxs)) : undefined;
           const missing = {
-            stopLossPx: row.stop_loss_pct != null && (!stops.length || ((fallback || raw.fallback_started) && short(stops))) ? prices.stopLossPx : undefined,
+            stopLossPx: row.stop_loss_pct != null ? (!stops.length || ((fallback || raw.fallback_started) && short(stops)) ? prices.stopLossPx : undefined) : keptStopPx,
             takeProfitPx: row.take_profit_pct != null && (!targets.length || ((fallback || raw.fallback_started) && short(targets))) ? prices.takeProfitPx : undefined,
           };
           if (missing.stopLossPx != null || missing.takeProfitPx != null) {
@@ -196,8 +212,9 @@ async function managePendingLocked(hl: HyperliquidClient, db: Db, userId: string
                 if (!confirmed) throw new Error('Stop was accepted but could not be verified');
               }
             } catch (err) {
-              if (row.stop_loss_pct != null) {
-                await hl.cancelOrders(row.symbol, [row.oid]);
+              if (row.stop_loss_pct != null || missing.stopLossPx != null) {
+                // Closing the unprotected fill matters more than the cancel: a failed cancel must not prevent it.
+                await hl.cancelOrders(row.symbol, [row.oid]).catch(() => {});
                 const closed = await hl.closePosition(row.symbol, opts.slippagePercent ?? 2);
                 if (!closed.fullyClosed || await hl.getPosition(row.symbol)) throw new Error('Stop rejected and emergency close only partly filled');
               }
@@ -207,6 +224,7 @@ async function managePendingLocked(hl: HyperliquidClient, db: Db, userId: string
           }
         }
       }
+      if (unreconciled) throw new Error('Market fallback outcome needs reconciliation. Further purchases are blocked. Check the exchange');
       if (!finished) continue;
 
       // Rule 1: nothing filled and the entry is gone, so no stop of its may remain.

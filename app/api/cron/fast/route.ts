@@ -21,7 +21,14 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
   if (!cronAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const supabase = createServiceClient();
-  const webhookJobs = await processWebhookQueue();
+  // Queued signals come first, but a failure there must never stop the upkeep
+  // below: that is what moves stops and finishes a pending flatten.
+  let webhookJobs = 0, webhookError: string | null = null;
+  try { webhookJobs = await processWebhookQueue(); }
+  catch (error) {
+    webhookError = error instanceof Error ? error.message : 'Webhook queue failed';
+    console.error('[fast] webhook queue:', webhookError);
+  }
 
   const [plans, pending, open, recovery, unprotected] = await Promise.all([
     supabase.from('position_plans').select('user_id').eq('status', 'active'),
@@ -33,7 +40,7 @@ export async function GET(request: Request) {
   if ([plans, pending, open, recovery, unprotected].some(result => result.error))
     return NextResponse.json({ error: 'Could not identify accounts needing upkeep' }, { status: 503 });
   const users = [...new Set([...(plans.data ?? []), ...(pending.data ?? []), ...(open.data ?? []), ...(recovery.data ?? []), ...(unprotected.data ?? [])].map(r => r.user_id as string))];
-  if (!users.length) return NextResponse.json({ ran: 0, webhookJobs });
+  if (!users.length) return NextResponse.json({ ran: 0, webhookJobs, ...(webhookError ? { webhookError } : {}) }, { status: webhookError ? 500 : 200 });
 
   const { data: rows, error } = await supabase.from('settings').select('*').in('user_id', users);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -51,5 +58,5 @@ export async function GET(request: Request) {
       console.error('[fast]', error instanceof Error ? error.message : 'Account upkeep failed');
     }
   }
-  return NextResponse.json({ ran: rows?.length ?? 0, notes, errors, webhookJobs });
+  return NextResponse.json({ ran: rows?.length ?? 0, notes, errors, webhookJobs, ...(webhookError ? { webhookError } : {}) }, { status: webhookError ? 500 : 200 });
 }

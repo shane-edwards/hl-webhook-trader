@@ -1,4 +1,4 @@
-import { withTradingLock } from '@/lib/trading-lock';
+import { accountResource, withTradingLock } from '@/lib/trading-lock';
 // Order execution shared by the webhook, the manual trade ticket and the kill
 // switch, so every entry point records trades and manages stops the same way.
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -25,6 +25,30 @@ export function protectionPrices(side: 'long' | 'short', entryPrice: number, sto
   return {
     stopLossPx: stopLossPct != null ? entryPrice * (1 - (dir * stopLossPct) / 100) : undefined,
     takeProfitPx: takeProfitPct != null ? entryPrice * (1 + (dir * takeProfitPct) / 100) : undefined,
+  };
+}
+
+/**
+ * The stop a manual entry goes out with. In order: the stop on the ticket; a trailing stop (market
+ * entries only: a resting limit or chase entry cannot carry one); the default stop-loss from Settings.
+ * With none of the three the entry is refused: `error` says why and nothing may be sent.
+ */
+export function manualStopLoss(o: {
+  stopLossPct: number | null;
+  trailPct: number | null;
+  /** True for a limit or chase entry, which takes a fixed stop only. */
+  resting: boolean;
+  /** `default_stop_loss_percent` from the user's settings, as stored. */
+  defaultStopLossPct: unknown;
+}): { stopLossPct: number | null; fromDefault: boolean; error: string | null } {
+  if (o.stopLossPct != null) return { stopLossPct: o.stopLossPct, fromDefault: false, error: null };
+  // The trailing stop itself is the stop: it starts one trail-distance from entry.
+  if (!o.resting && o.trailPct != null) return { stopLossPct: null, fromDefault: false, error: null };
+  const fallback = protectionPercent(o.defaultStopLossPct);
+  if (fallback != null) return { stopLossPct: fallback, fromDefault: true, error: null };
+  return {
+    stopLossPct: null, fromDefault: false,
+    error: `A manual trade needs a stop-loss. Enter one${o.resting ? '' : ' (or a trailing stop)'}, or save a default stop-loss in Settings.`,
   };
 }
 
@@ -157,7 +181,11 @@ async function openPositionLocked(hl: HyperliquidClient, db: Db, p: OpenParams):
         if (remaining) await hl.placeProtectiveOrders({ coin: p.symbol, side: remaining.side, size: remaining.size,
           ...protectionPrices(remaining.side, remaining.entryPrice, p.stopLossPct ?? 2, null) });
         recovery = 'Emergency protection was placed. Check the account before retrying';
-      } catch { recovery = `Emergency recovery failed (${closeError instanceof Error ? closeError.message : closeError}). Check the exchange immediately`; }
+      } catch {
+        // Neither closed nor stopped: hand the account to the kill-switch recovery, which retries on every scan.
+        const flagged = await requestAccountFlatten(hl, db, p.userId);
+        recovery = `Emergency recovery failed (${closeError instanceof Error ? closeError.message : closeError}). ${flagged ? 'Trading is halted and the next scan will retry closing every position. ' : ''}Check the exchange immediately`;
+      }
     }
     throw new Error(`Order ${fill.orderId} filled but could not be recorded: ${err instanceof Error ? err.message : err}. ${recovery}`);
   }
@@ -169,12 +197,26 @@ async function openPositionLocked(hl: HyperliquidClient, db: Db, p: OpenParams):
   };
 
   const managed = isManaged(p.exit, p.takeProfitPct != null);
-  if (p.stopLossPct != null || p.takeProfitPct != null || managed) {
-    try {
-      // Protect the whole position (it may include earlier entries), from its average entry.
-      const position = await hl.getPosition(p.symbol);
-      if (!position) throw new Error('position not found after fill');
-      const older = (await hl.getOpenOrders(p.symbol)).filter(o => o.isTrigger && o.reduceOnly);
+  const wantsOrders = p.stopLossPct != null || p.takeProfitPct != null || managed;
+  // Does this entry bring a stop of its own? (A trailing stop starts one trail-distance from entry.)
+  const suppliesStop = p.stopLossPct != null || (managed && p.exit?.trailPct != null && p.exit.trailPct > 0);
+  // An entry must never reduce existing protection. When it brings no stop and an earlier stop is
+  // resting, that stop's trigger price is kept and re-placed for the whole (now larger) position.
+  let keptStopPx: number | null = null;
+  try {
+    // Protect the whole position (it may include earlier entries), from its average entry.
+    const position = await hl.getPosition(p.symbol);
+    if (!position && wantsOrders) throw new Error('position not found after fill');
+    const older = position ? (await hl.getOpenOrders(p.symbol)).filter(o => o.isTrigger && o.reduceOnly) : [];
+    const isStop = (o: { orderType: string }) => /stop/i.test(o.orderType);
+    if (position && !suppliesStop) {
+      const dir = position.side === 'long' ? 1 : -1;
+      // Only a stop that really protects this position: on the closing side and not yet reached by the price.
+      const earlier = older.filter(o => isStop(o) && o.side === (dir === 1 ? 'sell' : 'buy') && o.triggerPx > 0 && dir * (position.markPrice - o.triggerPx) > 0).map(o => o.triggerPx);
+      // With more than one, keep the tightest.
+      if (earlier.length) keptStopPx = dir === 1 ? Math.max(...earlier) : Math.min(...earlier);
+    }
+    if (position && (wantsOrders || keptStopPx != null)) {
       let newStopOid: string | null = null;
       if (managed) {
         const { meta } = await hl.getAsset(p.symbol);
@@ -182,6 +224,8 @@ async function openPositionLocked(hl: HyperliquidClient, db: Db, p: OpenParams):
           side: p.side, entryPrice: position.entryPrice, size: position.size, szDecimals: meta.szDecimals,
           stopLossPct: p.stopLossPct, takeProfitPct: p.takeProfitPct, exit: p.exit!,
         });
+        // The kept stop goes first, like any stop leg, and into the plan so the scan looks after it.
+        if (keptStopPx != null) { legs.unshift({ kind: 'sl', triggerPx: keptStopPx, size: position.size }); plan.stop_px = keptStopPx; }
         const oids = await hl.placeTriggerOrders({ coin: p.symbol, side: p.side, legs, grouping: 'na' });
         result.stopLossPx = plan.stop_px;
         newStopOid = plan.stop_px != null ? oids[0] : null;
@@ -197,32 +241,57 @@ async function openPositionLocked(hl: HyperliquidClient, db: Db, p: OpenParams):
         }
       } else {
         const prices = protectionPrices(p.side, position.entryPrice, p.stopLossPct, p.takeProfitPct);
-        const protection = await hl.placeProtectiveOrders({ coin: p.symbol, side: p.side, size: position.size, ...prices });
+        const stopLossPx = prices.stopLossPx ?? keptStopPx ?? undefined;
+        const protection = await hl.placeProtectiveOrders({ coin: p.symbol, side: p.side, size: position.size, stopLossPx, takeProfitPx: prices.takeProfitPx });
         newStopOid = protection.stopLossOid;
-        result.stopLossPx = prices.stopLossPx ?? null;
+        result.stopLossPx = stopLossPx ?? null;
         result.takeProfitPx = prices.takeProfitPx ?? null;
       }
       // Do not take the exchange's word for it: look for the stop actually resting.
       if (result.stopLossPx != null) {
         const resting = await hl.getOpenOrders(p.symbol);
-        if (!newStopOid || !resting.some(o => String(o.oid) === newStopOid && o.isTrigger && o.reduceOnly && /stop/i.test(o.orderType) && o.size >= position.size * 0.999)) throw new Error('the stop-loss was accepted but is not resting on the exchange at the required size');
+        if (!newStopOid || !resting.some(o => String(o.oid) === newStopOid && o.isTrigger && o.reduceOnly && isStop(o) && o.size >= position.size * 0.999)) throw new Error('the stop-loss was accepted but is not resting on the exchange at the required size');
       }
-      await hl.cancelOrders(p.symbol, older.map(o => o.oid));
-    } catch (err) {
-      result.protectionError = err instanceof Error ? err.message : 'Unknown error';
+      // Only what was replaced is cancelled, and only now: older stops once the new stop is seen resting,
+      // older targets once new targets exist. Anything else stays where it is.
+      await hl.cancelOrders(p.symbol, older.filter(o => (isStop(o) ? result.stopLossPx != null : result.takeProfitPx != null)).map(o => o.oid));
+      if (keptStopPx != null) {
+        result.exitWarning = [result.exitWarning, `No new stop was given: the existing stop at ${keptStopPx} was kept and now covers the whole position`].filter(Boolean).join('. ');
+      }
     }
-    // A stop was asked for and is not there: an open position with no stop is the one state not allowed to persist.
-    const wantedStop = p.stopLossPct != null || (managed && p.exit?.trailPct != null);
-    if (result.protectionError && wantedStop && p.closeIfUnprotected) {
-      try {
-        await closePositionFully(hl, db, p.userId, p.symbol, p.slippagePercent, `Closed at once: the stop-loss could not be placed (${result.protectionError})`);
-        result.closedUnprotected = true;
-      } catch (err) {
-        result.protectionError += `. It could NOT be closed either (${err instanceof Error ? err.message : err}): close it by hand now`;
-      }
+  } catch (err) {
+    result.protectionError = err instanceof Error ? err.message : 'Unknown error';
+  }
+  // A stop was asked for (or an earlier one had to be kept) and is not there: an open position with no stop
+  // is the one state not allowed to persist.
+  const wantedStop = p.stopLossPct != null || (managed && p.exit?.trailPct != null) || keptStopPx != null;
+  if (result.protectionError && wantedStop && p.closeIfUnprotected) {
+    try {
+      await closePositionFully(hl, db, p.userId, p.symbol, p.slippagePercent, `Closed at once: the stop-loss could not be placed (${result.protectionError})`);
+      result.closedUnprotected = true;
+    } catch (err) {
+      // Neither stopped nor closed: hand the account to the kill-switch recovery, which retries on every scan.
+      const flagged = await requestAccountFlatten(hl, db, p.userId);
+      result.protectionError += `. It could NOT be closed either (${err instanceof Error ? err.message : err}): close it by hand now. `
+        + (flagged ? 'Trading is halted and the next scan will retry closing every position' : 'The account halt could NOT be saved either');
     }
   }
   return result;
+}
+
+/**
+ * Asks for the kill-switch recovery, for a position that is open with no stop and could not be closed:
+ * new entries are refused, and the next scan cancels entry orders and closes every position, retrying
+ * until the account is verified flat. Returns false when the request itself could not be saved.
+ */
+export async function requestAccountFlatten(hl: HyperliquidClient, db: Db, userId: string): Promise<boolean> {
+  try {
+    const halted = await db.rpc('halt_trading_account', { resource_key: accountResource(hl, userId) });
+    const flagged = await db.from('settings').update({ trading_halted: true, flatten_pending: true }).eq('user_id', userId);
+    return !halted.error && !flagged.error;
+  } catch {
+    return false;
+  }
 }
 
 export interface CloseResult { fillPrice: number; size: number; tradeIds: string[] }

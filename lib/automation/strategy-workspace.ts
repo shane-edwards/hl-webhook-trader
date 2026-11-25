@@ -1,5 +1,5 @@
 import { ideaId, IDEA_RULES, ideaSearchFrame, type StrategyIdea } from './ideas';
-import { automationVersion, type AutomationMarket, type AutomationProfile, type Evidence } from './model';
+import { automationVersion, PAPER_REQUIREMENT, type AutomationMarket, type AutomationProfile, type Evidence } from './model';
 import type { NamedTrial } from './forward-trials';
 import type { PaperResults } from './policy';
 import { RULE_INTERPRETER_VERSION, ruleKey, ruleName, searchKey, searchOutcomes,
@@ -41,12 +41,12 @@ export function namedRow(idea: StrategyIdea, e: Evidence | undefined, asOf: stri
   if (live) status = !profile?.enabled || profile.entries_paused ? 'Entries paused' : !ready ? 'Waiting for qualifying evidence' : 'Live entries enabled';
   else if (ready) status = 'Ready for review';
   else if (!profile?.enabled && (tracking || brokerTracking)) status = 'Research paused';
-  else if (useBroker) status = broker.closed < 10 ? `${broker.closed} of 10 closed trades` :
-    broker.days < 5 ? `${broker.days} of 5 trading days` : 'Waiting for paper results to qualify';
+  else if (useBroker) status = broker.closed < PAPER_REQUIREMENT.trades ? `${broker.closed} of ${PAPER_REQUIREMENT.trades} closed trades` :
+    broker.days < PAPER_REQUIREMENT.dates ? `${broker.days} of ${PAPER_REQUIREMENT.dates} trading days` : 'Waiting for paper results to qualify';
   else if (hasTrial) status = trial.state === 'data-gap' ? 'Waiting for market data' : trial.state === 'stopped' ? 'Stopped at drawdown limit' :
     trial.state === 'completed' ? 'Paper trial complete' : `${trial.count ?? trial.fills.length} closed trades`;
   const liveStatus = live ? status : ready ? 'Ready for your approval' : !idea.executable ? 'Paper only' :
-    !passed ? 'Requires a passed backtest' : idea.market === 'stocks' && !demo ? 'Requires eToro Demo fills' : 'Awaiting qualifying paper fills';
+    !passed ? 'Requires a passed backtest' : broker?.blocked ? 'Paper only: not eligible for Live' : idea.market === 'stocks' && !demo ? 'Requires eToro Demo fills' : 'Awaiting qualifying paper fills';
   return { id: idea.id, name: idea.name, frame: ideaSearchFrame(idea), market: idea.market, symbol: idea.symbol, version,
     backtest, stage, status, paper, live: liveStatus, backtestNet: e?.stress, backtestTrades: e?.holdoutTrades, through: e?.through,
     admission: hasTrial && trial.admission === 'sample' ? 'Small-sample trial' : hasTrial && trial.admission === 'exploratory' ? 'Exploratory paper test' : undefined };

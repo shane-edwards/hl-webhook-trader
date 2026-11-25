@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { catalogIdeas, namedRow, searchRows } from '../lib/automation/strategy-workspace';
-import { studyEvidence, paperThreshold, type AutomationProfile } from '../lib/automation/model';
+import { studyEvidence, paperThreshold, PAPER_REQUIREMENT, type AutomationProfile } from '../lib/automation/model';
+import type { PaperResults } from '../lib/automation/policy';
 import { trialAdmission, updateTrial } from '../lib/automation/forward-trials';
 import { advanceForward, checkPerpVenue } from '../lib/strategy-search/engine';
 import type { SearchReport } from '../lib/strategy-search/model';
@@ -38,13 +39,16 @@ test('named forward paper begins empty, deduplicates closes, flags gaps and keep
 test('only a current executable backtest and the exact broker paper results reach review', () => {
   const trial = updateTrial(e,null,[],0,now,now)!;
   const passed = {...e,qualified:true};
-  const broker = paperThreshold(Array.from({length:10},(_,i) => ({at:new Date(now+i*86400000).toISOString(),pnl:3})));
-  const row = (o = passed, date = asOf, result = broker) => namedRow(idea,o,date,trial,result,profile,false,true,now);
+  const closes = (count: number) => Array.from({length:count},(_,i) => ({at:new Date(now+i*86400000).toISOString(),pnl:3+i%2}));
+  const broker = paperThreshold(closes(PAPER_REQUIREMENT.trades));
+  const row = (o = passed, date = asOf, result: PaperResults = broker) => namedRow(idea,o,date,trial,result,profile,false,true,now);
   assert.equal(row().stage,'ready');
   assert.equal(row(e).stage,'paper');
   assert.equal(row(passed,'2024-01-01').stage,'paper');
   assert.equal(row({...passed,version:'other'}).stage,'paper');
   assert.equal(row(passed,asOf,paperThreshold([])).stage,'paper');
+  assert.equal(row(passed,asOf,paperThreshold(closes(PAPER_REQUIREMENT.trades-1))).stage,'paper');
+  assert.equal(row(passed,asOf,{...broker,passed:false,blocked:'Rule has not passed the long-history backtest'}).stage,'paper');
   const only = {...idea,executable:false};
   assert.equal(namedRow(only,passed,asOf,trial,broker,profile,false,true,now).live,'Paper only');
   const live = {...profile,mode:'live' as const,scan_for_opportunities:true,live_scan_versions:[e.version],entries_paused:true};

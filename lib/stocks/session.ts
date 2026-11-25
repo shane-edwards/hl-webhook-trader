@@ -10,7 +10,13 @@ const holidays: Record<string, readonly string[]> = {
   '2027': ['01-01', '01-18', '02-15', '03-26', '05-31', '06-18', '07-05', '09-06', '11-25', '12-24'],
   '2028': ['01-17', '02-21', '04-14', '05-29', '06-19', '07-04', '09-04', '11-23', '12-25'],
 };
+// The only list of NYSE early closes (1:00 p.m. ET). Intraday session building reads it through stockSessionClose.
 const halfDays = new Set(['2025-07-03', '2025-11-28', '2025-12-24', '2026-11-27', '2026-12-24', '2027-11-26', '2028-07-03', '2028-11-24']);
+
+/** Closing minute of the regular session on a New York date: 780 on an early close, otherwise 960. */
+export function stockSessionClose(day: string) {
+  return halfDays.has(day) ? 780 : 960;
+}
 
 export function stockMarketClock(now: number) {
   const t = Object.fromEntries(clock.formatToParts(now).map(part => [part.type, part.value]));
@@ -19,7 +25,7 @@ export function stockMarketClock(now: number) {
   const weekday = t.weekday !== 'Sat' && t.weekday !== 'Sun';
   const tradingDay = weekday && !!holidays[t.year] && !holidays[t.year].includes(md);
   const minutes = Number(t.hour) * 60 + Number(t.minute);
-  const close = halfDays.has(day) ? 780 : 960;
+  const close = stockSessionClose(day);
   return { day, tradingDay, open: tradingDay && minutes >= 570 && minutes < close, minutes, close };
 }
 

@@ -7,7 +7,7 @@ import { stockHref } from '@/components/layout/workspaces';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { AutomationMarket, AutomationProfile } from '@/lib/automation/model';
+import { PAPER_REQUIREMENT_TEXT, type AutomationMarket, type AutomationProfile } from '@/lib/automation/model';
 
 type LiveSetup = { version: string; name: string; symbol: string };
 
@@ -67,7 +67,8 @@ export function FullAutopilot({ market, profile, demo, real, live, refresh }: {
     <Dialog open={!!review} onOpenChange={open => { if (!open && !pending) setReview(null); }}>
       <DialogContent><form onSubmit={confirm} className="space-y-4">
         <DialogHeader><DialogTitle>{review === 'live' ? 'Approve Full Live Autopilot' : 'Start Full Autopilot in Paper'}</DialogTitle>
-          <DialogDescription>{review === 'live' ? 'Tideframe can submit real orders for the versions you approve.' :
+          <DialogDescription>{review === 'live' ? `Tideframe can submit real orders for the versions you approve. Each one needs ${PAPER_REQUIREMENT_TEXT}${
+            market === 'crypto' ? ', and its rule must have passed the long-history backtest' : ''}.` :
             market === 'stocks' ? 'Stocks · eToro Demo' : 'Crypto · simulated funds'}</DialogDescription>
         </DialogHeader>
         {review === 'live' && <div className="space-y-2">

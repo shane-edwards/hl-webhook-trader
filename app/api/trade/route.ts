@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
-import { closePositionFully, openPosition, protectionPercent, MAX_LEVERAGE, MAX_SLICES } from '@/lib/execution';
+import { closePositionFully, manualStopLoss, openPosition, protectionPercent, MAX_LEVERAGE, MAX_SLICES } from '@/lib/execution';
 import { estimateFill, liquidityVerdict } from '@/lib/liquidity';
 import { normalizeSymbol } from '@/lib/webhook';
 import { notify } from '@/lib/notify';
@@ -24,7 +24,7 @@ async function context() {
 }
 
 // Manual order from the trade ticket: a market entry, or a post-only limit entry when
-// `limitPx` is given, with optional stop-loss / take-profit and managed exits.
+// `limitPx` is given, with a stop-loss (required: see manualStopLoss), optional take-profit and managed exits.
 export async function POST(request: Request) {
   const ctx = await context();
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -44,9 +44,9 @@ export async function POST(request: Request) {
   if (!Number.isFinite(sizeUsd) || sizeUsd < 10) return bad('Size must be at least $10');
   const leverage = Number(body.leverage);
   if (!Number.isInteger(leverage) || leverage < 1 || leverage > MAX_LEVERAGE) return bad(`Leverage must be a whole number from 1 to ${MAX_LEVERAGE}`);
-  const stopLossPct = protectionPercent(body.stopLossPct);
+  const ticketStopPct = protectionPercent(body.stopLossPct);
   const takeProfitPct = protectionPercent(body.takeProfitPct);
-  if (body.stopLossPct != null && body.stopLossPct !== '' && stopLossPct == null) return bad('Stop-loss must be between 0.05% and 50%');
+  if (body.stopLossPct != null && body.stopLossPct !== '' && ticketStopPct == null) return bad('Stop-loss must be between 0.05% and 50%');
   if (body.takeProfitPct != null && body.takeProfitPct !== '' && takeProfitPct == null) return bad('Take-profit must be between 0.05% and 50%');
 
   // Managed exits (market entries only).
@@ -70,6 +70,11 @@ export async function POST(request: Request) {
   const slices = body.slices == null || body.slices === '' ? 1 : Number(body.slices);
   if (!Number.isInteger(slices) || slices < 1 || slices > MAX_SLICES) return bad(`Slices must be a whole number from 1 to ${MAX_SLICES}`);
   if (slices > 1 && sizeUsd / slices < 10) return bad('Each slice must be at least $10');
+
+  // No manual entry goes out without a stop: the ticket's own, a trailing stop, or the default from Settings.
+  const stop = manualStopLoss({ stopLossPct: ticketStopPct, trailPct, resting: limitPx != null || chaseSeconds != null, defaultStopLossPct: settings.default_stop_loss_percent });
+  if (stop.error) return bad(stop.error);
+  const stopLossPct = stop.stopLossPct;
 
   if (settings.strategy_enabled && settings.strategy_dry_run === false && settings.strategy_symbol === symbol) {
     return bad(`${symbol} is being traded by the built-in strategy, which would undo a manual position. Turn it off first.`);

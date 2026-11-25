@@ -40,7 +40,8 @@ export async function GET(request: Request) {
           state: /buy submitted/.test(message) ? 'submitted' : /could not finish/i.test(message) ? 'error' : 'skipped', detail: message });
       }
     }
-    if (/unconfirmed|declined the exit|could not finish|protective exit is required/.test(message)) await notify(`Stock Autopilot: ${message}`, undefined, userId);
+    // The last three are returned by one scan only, when the order or exit changes state, so each alerts once.
+    if (/unconfirmed|declined the exit|could not finish|protective exit is required|not received|needs a manual check|closed outside/.test(message)) await notify(`Stock Autopilot: ${message}`, undefined, userId);
   }));
   const failed = results.filter(result => result.status === 'rejected').length;
   return NextResponse.json({ scanned: results.length, failed }, { status: failed ? 503 : 200 });

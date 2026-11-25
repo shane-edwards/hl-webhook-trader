@@ -3,9 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional } from '../lib/autopilot/risk';
 import { computeIndicators, getStrategy, WARMUP_BARS, type Bar } from '../lib/autopilot/strategies';
-import { isLiveEligible, runAutopilot, type AutopilotConfig } from '../lib/autopilot/run';
+import { configFromSettings, isLiveEligible, runAutopilot, type AutopilotConfig } from '../lib/autopilot/run';
 import { runFastPass } from '../lib/upkeep';
-import { strategyDirection } from '../lib/autopilot/signals';
+import { liveRules, liveStartProblem, strategyDirection } from '../lib/autopilot/signals';
 import type { HyperliquidClient } from '../lib/hyperliquid/client';
 import { runMomentumLive } from '../lib/autopilot/momentum-live';
 import { controlledCryptoConfig } from '../lib/automation/trading';
@@ -41,14 +41,21 @@ test('risk: daily loss limit blocks entries for the day; drawdown breaker stays 
   assert.equal(e.canOpen, false);
 });
 
-test('existing live configurations retain their evidence rules until confirmed', () => {
+test('automatic Live rules come only from the evidence file, and a Live start needs at least one of them', () => {
   assert.equal(isLiveEligible('trend_breakout', false), true);
   assert.equal(isLiveEligible('momentum_burst', false), false);
   assert.equal(isLiveEligible('momentum_burst', true), false);
   assert.equal(isLiveEligible('nonexistent', false), false);
   assert.equal(strategyDirection('momentum_burst', true, false), null);
+  // Shorts are switched on, but only the long-only breakout record passed.
+  assert.equal(strategyDirection('trend_breakout', true, false), false);
+  // Paper and an owner-reviewed manual entry use every selected rule.
   assert.equal(strategyDirection('momentum_burst', true, true), true);
   assert.equal(strategyDirection('momentum_burst', false, true), false);
+  assert.deepEqual(liveRules(['momentum_burst', 'trend_breakout', 'macd_trend', MOMENTUM_ID], true), [{ id: 'trend_breakout', shorts: false }]);
+  assert.equal(liveStartProblem(['macd_trend', 'trend_breakout'], false), null);
+  assert.match(liveStartProblem(['momentum_burst', 'macd_trend', 'volume_breakout', MOMENTUM_ID], true)!, /None of the selected strategies has passed/);
+  assert.match(liveStartProblem([], false)!, /None of the selected strategies/);
 });
 
 // ---- a tiny in-memory stand-in for the database ----
@@ -111,6 +118,19 @@ function uptrend(now: number, n: number, breakout: boolean): Bar[] {
     const o = px;
     // Mostly flat drift with small wiggles so the 48h high sits just above price.
     const c = last ? o * (breakout ? 1.03 : 0.99) : o * (1 + 0.0003 + (i % 2 ? 0.001 : -0.001));
+    bars.push({ t: now - (n - i) * HOUR, o, h: Math.max(o, c) * 1.0005, l: Math.min(o, c) * 0.9995, c });
+    px = c;
+  }
+  return bars;
+}
+
+/** The mirror image: a steady downtrend ending in a breakdown bar. */
+function downtrend(now: number, n: number): Bar[] {
+  const bars: Bar[] = [];
+  let px = 100;
+  for (let i = 0; i < n; i++) {
+    const o = px;
+    const c = i === n - 1 ? o * 0.97 : o * (1 - 0.0003 + (i % 2 ? 0.001 : -0.001));
     bars.push({ t: now - (n - i) * HOUR, o, h: Math.max(o, c) * 1.0005, l: Math.min(o, c) * 0.9995, c });
     px = c;
   }
@@ -199,7 +219,74 @@ test('autopilot (paper): opens once per signal, sizes by risk, then stops out an
   assert.ok(Number(state.paper_equity) < 10_000 && Number(state.paper_equity) > 9_900, `paper equity ${state.paper_equity}`);
 });
 
-test('autopilot: a paused account opens nothing and an existing live bot retains its original entry rules', async () => {
+/** A Live start the owner confirmed, as the scan reads it from saved settings. */
+function confirmedLive(strategies: string[], allowShort = true): AutopilotConfig {
+  const saved = configFromSettings({ autopilot_mode: 'live', autopilot_live_rules_confirmed: true, autopilot_strategies: strategies, autopilot_allow_short: allowShort });
+  return { ...cfg, mode: saved.mode, strategies: saved.strategies, allowShort: saved.allowShort };
+}
+
+test('a confirmed Live scan skips an unproven rule and enters the evidence-backed one', async t => {
+  const now = Date.UTC(2026, 5, 1);
+  t.mock.method(Date, 'now', () => now);
+  const bars = uptrend(now, WARMUP_BARS + 20, true);
+  const selected = ['momentum_burst', 'trend_breakout'];
+  // Paper proves the unproven rule is signalling on this bar and would be taken first.
+  const paper = memoryDb();
+  await runAutopilot(client(bars), paper.db, 'u1', { ...cfg, strategies: selected, allowShort: true }, now);
+  assert.deepEqual(paper.tables.autopilot_positions.map(p => p.strategy_id), ['momentum_burst']);
+
+  const config = confirmedLive(selected);
+  assert.equal(config.mode, 'live');
+  const exchange = new SimExchange({ BTC: 100 });
+  const hl = Object.assign(exchange.client, { getHourlyCandles: async () => bars });
+  const live = memoryDb();
+  const result = await runAutopilot(hl, live.db, 'u1', config, now);
+  assert.deepEqual(result.events.filter(e => e.level === 'error'), []);
+  assert.deepEqual(live.tables.autopilot_positions.map(p => [p.strategy_id, p.side, p.status]), [['trend_breakout', 'long', 'open']]);
+  assert.equal(exchange.positions.get('BTC')?.side, 'long');
+
+  const unproven = memoryDb(), idle = new SimExchange({ BTC: 100 });
+  await runAutopilot(Object.assign(idle.client, { getHourlyCandles: async () => bars }), unproven.db, 'u1', confirmedLive(['momentum_burst', 'macd_trend']), now);
+  assert.equal(unproven.tables.autopilot_positions.length, 0);
+  assert.equal(idle.positions.size, 0);
+});
+
+test('a confirmed Live scan with shorts allowed does not short a rule proven long-only', async t => {
+  const now = Date.UTC(2026, 5, 1);
+  t.mock.method(Date, 'now', () => now);
+  const bars = downtrend(now, WARMUP_BARS + 20);
+  const paper = memoryDb();
+  await runAutopilot(client(bars), paper.db, 'u1', { ...cfg, allowShort: true }, now);
+  assert.deepEqual(paper.tables.autopilot_positions.map(p => [p.strategy_id, p.side]), [['trend_breakout', 'short']]);
+
+  const exchange = new SimExchange({ BTC: 100 });
+  const live = memoryDb();
+  const result = await runAutopilot(Object.assign(exchange.client, { getHourlyCandles: async () => bars }), live.db, 'u1', confirmedLive(['trend_breakout']), now);
+  assert.equal(result.canOpen, true);
+  assert.equal(live.tables.autopilot_positions.length, 0);
+  assert.equal(exchange.positions.size, 0);
+});
+
+test('a confirmed Live scan opens no automatic basket and still exits a position an unproven rule opened', async t => {
+  const now = Date.UTC(2026, 5, 1);
+  t.mock.method(Date, 'now', () => now);
+  const bars = uptrend(now, WARMUP_BARS + 20, false);
+  const exchange = new SimExchange({ BTC: 100 });
+  let ranked = 0;
+  const hl = Object.assign(exchange.client, { getHourlyCandles: async () => bars, getDailyCandles: async () => { ranked++; return []; } });
+  exchange.positions.set('BTC', { side: 'long', size: 1, entryPrice: 100 });
+  const { db, tables } = memoryDb({ autopilot_positions: [{ id: 'held', user_id: 'u1', mode: 'live', status: 'open', symbol: 'BTC', strategy_id: 'momentum_burst',
+    side: 'long', entry_price: 100, size: 1, notional_usd: 100, stop_price: 95, entry_bar_t: bars.at(-1)!.t - 7 * HOUR,
+    entry_time: new Date(now - 7 * HOUR).toISOString(), account_resource: 'testnet:' + exchange.address, recovery_pending: false }] });
+  const result = await runAutopilot(hl, db, 'u1', confirmedLive(['momentum_burst', MOMENTUM_ID]), now);
+  assert.deepEqual(result.events.filter(e => e.level === 'error'), []);
+  assert.ok(result.events.some(e => e.symbol === 'BTC' && /^Closed at/.test(e.message)), JSON.stringify(result.events));
+  assert.equal(exchange.positions.size, 0);
+  assert.equal(tables.autopilot_positions.length, 1);
+  assert.equal(ranked, 0);
+});
+
+test('autopilot: a paused account opens nothing and an unconfirmed live bot keeps to the evidence rules', async () => {
   const now = Date.UTC(2026, 5, 1);
   const bars = uptrend(now, WARMUP_BARS + 20, true);
 

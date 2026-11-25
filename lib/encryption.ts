@@ -33,9 +33,11 @@ export function decrypt(ciphertext: string): string {
   const salt = Buffer.from(saltHex, 'hex');
   const iv = Buffer.from(ivHex, 'hex');
   const authTag = Buffer.from(authTagHex, 'hex');
+  // A shortened tag is weaker and never produced by encrypt(): refuse it.
+  if (authTag.length !== 16) throw new Error('Invalid ciphertext format');
   const key = getKey(masterKey, salt);
 
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: 16 });
   decipher.setAuthTag(authTag);
 
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
