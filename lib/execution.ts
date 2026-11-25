@@ -128,6 +128,37 @@ export interface OpenResult {
   closedUnprotected: boolean;
 }
 
+/** True when a query failed only because its table has not been created yet (Postgres 42P01, PostgREST PGRST205). */
+export function isMissingTable(error: { code?: string; message?: string } | null | undefined): boolean {
+  return !!error && (error.code === '42P01' || error.code === 'PGRST205' || /Could not find the table|relation .* does not exist/i.test(error.message ?? ''));
+}
+
+/**
+ * Writes down what a manual market entry is about to send, before the order goes out. A request can die
+ * between the fill and the trade record (a timeout, a crash, a deploy); the row is what lets the scan find
+ * that position, record it and put its stop on (lib/entry-recovery.ts). Returns null when the table is not
+ * there yet (it arrives with migration 024): the entry then goes out as it always has. Any other failure
+ * refuses the entry, with nothing sent.
+ */
+async function beginEntryIntent(hl: HyperliquidClient, db: Db, p: OpenParams): Promise<string | null> {
+  const { data, error } = await db.from('entry_intents').insert({
+    user_id: p.userId, account_resource: accountResource(hl, p.userId), symbol: p.symbol, side: p.side,
+    size_usd: p.sizeUsd, leverage: p.leverage, stop_loss_pct: p.stopLossPct, take_profit_pct: p.takeProfitPct,
+    exit: p.exit ?? null, payload: p.payload ?? null, slippage_percent: p.slippagePercent, status: 'sending',
+  }).select('id').single();
+  if (!error) return data.id;
+  if (isMissingTable(error)) return null;
+  throw new Error(`The order could not be written down before sending, so nothing was sent: ${error.message}`);
+}
+
+/** Closes an intent. Best effort: one left as 'sending' is only looked at again by the scan, which is safe. */
+export async function finishEntryIntent(db: Db, id: string | null, status: 'done' | 'failed' | 'recovered', detail: string | null = null): Promise<void> {
+  if (!id) return;
+  try {
+    await db.from('entry_intents').update({ status, detail: detail ? detail.slice(0, 1000) : null, updated_at: new Date().toISOString() }).eq('id', id).eq('status', 'sending');
+  } catch { /* see above */ }
+}
+
 export async function openPosition(hl: HyperliquidClient, db: Db, p: OpenParams): Promise<OpenResult> {
   return withTradingLock(hl, db, p.userId, () => openPositionLocked(hl, db, p));
 }
@@ -136,10 +167,19 @@ async function openPositionLocked(hl: HyperliquidClient, db: Db, p: OpenParams):
   // Every entry, whatever sent it, passes the account-wide limits first.
   await assertWithinPortfolioLimits(hl, db, p.userId, p.sizeUsd, p.limits ?? DEFAULT_PORTFOLIO_LIMITS);
 
+  // Webhook and Autopilot entries have their own recovery (the job queue, the reserved position row).
+  const intent = p.source === 'manual' ? await beginEntryIntent(hl, db, p) : null;
   const slices = Math.min(MAX_SLICES, Math.max(1, Math.floor(p.slices ?? 1)));
-  let fill = await hl.placeMarketOrder({
-    coin: p.symbol, isBuy: p.side === 'long', sizeUsd: p.sizeUsd / slices, leverage: p.leverage, reduceOnly: false, slippagePercent: p.slippagePercent,
-  });
+  let fill: Awaited<ReturnType<HyperliquidClient['placeMarketOrder']>>;
+  try {
+    fill = await hl.placeMarketOrder({
+      coin: p.symbol, isBuy: p.side === 'long', sizeUsd: p.sizeUsd / slices, leverage: p.leverage, reduceOnly: false, slippagePercent: p.slippagePercent,
+    });
+  } catch (err) {
+    // Nothing filled, or the outcome was unknown and the client has already closed any fill and halted the account.
+    await finishEntryIntent(db, intent, 'failed', `The order did not go through: ${err instanceof Error ? err.message : err}`);
+    throw err;
+  }
   // The whole order is measured against the price when the first slice was sent.
   const decisionPrice = fill.decisionPrice ?? fill.fillPrice;
   let sliceNote: string | null = null;
@@ -174,7 +214,10 @@ async function openPositionLocked(hl: HyperliquidClient, db: Db, p: OpenParams):
       const closed = await hl.closePosition(p.symbol, p.slippagePercent);
       if (!closed.fullyClosed || await hl.getPosition(p.symbol)) throw new Error('a position remains open');
       recovery = 'The position was closed immediately';
+      await finishEntryIntent(db, intent, 'failed', `Filled but could not be recorded (${err instanceof Error ? err.message : err}). The position was closed immediately`);
     } catch (closeError) {
+      // The position is still open and has no record. The intent is left as 'sending' on purpose: the scan
+      // writes the missing record from the exchange fills and puts the entry's own stop on.
       // Try to protect the actual remaining size even when the journal is down.
       try {
         const remaining = await hl.getPosition(p.symbol);
@@ -190,11 +233,27 @@ async function openPositionLocked(hl: HyperliquidClient, db: Db, p: OpenParams):
     throw new Error(`Order ${fill.orderId} filled but could not be recorded: ${err instanceof Error ? err.message : err}. ${recovery}`);
   }
 
-  const result: OpenResult = {
+  const protection = await protectAfterFill(hl, db, p, sliceNote);
+  // Recorded, and stopped or closed (or handed to the account flatten): nothing is left for the scan to finish.
+  await finishEntryIntent(db, intent, 'done');
+  return {
     tradeId: trade.id, orderId: fill.orderId, fillPrice: fill.fillPrice, size: fill.sizeInContracts,
-    stopLossPx: null, takeProfitPx: null, protectionError: null, exitWarning: sliceNote,
-    slippageBps: slippageBps(p.side, decisionPrice, fill.fillPrice), closedUnprotected: false,
+    slippageBps: slippageBps(p.side, decisionPrice, fill.fillPrice), ...protection,
   };
+}
+
+/** What an entry asks for once it has filled: its stop, targets and managed exits. */
+export type ProtectParams = Pick<OpenParams, 'userId' | 'symbol' | 'side' | 'slippagePercent' | 'stopLossPct' | 'takeProfitPct' | 'exit' | 'closeIfUnprotected'>;
+export type Protection = Pick<OpenResult, 'stopLossPx' | 'takeProfitPx' | 'protectionError' | 'exitWarning' | 'closedUnprotected'>;
+
+/**
+ * Puts an entry's stop and targets on the whole position once it has filled, looks for the stop actually
+ * resting, and closes the position when a stop that was asked for is not there. One path for a normal entry
+ * and for the scan finishing an interrupted one (lib/entry-recovery.ts). Problems come back in the result.
+ */
+export async function protectAfterFill(hl: HyperliquidClient, db: Db, p: ProtectParams, sliceNote: string | null = null): Promise<Protection> {
+  const result: Protection = { stopLossPx: null, takeProfitPx: null, protectionError: null, exitWarning: sliceNote, closedUnprotected: false };
+  const now = new Date().toISOString();
 
   const managed = isManaged(p.exit, p.takeProfitPct != null);
   const wantsOrders = p.stopLossPct != null || p.takeProfitPct != null || managed;

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { runFastPass } from '@/lib/upkeep';
+import { entriesInFlight } from '@/lib/entry-recovery';
 import { cronAuthorized } from '@/lib/cron-auth';
 
 export const runtime = 'nodejs';
@@ -30,16 +31,18 @@ export async function GET(request: Request) {
     console.error('[fast] webhook queue:', webhookError);
   }
 
-  const [plans, pending, open, recovery, unprotected] = await Promise.all([
+  const [plans, pending, open, recovery, unprotected, interrupted] = await Promise.all([
     supabase.from('position_plans').select('user_id').eq('status', 'active'),
     supabase.from('pending_orders').select('user_id').eq('status', 'resting'),
     supabase.from('trades').select('user_id').eq('status', 'open'),
     supabase.from('settings').select('user_id').eq('flatten_pending', true),
     supabase.from('autopilot_positions').select('user_id').eq('mode', 'live').eq('status', 'open').eq('recovery_pending', true),
+    // A manual entry whose request may have died before it recorded anything: no other row points at its account.
+    entriesInFlight(supabase),
   ]);
-  if ([plans, pending, open, recovery, unprotected].some(result => result.error))
+  if ([plans, pending, open, recovery, unprotected, interrupted].some(result => result.error))
     return NextResponse.json({ error: 'Could not identify accounts needing upkeep' }, { status: 503 });
-  const users = [...new Set([...(plans.data ?? []), ...(pending.data ?? []), ...(open.data ?? []), ...(recovery.data ?? []), ...(unprotected.data ?? [])].map(r => r.user_id as string))];
+  const users = [...new Set([...(plans.data ?? []), ...(pending.data ?? []), ...(open.data ?? []), ...(recovery.data ?? []), ...(unprotected.data ?? []), ...interrupted.data].map(r => r.user_id as string))];
   if (!users.length) return NextResponse.json({ ran: 0, webhookJobs, ...(webhookError ? { webhookError } : {}) }, { status: webhookError ? 500 : 200 });
 
   const { data: rows, error } = await supabase.from('settings').select('*').in('user_id', users);

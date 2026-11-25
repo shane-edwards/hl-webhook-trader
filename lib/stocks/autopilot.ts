@@ -11,6 +11,7 @@ import { estimatedStockEntryCost, scanStockSetups } from './setups';
 import { journalQuote, readStockCloseExecution, stockCalibrations, stockJournalFill, type StockJournalClose, type StockJournalCost, type StockJournalOrder, type StockJournalQuote } from './execution-journal';
 import { blockedStockStrategies } from './strategy-guard-data';
 import type { AutomationDecision } from '@/lib/automation/policy';
+import { formatCurrency } from '@/lib/utils';
 
 export type StockEnvironment = 'demo' | 'real';
 export type StockAutoConfig = {
@@ -18,8 +19,10 @@ export type StockAutoConfig = {
   leverage: StockLeverage; stop_margin_pct: number | null; portfolio?: StockPortfolio | null; automation_version?: string | null;
 };
 // 'external' marks a position that left the portfolio without a close eToro can attribute to the app's request.
+// 'unconfirmed' marks an exit eToro never confirmed before the row was closed at the flat-portfolio ceiling.
 // sentAt is when the close request was sent. Rows saved before it existed use the row's updated_at instead.
-type CloseAttempt = { state: 'uncertain' | 'submitted' | 'rejected' | 'filled' | 'external'; count: number; retryAt?: number; sentAt?: number; detail?: string };
+// flatAt is the first scan that found the portfolio flat while this exit was still unconfirmed.
+type CloseAttempt = { state: 'uncertain' | 'submitted' | 'rejected' | 'filled' | 'external' | 'unconfirmed'; count: number; retryAt?: number; sentAt?: number; flatAt?: number; detail?: string };
 type AutoOrder = { id: string; environment: StockEnvironment; connection_version: string; state: string; position_ids: number[]; request: StockOrder; strategy: StockTradeRule; signal_day: string | null; strategy_exit_at: string | null; updated_at: string; close_requests: Record<string, string>; close_attempts?: Record<string, CloseAttempt>; protection_state: string | null; close_execution?: Record<string, StockJournalClose>;
   symbol?: string; created_at?: string; broker_message?: string | null };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,6 +32,12 @@ const CLOSE_NOT_RECEIVED_MS = 3 * 60_000;
 // A reference eToro has no record of stops blocking the row after this long.
 const UNRESOLVED_REFERENCE_MS = 15 * 60_000;
 const UNMATCHED_ORDER_NOTE = 'eToro has no record of this order, but the account holds a position or pending order it could have opened.';
+// A flat portfolio with an exit eToro has not confirmed blocks every new portfolio entry, so the wait has a ceiling.
+// Exit details normally arrive within minutes. 24 hours from the first flat scan spans the rest of that session and
+// most of the next one, and scans only run in market hours, so the row is closed only after a fresh check also fails.
+const FLAT_UNCONFIRMED_MS = 24 * 3_600_000;
+const DAILY_LOSS_NOTE = 'Daily loss limit reached. New entries paused for this US session.';
+type Book = Awaited<ReturnType<EtoroClient['portfolio']>>;
 
 // Assumes eToro answers HTTP 404 for a reference it never received. Timeouts, network errors, 5xx and replies without an order ID stay unknown.
 async function lookupReference(broker: EtoroClient, reference: string) {
@@ -177,6 +186,64 @@ export async function scanStockAutopilot(db: Db, userId: string, config?: StockA
   return messages.join(' · ') || 'Waiting for the next market opening';
 }
 
+/** The daily-loss state of one account, environment and US session. The portfolio scan and manual orders share the row and the rule. */
+export async function stockDailyLoss(db: Db, userId: string, environment: StockEnvironment, day: string, dailyLoss: number) {
+  const sessionKey = { user_id: userId, environment, session_day: day };
+  const sessionQuery = () => db.from('stock_portfolio_sessions').select('opening_equity, loss_locked').match(sessionKey);
+  const read = await sessionQuery().maybeSingle();
+  if (read.error) throw read.error;
+  let baseline = read.data;
+  return {
+    locked: !!baseline?.loss_locked,
+    /** Saves the first usable equity as the opening baseline, then locks the session once the loss reaches the limit.
+     *  'unknown' means there is no opening equity to measure from. */
+    async check(equity: number): Promise<'locked' | 'unknown' | null> {
+      if (!baseline && equity > 0) {
+        const saved = await db.from('stock_portfolio_sessions').upsert({ ...sessionKey, opening_equity: equity },
+          { onConflict: 'user_id,environment,session_day', ignoreDuplicates: true });
+        if (saved.error) throw saved.error;
+        const reread = await sessionQuery().single();
+        if (reread.error) throw reread.error;
+        baseline = reread.data;
+      }
+      if (!baseline) return 'unknown';
+      if (!baseline.loss_locked && Number(baseline.opening_equity) - equity < dailyLoss) return null;
+      const saved = await db.from('stock_portfolio_sessions').update({ loss_locked: true }).match(sessionKey);
+      if (saved.error) throw saved.error;
+      baseline = { ...baseline, loss_locked: true };
+      return 'locked';
+    },
+  };
+}
+
+/** Why the saved portfolio limits refuse a manual buy, or null when it may go ahead. The limits apply in the order's
+ *  environment whether or not Autopilot is running. An account without valid saved portfolio settings is not limited. */
+export async function manualStockLimit(db: Db, userId: string, environment: StockEnvironment, readBook: () => Promise<Book>,
+  instrumentId: number, exposure: number, now: number): Promise<{ error: string; status: 409 | 422 | 503 } | null> {
+  const refuse = (error: string, status: 409 | 422 | 503) => ({ error, status });
+  const unavailable = 'Could not check your portfolio limits. Try again shortly.';
+  const lossReached = 'Your daily equity loss limit has been reached. New buys are paused for the rest of this US session.';
+  const config = await db.from('stock_autopilot').select('portfolio').eq('user_id', userId).maybeSingle();
+  if (config.error) return refuse(unavailable, 503);
+  const { data: settings, success } = stockPortfolioSchema.safeParse(config.data?.portfolio);
+  if (!success) return null;
+  const loss = await stockDailyLoss(db, userId, environment, stockMarketClock(now).day, settings.dailyLoss).catch(() => null);
+  if (!loss) return refuse(unavailable, 503);
+  if (loss.locked) return refuse(lossReached, 409);
+  const risk = stockPortfolioRisk(await readBook());
+  if (!risk) return refuse('Tideframe cannot measure your eToro exposure while the account has copy portfolios, pending orders or a position without a readable value, so it cannot check your portfolio limits. The order was not placed.', 409);
+  const lossState = await loss.check(risk.equity).catch(() => 'failed' as const);
+  if (lossState === 'failed') return refuse(unavailable, 503);
+  if (lossState === 'unknown') return refuse('Account equity is unavailable, so your daily equity loss limit cannot be checked. The order was not placed.', 409);
+  if (lossState) return refuse(lossReached, 409);
+  // A manual buy could always add to a held ticker, so that alone does not refuse it.
+  const block = stockPortfolioEntry(settings, risk, instrumentId, exposure, true);
+  if (!block) return null;
+  return refuse(block === 'Position limit reached' ? `Your portfolio limit of ${settings.maxPositions} open ${settings.maxPositions === 1 ? 'instrument' : 'instruments'} has been reached.`
+    : block === 'Gross exposure limit' ? `This order would take gross exposure above your ${formatCurrency(settings.maxExposure)} portfolio limit.`
+    : `This order would take exposure in one group of stocks above your ${formatCurrency(settings.maxGroup)} per-group limit.`, 422);
+}
+
 async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfig, environment: StockEnvironment, connectionVersion: string, open: AutoOrder[], now: number) {
   const { data: settings, success } = stockPortfolioSchema.safeParse(config.portfolio);
   if (!success) return 'Portfolio settings need review';
@@ -189,12 +256,9 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
   if (claimError) throw claimError;
   if (!claim) return 'Another scan is checking this portfolio';
   try {
-    const sessionKey = { user_id: account, environment, session_day: day };
-    const sessionQuery = () => db.from('stock_portfolio_sessions').select('opening_equity, loss_locked').match(sessionKey);
-    const read = await sessionQuery().maybeSingle();
-    if (read.error) throw read.error;
-    if (read.data?.loss_locked) return 'Daily loss limit reached. New entries paused for this US session.';
-    const riskCheck = (book: Awaited<ReturnType<EtoroClient['portfolio']>>) => {
+    const loss = await stockDailyLoss(db, account, environment, day, settings.dailyLoss);
+    if (loss.locked) return DAILY_LOSS_NOTE;
+    const riskCheck = (book: Book) => {
       const risk = stockPortfolioRisk(book);
       if (!risk || open.some(row => row.state !== 'filled' || !row.position_ids.length
           || row.protection_state === 'exit_required' || row.protection_state === 'unverified'
@@ -204,24 +268,9 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
     const book = await broker.portfolio();
     const risk = riskCheck(book);
     if (!risk) return 'Skipped entries while exposure or eToro orders are unresolved';
-    let baseline = read.data;
-    if (!baseline && risk.equity > 0) {
-      const saved = await db.from('stock_portfolio_sessions').upsert({ ...sessionKey, opening_equity: risk.equity },
-        { onConflict: 'user_id,environment,session_day', ignoreDuplicates: true });
-      if (saved.error) throw saved.error;
-      const reread = await sessionQuery().single();
-      if (reread.error) throw reread.error;
-      baseline = reread.data;
-    }
-    if (!baseline) return 'Skipped entries because opening account equity is unavailable';
-    const lossMessage = 'Daily loss limit reached. New entries paused for this US session.';
-    const lossReached = async (equity: number) => {
-      if (!baseline.loss_locked && Number(baseline.opening_equity) - equity < settings.dailyLoss) return false;
-      const saved = await db.from('stock_portfolio_sessions').update({ loss_locked: true }).match(sessionKey);
-      if (saved.error) throw saved.error;
-      return true;
-    };
-    if (await lossReached(risk.equity)) return lossMessage;
+    const lossState = await loss.check(risk.equity);
+    if (lossState === 'unknown') return 'Skipped entries because opening account equity is unavailable';
+    if (lossState) return DAILY_LOSS_NOTE;
     const inWindow = settings.strategies.filter(rule => stockEntryWindow(rule, now, true));
     if (!inWindow.length) return 'Waiting for the next scheduled strategy entry window';
     const paused = await blockedStockStrategies(db, account, environment, inWindow);
@@ -255,7 +304,7 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
     const [freshBook, quotes] = await Promise.all([broker.portfolio(), broker.quotes([candidate.id])]);
     const updatedRisk = riskCheck(freshBook);
     if (!updatedRisk) return 'Skipped entry because the eToro book changed';
-    if (await lossReached(updatedRisk.equity)) return lossMessage;
+    if (await loss.check(updatedRisk.equity)) return DAILY_LOSS_NOTE;
     const riskBlock = stockPortfolioEntry(settings, updatedRisk, candidate.id, exposure);
     if (riskBlock) return `${candidate.symbol} skipped · ${riskBlock}`;
     const quote = quotes.find(item => item.instrumentId === candidate.id);
@@ -292,6 +341,71 @@ async function scanPortfolio(db: Db, broker: EtoroClient, config: StockAutoConfi
   }
 }
 
+type UnknownEntry = Pick<AutoOrder, 'id' | 'environment' | 'connection_version' | 'state' | 'request' | 'updated_at' | 'symbol' | 'created_at' | 'broker_message'>;
+
+/** An entry whose outcome is still unknown 15 minutes after it was sent. Only these can be released or marked as not placed. */
+export function stockEntryUnresolved(row: Pick<AutoOrder, 'state' | 'updated_at'>, now: number) {
+  // A 'submitted' row holds a broker order ID, so eToro received it. Only an unknown outcome can be released.
+  return ['sending', 'review'].includes(row.state) && now - Date.parse(row.updated_at) >= UNRESOLVED_REFERENCE_MS;
+}
+
+/** The rule for an entry whose reference eToro answers 404 for. The scan and the manual status refresh both apply it. */
+export async function settleUnreceivedStockOrder(db: Db, broker: EtoroClient, userId: string, row: UnknownEntry, connectionVersion: string, now: number,
+  sharedBook?: ReturnType<EtoroClient['portfolio']>): Promise<{ outcome: 'waiting' | 'key_changed' | 'unmatched' | 'released'; message: string }> {
+  const update = (patch: object) => db.from('etoro_stock_orders').update({ updated_at: new Date().toISOString(), ...patch }).eq('user_id', userId).eq('id', row.id);
+  const waiting = 'Waiting for eToro to confirm the submitted order';
+  if (!stockEntryUnresolved(row, now)) return { outcome: 'waiting', message: waiting };
+  if (connectionVersion !== row.connection_version) return { outcome: 'key_changed', message: 'The key changed before eToro confirmed the submitted order. Check the original eToro account.' };
+  const book = await (sharedBook ?? broker.portfolio());
+  const created = Date.parse(row.created_at ?? '');
+  // A day of margin covers any time-zone doubt in openDateTime.
+  let matches = book.positions.filter(position => position.instrumentId === row.request.instrumentId
+    && position.side === 'Long' && !(brokerTime(position.opened) < created - 86_400_000));
+  if (matches.length) {
+    // A position another of this account's orders already tracks was opened by that order, so it cannot be this one's fill.
+    const tracked = await db.from('etoro_stock_orders').select('id, position_ids').eq('user_id', userId).eq('environment', row.environment)
+      .overlaps('position_ids', matches.map(position => position.id));
+    if (tracked.error) throw new Error('Could not read the tracked stock positions');
+    const taken = new Set(tracked.data.filter(other => other.id !== row.id).flatMap(other => (other.position_ids as number[]).map(Number)));
+    matches = matches.filter(position => !taken.has(position.id));
+  }
+  // Pending orders carry no instrument here, so any one counts.
+  const possible = book.pending > 0 || matches.length > 0;
+  const name = row.symbol ? `${row.symbol} order` : 'order';
+  if (possible) {
+    const wayOut = 'If eToro shows it was not placed, mark it as not placed in Recent orders.';
+    // The saved note makes the alert fire once. updated_at is kept so the send time stays known.
+    if (row.broker_message === UNMATCHED_ORDER_NOTE) return { outcome: 'unmatched', message: `${waiting}. A position or pending order it could have opened is on the account, so it stays reserved. Check eToro. ${wayOut}` };
+    const noted = await update({ broker_message: UNMATCHED_ORDER_NOTE, updated_at: row.updated_at }).eq('state', row.state).eq('updated_at', row.updated_at);
+    if (noted.error) throw new Error('Could not record the unresolved stock order');
+    return { outcome: 'unmatched', message: `eToro has no record of the ${name}, but the account holds a position or pending order it could have opened. The order stays reserved and needs a manual check in eToro. ${wayOut}` };
+  }
+  // 'rejected' is the terminal state that the reservation checks, the pending-order index and the scan all ignore.
+  const released = await update({ state: 'rejected', broker_message: 'Not received by eToro. No record of the order reference 15 minutes after it was sent, and no matching position or pending order.' })
+    .eq('state', row.state).eq('updated_at', row.updated_at).select('id').maybeSingle();
+  if (released.error) throw new Error('Could not release the unconfirmed stock order');
+  if (!released.data) return { outcome: 'waiting', message: waiting };
+  return { outcome: 'released', message: `eToro has no record of the ${name} 15 minutes after it was sent, and the account holds no matching position or pending order. Marked as not received. Its reservation is released.` };
+}
+
+/** The owner's way out for an entry the rule above keeps reserved: they checked eToro and the order is not there.
+ *  Assumes the owner checked the account this key belongs to. A position the order did open is no longer tracked or managed. */
+export async function markStockOrderNotPlaced(db: Db, broker: EtoroClient, userId: string, row: UnknownEntry, connectionVersion: string, now: number):
+  Promise<{ error: string; status: 409 | 503 } | { message: string }> {
+  if (!['sending', 'review'].includes(row.state)) return { error: 'Only an order with an unknown outcome can be marked as not placed.', status: 409 };
+  if (!stockEntryUnresolved(row, now)) return { error: 'Wait 15 minutes after the order was sent before marking it as not placed.', status: 409 };
+  if (connectionVersion !== row.connection_version) return { error: 'The eToro key changed after this order was sent. Reconnect the original account to resolve it.', status: 409 };
+  const lookup = await lookupReference(broker, row.id);
+  if (lookup.orderId) return { error: 'eToro has a record of this order. Refresh its status instead.', status: 409 };
+  if (!lookup.missing) return { error: 'Could not confirm that eToro has no record of this order. Try again shortly.', status: 503 };
+  const saved = await db.from('etoro_stock_orders').update({ state: 'rejected', updated_at: new Date().toISOString(),
+    broker_message: 'The account owner confirmed in eToro that this order was not placed. eToro had no record of the order reference.' })
+    .eq('user_id', userId).eq('id', row.id).eq('state', row.state).eq('updated_at', row.updated_at).select('id').maybeSingle();
+  if (saved.error) return { error: 'Could not save the change. Try again shortly.', status: 503 };
+  if (!saved.data) return { error: 'This order changed while you were checking. Refresh and try again.', status: 409 };
+  return { message: `${row.symbol ? `${row.symbol} order` : 'Order'} marked as not placed. The stock is free for new orders.` };
+}
+
 export async function manageStockOrder(db: Db, broker: EtoroClient, userId: string, row: AutoOrder, connectionVersion: string, previous: string, now: number,
   sharedBook?: ReturnType<EtoroClient['portfolio']>) {
   const update = (patch: object) => db.from('etoro_stock_orders').update({ updated_at: new Date().toISOString(), ...patch }).eq('user_id', userId).eq('id', row.id);
@@ -304,29 +418,7 @@ export async function manageStockOrder(db: Db, broker: EtoroClient, userId: stri
       return message ?? `eToro order ${summary.state}`;
     } catch (error) {
       if (!(error instanceof EtoroError && error.status === 404)) throw error;
-      const waiting = 'Waiting for eToro to confirm the submitted order';
-      // A 'submitted' row holds a broker order ID, so eToro received it. Only an unknown outcome can be released.
-      if (!['sending', 'review'].includes(row.state) || !(now - Date.parse(row.updated_at) >= UNRESOLVED_REFERENCE_MS)) return waiting;
-      if (connectionVersion !== row.connection_version) return 'The key changed before eToro confirmed the submitted order. Check the original eToro account.';
-      const book = await (sharedBook ?? broker.portfolio());
-      const created = Date.parse(row.created_at ?? '');
-      // A day of margin covers any time-zone doubt in openDateTime. Pending orders carry no instrument here, so any one counts.
-      const possible = book.pending > 0 || book.positions.some(position => position.instrumentId === row.request.instrumentId
-        && position.side === 'Long' && !(brokerTime(position.opened) < created - 86_400_000));
-      const name = row.symbol ? `${row.symbol} order` : 'order';
-      if (possible) {
-        // The saved note makes the alert fire once. updated_at is kept so the send time stays known.
-        if (row.broker_message === UNMATCHED_ORDER_NOTE) return `${waiting}. A position or pending order it could have opened is on the account, so it stays reserved. Check eToro.`;
-        const noted = await update({ broker_message: UNMATCHED_ORDER_NOTE, updated_at: row.updated_at }).eq('state', row.state).eq('updated_at', row.updated_at);
-        if (noted.error) throw new Error('Could not record the unresolved stock order');
-        return `eToro has no record of the ${name}, but the account holds a position or pending order it could have opened. The order stays reserved and needs a manual check in eToro.`;
-      }
-      // 'rejected' is the terminal state that the reservation checks, the pending-order index and this scan all ignore.
-      const released = await update({ state: 'rejected', broker_message: 'Not received by eToro. No record of the order reference 15 minutes after it was sent, and no matching position or pending order.' })
-        .eq('state', row.state).eq('updated_at', row.updated_at).select('id').maybeSingle();
-      if (released.error) throw new Error('Could not release the unconfirmed stock order');
-      if (!released.data) return waiting;
-      return `eToro has no record of the ${name} 15 minutes after it was sent, and the account holds no matching position or pending order. Marked as not received. Its reservation is released.`;
+      return (await settleUnreceivedStockOrder(db, broker, userId, row, connectionVersion, now, sharedBook)).message;
     }
   }
 
@@ -338,32 +430,61 @@ export async function manageStockOrder(db: Db, broker: EtoroClient, userId: stri
     // A newly filled order can reach order history before the portfolio feed.
     if (now - Date.parse(row.updated_at) < 10 * 60_000) return 'Waiting for the filled position to appear in the portfolio';
     const attempts = { ...row.close_attempts };
-    let external = false;
+    let external = false, unconfirmed = false;
+    // The first scan to find the portfolio flat starts the ceiling's clock for every exit still to confirm.
+    // updated_at is kept because rows saved before sentAt existed read their send time from it.
+    const wait = async (message: string) => {
+      const marks = { ...row.close_attempts };
+      const fresh = Object.keys(row.close_requests).filter(id => marks[id]?.state !== 'rejected' && marks[id]?.flatAt == null);
+      for (const id of fresh) marks[id] = { ...(marks[id] ?? { state: 'uncertain', count: 1 }), flatAt: now };
+      if (fresh.length) {
+        const marked = await update({ close_attempts: marks, updated_at: row.updated_at }).eq('updated_at', row.updated_at);
+        if (marked.error) throw new Error('Could not record the unconfirmed stock exit');
+      }
+      return message;
+    };
     for (const [id, reference] of Object.entries(row.close_requests)) {
       if (attempts[id]?.state === 'rejected') continue;
+      const overdue = now - (attempts[id]?.flatAt ?? now) >= FLAT_UNCONFIRMED_MS;
+      const giveUp = () => {
+        attempts[id] = { ...attempts[id], state: 'unconfirmed', count: attempts[id]?.count ?? 1, detail: 'eToro did not confirm this exit. Exit details may be incomplete.' };
+        unconfirmed = true;
+      };
       let orderId: number | undefined = closeExecution[id]?.orderId;
       if (!orderId) {
         const lookup = await lookupReference(broker, reference);
         orderId = lookup.orderId;
         if (!orderId) {
           const sent = attempts[id]?.sentAt ?? Date.parse(row.updated_at);
-          if (!lookup.missing || !(now - sent >= UNRESOLVED_REFERENCE_MS)) return 'Portfolio is flat. Waiting for eToro to resolve the exit reference.';
-          // eToro never received this request, so the position left the portfolio another way, such as a manual close.
-          attempts[id] = { ...attempts[id], state: 'external', count: attempts[id]?.count ?? 1, detail: 'Closed outside Tideframe. Exit details unavailable.' };
-          external = true;
+          if (lookup.missing && now - sent >= UNRESOLVED_REFERENCE_MS) {
+            // eToro never received this request, so the position left the portfolio another way, such as a manual close.
+            attempts[id] = { ...attempts[id], state: 'external', count: attempts[id]?.count ?? 1, detail: 'Closed outside Tideframe. Exit details unavailable.' };
+            external = true;
+          } else if (overdue) giveUp();
+          else return wait('Portfolio is flat. Waiting for eToro to resolve the exit reference.');
           continue;
         }
       }
       const receipt = closeExecution[id] ?? { orderId, quote: null };
-      closeExecution[id] = await readStockCloseExecution(broker, row.request.instrumentId, id, receipt);
-      if (!closeExecution[id].complete) return 'Portfolio is flat. Waiting for eToro exit execution details.';
-      attempts[id] = { state: 'filled', count: attempts[id]?.count ?? 1 };
+      // Past the ceiling a failing status read no longer holds the row open. The receipt keeps the order ID for the journal.
+      closeExecution[id] = await readStockCloseExecution(broker, row.request.instrumentId, id, receipt).catch(async error => {
+        if (overdue) return receipt;
+        await wait('');
+        throw error;
+      });
+      if (closeExecution[id].complete) attempts[id] = { state: 'filled', count: attempts[id]?.count ?? 1 };
+      else if (overdue) giveUp();
+      else return wait('Portfolio is flat. Waiting for eToro exit execution details.');
     }
+    const note = unconfirmed ? 'The position left the portfolio and eToro did not confirm the exit within 24 hours. Closed in Tideframe with the exit details known so far.'
+      : external ? 'Closed outside Tideframe. eToro has no record of the exit request, so exit details are unavailable.' : null;
     const saved = await update({ closed_at: new Date(now).toISOString(), close_execution: closeExecution, close_attempts: attempts,
-      ...(external ? { broker_message: 'Closed outside Tideframe. eToro has no record of the exit request, so exit details are unavailable.' } : {}) })
+      ...(note ? { broker_message: note } : {}) })
       .eq('updated_at', row.updated_at).select('id').maybeSingle();
     if (saved.error || !saved.data) throw new Error('Could not finalize stock exits');
-    return external ? 'Managed position closed outside Tideframe. eToro has no record of the exit request, so exit details are unavailable.' : 'Managed position closed';
+    // The row is closed by this scan only, so each of these alerts once.
+    return unconfirmed ? `Managed ${row.symbol ? `${row.symbol} ` : ''}position left the portfolio and eToro did not confirm the exit within 24 hours. Closed in Tideframe with the exit details known so far. Check the result in eToro.`
+      : external ? 'Managed position closed outside Tideframe. eToro has no record of the exit request, so exit details are unavailable.' : 'Managed position closed';
   }
   // An unconfirmed stop triggers the existing exit workflow before applying the strategy's exit rules.
   if (row.protection_state !== 'exit_required' && !Object.keys(row.close_requests).length) {
@@ -394,6 +515,13 @@ export async function manageStockOrder(db: Db, broker: EtoroClient, userId: stri
     attempts[id] = { state: 'rejected', count, detail, retryAt: now + Math.min(30, 2 ** Math.min(count, 5)) * 60_000 };
     messages.push(message);
   }
+  // A position that is back in the portfolio was not flat after all, so its ceiling clock starts again from nothing.
+  const reappeared = positions.filter(position => attempts[position.id]?.flatAt != null);
+  for (const { id } of reappeared) {
+    attempts[id] = { ...attempts[id] };
+    delete attempts[id].flatAt;
+  }
+  if (reappeared.length) await save();
   for (const position of positions) {
     const id = position.id;
     const previous = attempts[id];

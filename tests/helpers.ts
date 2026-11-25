@@ -30,8 +30,24 @@ export function memoryDb(seed: Record<string, Row[]> = {}) {
       select: () => { if (op === 'update') { const r = exec(); inserted = r.data; op = 'select'; } return q; },
       eq: (k: string, v: unknown) => add(r => r[k] === v),
       is: (k: string, v: unknown) => add(r => (r[k] ?? null) === v),
-      not: (k: string, op: string, v: unknown) => { if (op !== 'is') throw new Error(op); return add(r => (r[k] ?? null) !== v); },
+      not: (k: string, op: string, v: unknown) => {
+        if (op === 'in') { const list = String(v).slice(1, -1).split(','); return add(r => !list.includes(String(r[k]))); }
+        if (op !== 'is') throw new Error(op);
+        return add(r => (r[k] ?? null) !== v);
+      },
       in: (k: string, v: unknown[]) => add(r => v.includes(r[k])),
+      match: (o: Row) => add(r => Object.entries(o).every(([k, v]) => r[k] === v)),
+      overlaps: (k: string, v: unknown[]) => add(r => Array.isArray(r[k]) && (r[k] as unknown[]).some(x => v.includes(x))),
+      // The PostgREST forms the app uses: col.is.null, col.not.is.null, col.lt.value and col.in.(a,b).
+      or: (clauses: string) => add(r => clauses.split(/,(?![^(]*\))/).some(clause => {
+        const [k, ...rest] = clause.split('.');
+        const test = rest.join('.');
+        if (test === 'is.null') return r[k] == null;
+        if (test === 'not.is.null') return r[k] != null;
+        if (test.startsWith('lt.')) return r[k] != null && String(r[k]) < test.slice(3);
+        if (test.startsWith('in.(')) return test.slice(4, -1).split(',').includes(String(r[k]));
+        throw new Error(clause);
+      })),
       gte: (k: string, v: string) => add(r => String(r[k]) >= v),
       lt: (k: string, v: string) => add(r => String(r[k]) < v),
       order: (key: string, o?: { ascending?: boolean }) => { order = { key, asc: o?.ascending !== false }; return q; },

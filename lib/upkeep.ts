@@ -10,6 +10,7 @@ import type { HyperliquidClient } from '@/lib/hyperliquid/client';
 import { managePending } from '@/lib/pending';
 import { manageExits } from '@/lib/exits';
 import { syncAccount } from '@/lib/reconcile';
+import { recoverManualEntries } from '@/lib/entry-recovery';
 import { dayStartEquity } from '@/lib/risk/portfolio';
 import { notify } from '@/lib/notify';
 
@@ -120,6 +121,7 @@ async function runFastPassLocked(hl: HyperliquidClient, db: Db, settings: Settin
       if (await closeUnverifiedEntry(hl, db, userId, row, slippage)) out.notes.push(`${row.symbol} recovery verified flat; settlement pending`);
     }
   });
+  await step('manual entry recovery', () => recoverEntries(hl, db, userId, now, out));
   await step('limit orders', async () => {
     for (const e of await managePending(hl, db, userId, now, { slippagePercent: slippage })) (e.level === 'error' ? out.errors : out.notes).push(e.message);
   });
@@ -140,6 +142,15 @@ async function runFastPassLocked(hl: HyperliquidClient, db: Db, settings: Settin
   const lines = [...out.errors.map(e => `ERROR ${e}`), ...out.notes];
   if (lines.length) await notify(lines.join('\n'), undefined, userId);
   return out;
+}
+
+/**
+ * A manual market entry whose request died between the order and the trade record: the position is recorded
+ * and stopped, or shown never to have filled. Both scans hold the trading lock here, so no entry is in flight.
+ */
+async function recoverEntries(hl: HyperliquidClient, db: Db, userId: string, now: number, out: UpkeepResult): Promise<void> {
+  const r = await recoverManualEntries(hl, db, userId, now);
+  out.notes.push(...r.notes); out.errors.push(...r.errors);
 }
 
 /** A fill reaches the exchange's history within a few seconds; wait this long before trusting its absence. */
@@ -163,6 +174,7 @@ async function runUpkeepLocked(hl: HyperliquidClient, db: Db, settings: Settings
     try { await fn(); } catch (err) { out.errors.push(`${name}: ${err instanceof Error ? err.message : err}`); }
   };
 
+  await step('manual entry recovery', () => recoverEntries(hl, db, userId, now, out));
   await step('limit orders', async () => {
     for (const e of await managePending(hl, db, userId, now, { slippagePercent: Number(settings.slippage_percent ?? 2) })) (e.level === 'error' ? out.errors : out.notes).push(e.message);
   });

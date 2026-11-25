@@ -2,7 +2,7 @@ import type { HyperliquidClient } from './hyperliquid/client';
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { closePositionFully, openPosition, protectionPercent, MAX_LEVERAGE } from '@/lib/execution';
-import { parseWebhookPayload, planSignal } from '@/lib/webhook';
+import { parseWebhookPayload, planSignal, requireEntryStop } from '@/lib/webhook';
 import { notify } from '@/lib/notify';
 import { portfolioLimitsFromSettings } from '@/lib/risk/portfolio';
 
@@ -59,16 +59,19 @@ export async function executeWebhookJob(userId: string, payload: Record<string, 
     }
 
     const position = await hl.getPosition(symbol);
-    const plan = planSignal({
+    // An entry with no stop of its own and no default in Settings is refused; a reversal then only closes.
+    const { plan, refused } = requireEntryStop(planSignal({
       direction: signal.direction,
       isTargetPosition: signal.isTargetPosition,
       current: position ? { side: position.side, notionalUsd: position.size * position.markPrice } : null,
       orderSizeUsd: sizeUsd,
       maxPositionSizeUsd,
-    });
+    }), stopLossPct);
 
     if (plan.type === 'none') {
       await log('rejected', plan.reason);
+      // An alert that was meant to trade and did not is worth telling the owner about.
+      if (refused) await notifyUser(`Webhook: ${symbol} signal refused. ${refused}`);
       return NextResponse.json({ success: false, message: plan.reason }, { status: 200 });
     }
 
@@ -79,9 +82,9 @@ export async function executeWebhookJob(userId: string, payload: Record<string, 
       reversed = true;
 
       if (plan.type === 'close') {
-        await log('processed', null, tradeId);
-        await notifyUser(`Webhook: closed ${symbol} at ${closed.fillPrice}`);
-        return NextResponse.json({ success: true, action: 'close', symbol, fillPrice: closed.fillPrice, size: closed.size });
+        await log('processed', refused, tradeId);
+        await notifyUser(`Webhook: closed ${symbol} at ${closed.fillPrice}` + (refused ? `. ${refused}` : ''));
+        return NextResponse.json({ success: true, action: 'close', symbol, fillPrice: closed.fillPrice, size: closed.size, ...(refused ? { message: refused } : {}) });
       }
     }
 

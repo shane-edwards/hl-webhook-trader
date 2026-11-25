@@ -18,7 +18,7 @@ import { frameNames, StrategySearch } from '@/components/journey/StrategySearch'
 import { SEARCH_FRAMES, type SearchFrame } from '@/lib/strategy-search/model';
 
 export type StockEnvironment = 'demo' | 'real';
-type Order = { close_attempts?: Record<string, { state: string; retryAt?: number; detail?: string }>; id: string; symbol: string; state: string; broker_order_id: number | null; strategy_exit_at?: string | null; closed_at?: string | null; leverage?: StockLeverage; protection_state?: string | null };
+type Order = { close_attempts?: Record<string, { state: string; retryAt?: number; detail?: string }>; id: string; symbol: string; state: string; broker_order_id: number | null; strategy_exit_at?: string | null; closed_at?: string | null; leverage?: StockLeverage; protection_state?: string | null; resolvable?: boolean };
 type Cost = { costType: string; value: number; currency: string };
 type Review = { review: Order; amount: number; ask: number; name: string; signal?: string; costs: Cost[];
   leverage: StockLeverage; exposure: number; stopPrice: number | null; estimatedStopLoss: number | null };
@@ -71,6 +71,7 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
   const [message, setMessage] = useState('');
   const [auto, setAuto] = useState<AutoConfig | null>(null);
   const [confirmAuto, setConfirmAuto] = useState(false);
+  const [notPlaced, setNotPlaced] = useState<Order | null>(null);
   const [autoCosts, setAutoCosts] = useState<Cost[] | null>(null);
   const [book, setBook] = useState<{ mode: StockEnvironment; value: Book | null } | null>(null);
   const [portfolioMode, setPortfolioMode] = useState<boolean | null>(null);
@@ -262,11 +263,14 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
               {order.protection_state === 'exit_required' && !order.closed_at && <span className="block text-xs text-loss">Stop unconfirmed · Tideframe is checking the position for closure</span>}
               {order.strategy_exit_at && !order.closed_at && order.state !== 'rejected' && <span className="block text-xs text-muted-foreground">Exit scheduled for {nyTime.format(new Date(order.strategy_exit_at))} ET</span>}
             </span>
-            {['sending', 'review', 'submitted'].includes(order.state) && <Button variant="outline" size="sm" disabled={!!busy} onClick={() => perform(order.id, async () => {
-              const result = await request<{ brokerMessage: string | null }>('', { action: 'status', id: order.id, environment });
-              if (result.brokerMessage) setMessage(result.brokerMessage);
-              await refresh();
-            })}>Refresh status</Button>}
+            {['sending', 'review', 'submitted'].includes(order.state) && <span className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" disabled={!!busy} onClick={() => perform(order.id, async () => {
+                const result = await request<{ brokerMessage: string | null }>('', { action: 'status', id: order.id, environment });
+                if (result.brokerMessage) setMessage(result.brokerMessage);
+                await refresh();
+              })}>Refresh status</Button>
+              {order.resolvable && <Button variant="outline" size="sm" disabled={!!busy} onClick={() => setNotPlaced(order)}>Mark as not placed</Button>}
+            </span>}
           </div>)}
         </div>}
       </> : <Button onClick={() => onConnect(environment, symbol, strategy, handoff)}>Connect eToro {environment === 'demo' ? 'Demo' : 'Real'}</Button>}
@@ -302,6 +306,35 @@ export function StockOrderTicket({ flow, connections, initialEnvironment = 'demo
                 }
               });
             }}>{busy === 'submit' ? 'Submitting…' : 'Submit buy'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!notPlaced} onOpenChange={open => { if (!open && !busy) setNotPlaced(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark the {notPlaced?.symbol} order as not placed?</DialogTitle>
+            <DialogDescription>Tideframe never got an answer from eToro for this order, so it cannot tell whether the order was placed.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <p>Check your eToro {environment === 'demo' ? 'Demo' : 'Real'} account first. Look for {notPlaced?.symbol} in your open positions, pending orders and today&apos;s history.</p>
+            <p>If the order is not there, confirm below. Tideframe marks it as rejected and frees {notPlaced?.symbol} for new orders.</p>
+            <p className="text-loss">If you confirm and eToro did place the order, Tideframe will not track or manage that position. It will not send a strategy exit or check the stop. You would have to manage it in eToro yourself.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={!!busy} onClick={() => setNotPlaced(null)}>Cancel</Button>
+            <Button disabled={!!busy || !notPlaced} onClick={() => {
+              if (!notPlaced) return;
+              const id = notPlaced.id;
+              void perform('resolve', async () => {
+                try {
+                  const result = await request<{ message: string }>('', { action: 'resolve', id, environment, outcome: 'not_received' });
+                  setMessage(result.message);
+                } finally {
+                  setNotPlaced(null);
+                  await refresh().catch(() => {});
+                }
+              });
+            }}>{busy === 'resolve' ? 'Checking eToro…' : 'I checked eToro. Mark as not placed'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
