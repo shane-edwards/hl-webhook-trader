@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { advanceForward, blockLowerBound, checkPerpVenue, searchHistory, searchInputs } from '../lib/strategy-search/engine';
 import { evolve, seedRecipes } from '../lib/strategy-search/evolution';
+import type { Experiment } from '../lib/strategy-search/model';
 import { marketSearchPairs, pairFromKey, paperTradingStatus, ruleKey, ruleName, RULE_INTERPRETER_VERSION, searchDue, searchKey, searchPair, searchRevision, SEARCH_ASSETS, SEARCH_FRAMES, SEARCH_REFRESH_MS,
   SEARCH_RETRY_MS, SEARCH_REVISION, RECOMMENDATION_FRESH_MS, type SearchBar, type SearchReport } from '../lib/strategy-search/model';
 import { ideasForPair } from '../lib/automation/ideas';
+import { nextDiscoveryPair } from '../lib/automation/pair-research';
 import { automationVersion, type Evidence } from '../lib/automation/model';
 import { summarizeMarketResearch, type SearchRecord } from '../lib/strategy-search/recommendations';
 import { paperVersionsInUse } from '../lib/automation/policy';
@@ -31,10 +33,26 @@ const sample = Array.from({ length: 800 }, (_, i): SearchBar => {
   return { t: Date.UTC(2023, 0, 1 + i), o: c, h: c + 1, l: c - 1, c, v: 100 + i % 17 };
 });
 
+test('idle discovery revisits the oldest usable pair and respects work already pending or in backoff', () => {
+  const now = Date.UTC(2026, 10, 25);
+  const jobs = ['failed', 'running', 'queued', 'completed', 'completed', 'completed', 'completed'].map((status, i) => {
+    const id = searchKey(marketSearchPairs('crypto')[i]);
+    return { idea_id: id, status, verdict: i === 3 ? 'insufficient-history' : 'no-candidate',
+      as_of: new Date(now - (6 - i) * 3_600_000).toISOString() };
+  });
+  const latest = new Map(jobs.map(job => [job.idea_id, job]));
+  assert.equal(nextDiscoveryPair('crypto', latest, now)?.last.idea_id, jobs[4].idea_id);
+  latest.delete(jobs[4].idea_id);
+  assert.equal(nextDiscoveryPair('crypto', latest, now)?.last.idea_id, jobs[5].idea_id);
+  latest.delete(jobs[5].idea_id);
+  assert.equal(nextDiscoveryPair('crypto', latest, now), undefined);
+});
+
 test('generation rotates distinct temporal compositions, breeds deterministically and uses causal inputs', () => {
   const seeds = seedRecipes('long', 23);
   assert.equal(new Set(seeds.map(s => s.recipe.setup + s.recipe.trigger)).size, 20);
   assert.notDeepEqual(seedRecipes('long', 24), seeds);
+  assert.notDeepEqual(seedRecipes('long', 23 + 64), seeds);
   const prefix = searchInputs(sample.slice(0, 500));
   const full = searchInputs(sample);
   for (const seed of seedRecipes('long', 0, 64)) {
@@ -119,6 +137,21 @@ test('crypto and paired stock history support both directions', () => {
   assert.ok(paired.generation!.tried >= 40 && stocks.generation!.uniquePairs >= 20);
   assert.equal(crypto.revision, searchRevision('crypto'));
   assert.equal(stocks.revision, SEARCH_REVISION);
+});
+
+test('successive discovery rounds produce fresh rule keys on identical bars and retries are deterministic', () => {
+  const bars = Array.from({length: 1100}, (_, i) => ({...sample[i % sample.length], t: Date.UTC(2023, 0, 1 + i)}));
+  const run = (round: number, previous: Experiment[]) => {
+    const record: Experiment[] = [];
+    const report = searchHistory(searchPair('stocks', 'SPY', '1d')!, bars, 'test', { round, previous, record });
+    assert.equal(report.round, round);
+    return record;
+  };
+  const first = run(1, []);
+  const next = run(2, first);
+  const seen = new Set(first.map(e => e.key));
+  assert.ok(next.some(e => !seen.has(e.key)));
+  assert.deepEqual(next, run(2, first));
 });
 
 test('the perpetual short replay triggers on breakdowns and charges adverse short funding', () => {

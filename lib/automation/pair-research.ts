@@ -24,13 +24,16 @@ export async function pairAccess(db: Db, user: string, market: SearchMarket) {
 async function loadWork(db: Db, user: string, market: SearchMarket, ids?: string[]) {
   const domain = () => db.from('automation_runs').select('idea_id,status,as_of,revision:report->data->search->revision,verdict:report->data->search->>verdict')
     .eq('user_id', user).eq('market', market).eq('kind', 'focused');
-  const [rows, pending] = await Promise.all([
-    (ids ? domain().in('idea_id', ids) : domain()).order('created_at', { ascending: false }).limit(ids ? 48 : 800),
+  // Keep repeated discovery rounds from displacing the latest named-strategy tests.
+  const histories = ids ? [domain().in('idea_id', ids)] :
+    [domain().like('idea_id', 'search:%'), domain().not('idea_id', 'like', 'search:%')];
+  const [pages, pending] = await Promise.all([
+    Promise.all(histories.map(query => query.order('created_at', { ascending: false }).limit(ids ? 48 : 800))),
     db.from('automation_runs').select('id', { count: 'exact', head: true }).eq('user_id', user).eq('market', market)
       .eq('kind', 'focused').in('status', ['queued', 'running']),
   ]);
-  if (rows.error || pending.error) throw new Error('Could not read recent research work.');
-  const history: PairRun[] = rows.data.map(row => ({ ...row, revision: typeof row.revision === 'number' ? row.revision : null }));
+  if (pages.some(page => page.error) || pending.error) throw new Error('Could not read recent research work.');
+  const history: PairRun[] = pages.flatMap(page => page.data ?? []).map(row => ({ ...row, revision: typeof row.revision === 'number' ? row.revision : null }));
   const latest = new Map<string, PairRun>();
   for (const row of history) if (!latest.has(row.idea_id)) latest.set(row.idea_id, row);
   return { latest, capacity: Math.max(0, limit - (pending.count ?? 0)) };
@@ -70,6 +73,15 @@ export async function initializeMarketResearch(db: Db, user: string, market: Sea
   await ensureResearchProfile(db, user, market);
 }
 
+export function nextDiscoveryPair(market: SearchMarket, latest: Map<string, PairRun>, now: number) {
+  return marketSearchPairs(market).flatMap(pair => {
+    const last = latest.get(searchKey(pair));
+    if (last?.status !== 'completed' || !last.verdict || last.verdict === 'insufficient-history' ||
+        now - Date.parse(last.as_of) < 60 * 60_000) return [];
+    return [{ pair, last }];
+  }).sort((a, b) => Date.parse(a.last.as_of) - Date.parse(b.last.as_of))[0];
+}
+
 async function queueMarketBatch(db: Db, user: string, market: SearchMarket, now: number) {
   if (market === 'stocks' && !(await pairAccess(db, user, market)).connected) return 0;
   const work = await loadWork(db, user, market);
@@ -79,6 +91,15 @@ async function queueMarketBatch(db: Db, user: string, market: SearchMarket, now:
     .sort((a, b) => priority(work.latest.get(a.id)) - priority(work.latest.get(b.id)) ||
       Date.parse(work.latest.get(a.id)?.as_of ?? '1970-01-01') - Date.parse(work.latest.get(b.id)?.as_of ?? '1970-01-01'))
     .slice(0, Math.min(4, work.capacity));
+  if (!jobs.length && work.capacity === limit) {
+    const next = nextDiscoveryPair(market, work.latest, now);
+    if (!next) return 0;
+    // Concurrent schedulers revisiting the same completed run share one successor.
+    const { last, pair } = next;
+    const queued = await enqueueIdea(db, user, { id: last.idea_id, market, symbol: pair.symbol },
+      new Date(now).toISOString(), `discovery:${last.as_of}:${last.idea_id}`);
+    return queued ? 1 : 0;
+  }
   const queued = await Promise.all(jobs.map(({ pair, id }) => queueTarget(db, user, pair, id, now, false)));
   return queued.filter(Boolean).length;
 }

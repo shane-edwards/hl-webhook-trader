@@ -132,6 +132,10 @@ export default function StrategiesPage() {
   const groups = [{ id: 'ready', label: 'Ready for review', icon: CircleCheck }, { id: 'paper', label: 'Paper trading', icon: Layers },
     { id: 'live', label: 'Live', icon: Radio }] as const;
   const activity = rows.filter(r => r.stage === 'activity');
+  const markets = (data?.markets ?? []).filter(m => filter === 'all' || m.market === filter);
+  const completed = markets.reduce((sum, m) => sum + m.discovery.completed24h, 0);
+  const pending = markets.reduce((sum, m) => sum + m.discovery.pending, 0);
+  const last = markets.map(m => m.discovery.lastCompleted).filter((t): t is string => !!t).sort().at(-1);
   const rankedActivity = [...activity].sort((a,b) => priority(a) - priority(b));
   function priority(r: StrategyRow) { return r.status === 'Backtesting' ? 0 : r.status === 'Backtest queued' ? 1 : r.paper ? 2 : r.through ? 3 : 4; }
   return <><Header onRefresh={() => void load()} refreshing={busy} /><div className="mx-auto max-w-5xl space-y-5 px-4 py-5 lg:px-8 lg:py-8">
@@ -150,11 +154,19 @@ export default function StrategiesPage() {
           <Icon className="text-primary" size={18} />{label}<span className="ml-auto text-sm text-muted-foreground">{list.length}</span></h2>
           <div className="divide-y">{list.map(row => <Row key={row.id} row={row} open={() => navigate(filter,row.id)} />)}</div></section>;
       })}
-      {rows.every(r => r.stage === 'activity') && <section className="surface p-5"><h2 className="font-semibold">No strategies ready for live review</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{activity.filter(r => ['Backtesting','Backtest queued'].includes(r.status)).length} backtests in progress or queued</p>
-        <button className="mt-3 inline-flex items-center gap-1 text-sm text-primary" onClick={() => setActivityOpen(true)}>View backtests <ArrowRight size={15} /></button></section>}
+      <section className="surface p-5">
+        <h2 className="font-semibold">Strategy discovery</h2>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[[completed, 'Searches · 24h'], [rows.filter(r => r.stage === 'paper').length, 'In paper'], [rows.filter(r => r.stage === 'ready').length, 'Ready for live']].map(([value, label]) =>
+            <div key={label}><div className="text-lg font-semibold tabular-nums">{value}</div><div className="text-xs text-muted-foreground">{label}</div></div>)}
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">{pending > 0 ? `${pending} backtest${pending === 1 ? '' : 's'} queued or running` :
+          last ? `Last search ${new Date(last).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}` : 'No completed searches in the past 24h'}</p>
+        {rows.every(r => r.stage === 'activity') && completed > 0 && <p className="mt-1 text-sm text-muted-foreground">Waiting for a qualifying backtest.</p>}
+        <a className="mt-3 inline-flex items-center gap-1 text-sm text-primary" href="#backtest-activity" onClick={() => setActivityOpen(true)}>View backtests <ArrowRight size={15} /></a>
+      </section>
       {filter !== 'stocks' && <CryptoPaperComparison result={data.comparison} paused={!!data.markets.find(m => m.market === 'crypto')?.paused} />}
-      <section className="surface overflow-hidden"><button aria-expanded={activityOpen} onClick={() => setActivityOpen(!activityOpen)}
+      <section id="backtest-activity" className="surface overflow-hidden"><button aria-expanded={activityOpen} onClick={() => setActivityOpen(!activityOpen)}
         className="flex w-full items-center gap-2 px-4 py-4 text-sm font-semibold"><Activity size={17} />Activity
         <ChevronDown size={16} className={`ml-auto ${activityOpen ? 'rotate-180' : ''}`} /></button>
         {activityOpen && <div className="divide-y border-t">{rankedActivity.slice(0,activityLimit).map(row =>

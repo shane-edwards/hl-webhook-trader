@@ -40,7 +40,9 @@ export async function readStrategies(db: Db, user: string): Promise<Workspace> {
   const now = Date.now();
   const markets = await Promise.all(AUTOMATION_MARKETS.map(async market => {
     const profile = (plans.data.find(r => r.market === market) ?? null) as AutomationProfile | null;
-    const [focused, daily, pending, failures, active] = await Promise.all([
+    const discovery = () => db.from('automation_runs').select('completed_at', { count: 'exact' })
+      .eq('user_id', user).eq('market', market).eq('kind', 'focused').eq('status', 'completed').like('idea_id', 'search:%');
+    const [focused, daily, pending, failures, active, recent] = await Promise.all([
       latestFocused(db, user, market),
       db.from('automation_runs').select('as_of,evidence:report->evidence').eq('user_id', user).eq('market', market)
         .eq('kind', 'daily').eq('status', 'completed').order('as_of', { ascending: false }).limit(1).maybeSingle(),
@@ -50,8 +52,9 @@ export async function readStrategies(db: Db, user: string): Promise<Workspace> {
         .eq('kind','focused').eq('status','failed').gte('as_of',new Date(now - SEARCH_REFRESH_MS).toISOString())
         .order('as_of',{ascending:false}).limit(250),
       paperVersionsInUse(db, user, market),
+      discovery().gte('completed_at', new Date(now - 86_400_000).toISOString()).order('completed_at', {ascending:false}).limit(1),
     ]);
-    if (daily.error || pending.error || failures.error) throw new Error('Research unavailable');
+    if (daily.error || pending.error || failures.error || recent.error) throw new Error('Research unavailable');
     const trials = new Map(focused.flatMap(r => r.trial ? [[r.trial.version, r.trial] as const] : []));
     const evidence = new Map<string, { asOf: string; e: Evidence }>();
     for (const r of [...focused, ...(daily.data ? [daily.data as unknown as Result] : [])]) {
@@ -95,6 +98,7 @@ export async function readStrategies(db: Db, user: string): Promise<Workspace> {
     const account = market === 'stocks' ? links.data.some(c => c.environment === 'real') :
       !!(settings.data?.hl_private_key_encrypted || process.env.HL_PRIVATE_KEY) && !settings.data?.is_testnet && process.env.HL_TESTNET !== 'true';
     return { rows, controls: { market, connected, enabled: !!profile?.enabled, needsSetup: !profile && connected, account, demo,
+      discovery: { completed24h: recent.count ?? 0, lastCompleted: recent.data[0]?.completed_at ?? null, pending: pending.data.length },
       active: live, paused: !!profile?.entries_paused || !profile?.enabled, budget: profile?.loss_budget_usd ?? null, order: profile?.max_order_usd ?? null } };
   }));
   const rank = (row: StrategyRow) => row.paper ? row.paper.net / Math.max(1, row.paper.drawdown) * Math.sqrt(row.paper.count / (row.paper.count + 10)) : 0;

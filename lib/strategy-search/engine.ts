@@ -219,9 +219,9 @@ export function blockLowerBound(groups: number[]) {
 }
 
 export function searchHistory(pair: SearchPair, bars: SearchBar[], source: string,
-  memory?: { previous: Experiment[]; record: Experiment[] }): SearchReport {
+  memory?: { previous: Experiment[]; record: Experiment[]; round?: number }): SearchReport {
   const report: SearchReport = { revision: searchRevision(pair.market), pair, source, bars: bars.length, from: '', through: '', tried: 0, validationPassed: 0,
-    testedOnLaterData: 0, holdoutFrom: '', verdict: 'insufficient-history', rule: null, holdout: null, stress: null, venue: null, benchmark: null };
+    round: memory?.round, testedOnLaterData: 0, holdoutFrom: '', verdict: 'insufficient-history', rule: null, holdout: null, stress: null, venue: null, benchmark: null };
   if (!bars.length) return report;
   report.from = date(bars[0].t);
   report.through = date(bars.at(-1)!.t);
@@ -253,7 +253,7 @@ export function searchHistory(pair: SearchPair, bars: SearchBar[], source: strin
     const input = searchInputs(bars, cut, side);
     const winners = new Map<'catalog'|'generated', { winner: Rule; rank: number; familiar: boolean }>();
     const familiarKeys = new Set<string>();
-    const epoch = Math.floor(bars.at(-1)!.t / (7 * DAY));
+    const epoch = Math.floor(bars.at(-1)!.t / (7 * DAY)) + (memory?.round ?? 0) * 29;
     const discoveryMid = Math.floor((WARMUP + cut) / 2);
     const evolved = evolve(side, epoch, rule => {
       const tradeTimes = new Map<number, number>();

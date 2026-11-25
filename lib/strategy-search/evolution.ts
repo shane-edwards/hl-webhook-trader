@@ -75,8 +75,11 @@ export function seedRecipes(side: SearchSide, epoch: number, count = 20): Sequen
   // Multiplication by an odd number permutes all 64 ordered pairs without repetition.
   return Array.from({ length: count }, (_, n) => {
     const code = ((epoch % 64) * 13 + n * 19) % 64;
-    return { family: 'sequence', side, setting: 10, recipe: { setup: setups[code % 8], trigger: triggers[Math.floor(code / 8)], within: 4 },
-      trend: 0, volume: 0, stop: 1.75, reward: 1.8, maxBars: 12 };
+    // Rotate timing and exits too, so the 65th seed batch can explore different rules.
+    const mix = Math.imul(epoch ^ Math.imul(code + 1, 2654435761), 2246822519) >>> 0;
+    return { family: 'sequence', side, setting: 10, recipe: { setup: setups[code % 8], trigger: triggers[Math.floor(code / 8)], within: [2, 4, 7][mix % 3] },
+      trend: 0, volume: 0, stop: [1.25, 1.75, 2.5][(mix >>> 8) % 3], reward: [1.2, 1.8, 2.5][(mix >>> 16) % 3],
+      maxBars: [6, 12, 18][(mix >>> 24) % 3] };
   });
 }
 

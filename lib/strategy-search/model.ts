@@ -99,6 +99,7 @@ export type SearchOutcome = {
 };
 export type SearchReport = SearchOutcome & {
   revision: number; pair: SearchPair; source: string; bars: number; from: string; through: string;
+  round?: number;
   tried: number; validationPassed: number; testedOnLaterData: number; holdoutFrom: string; alternatives?: SearchOutcome[];
   generation?: { tried: number; validated: number; uniquePairs: number; contexts?: Partial<Record<ContextFactor, number>>; exactRepeats?: number; similar?: number }; forward?: ForwardBook[];
 };
