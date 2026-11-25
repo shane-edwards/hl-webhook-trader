@@ -92,9 +92,9 @@ test('only a passing rule enrolls; forward fills start after enrollment and chec
   assert.deepEqual(later,advanceForward(report,later,history.slice(0,300),history[300].t));
   assert.equal(advanceForward(report,justStarted,history.slice(320),history[400].t)[0].state,'data-gap');
   const finish = advanceForward(report,[{...justStarted[0],count:29}],history.slice(0,300),history[300].t);
-  assert.equal(finish[0].state,'completed');
-  assert.equal(finish[0].count,30);
-  assert.deepEqual(advanceForward(report,finish,history,history.at(-1)!.t),finish);
+  assert.equal(finish[0].state,'tracking');
+  assert.ok(finish[0].count > 30);
+  assert.ok(advanceForward(report,finish,history,history.at(-1)!.t)[0].count >= finish[0].count);
 });
 
 test('a concentrated stressed gain can have a nonpositive lower block-bootstrap bound',()=>{

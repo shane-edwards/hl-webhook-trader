@@ -46,10 +46,14 @@ export async function cryptoOpportunity(db: Db, userId: string, candidates: Evid
 export function controlledCryptoConfig(base: AutopilotConfig, policy: AutomationDecision, testnet: boolean) {
   const { candidate, profile } = policy;
   if (!candidate || !profile || (policy.decision !== 'paper' && policy.decision !== 'live') || (testnet && policy.decision === 'live')) return null;
+  if (policy.decision === 'paper') {
+    const paperTests = policy.paperTests ?? [candidate];
+    return { ...base, mode: 'paper' as const, symbols: [...new Set(paperTests.map(row => row.symbol))],
+      strategies: [...new Set(paperTests.map(row => row.rule))], allowShort:false, maxOrderUsd:1_000, paperTests };
+  }
   return { ...base, mode: policy.decision, symbols: [candidate.symbol], strategies: [candidate.rule], allowShort: false, liveRulesConfirmed: true,
     risk: { ...base.risk, maxPositions: 1, maxLeveragePerPosition: 1 }, automationVersion: candidate.version,
-    maxOrderUsd: policy.decision === 'live' ? Number(profile.max_order_usd) : 1_000,
-    dollarLossBudget: policy.decision === 'live' ? Number(profile.loss_budget_usd) : undefined };
+    maxOrderUsd: Number(profile.max_order_usd), dollarLossBudget: Number(profile.loss_budget_usd) };
 }
 
 export async function controlledStockConfig(db: Db, userId: string, base?: StockAutoConfig) {

@@ -58,16 +58,19 @@ function fakeDb() {
     let op: 'select' | 'update' | 'delete' = 'select';
     let patch: Row = {};
     let inserted: Row[] | null = null;
+    let bounds: [number,number] | null = null;
     const match = () => tables[name].filter(r => filters.every(([k, v]) => r[k] === v));
     const exec = () => {
       if (inserted) return { data: inserted, error: null };
       const rows = match();
       if (op === 'update') rows.forEach(r => Object.assign(r, patch));
       if (op === 'delete') tables[name] = tables[name].filter(r => !rows.includes(r));
-      return { data: rows, error: null };
+      return { data: bounds ? rows.slice(bounds[0],bounds[1]+1) : rows, error: null };
     };
     const q: Record<string, unknown> = {
       select: () => q,
+      order: () => q,
+      range: (from: number,to: number) => { bounds = [from,to]; return q; },
       eq: (k: string, v: unknown) => { filters.push([k, v]); return q; },
       update: (p: Row) => { op = 'update'; patch = p; return q; },
       delete: () => { op = 'delete'; return q; },
@@ -130,6 +133,24 @@ test('strategy: breakout fires on a new 48h high in an uptrend and not otherwise
   const sig = s.evaluate(computeIndicators(hot), hot, hot.length - 1, 0, false);
   assert.equal(sig.target, 1);
   assert.ok(sig.stopPct >= 0.004 && sig.stopPct <= 0.15);
+});
+
+test('independent paper fills every distinct rule on the same coin despite portfolio limits, then manages both exits', async t => {
+  const now = Date.UTC(2026,5,1);
+  t.mock.method(Date,'now',() => now);
+  const {db,tables} = fakeDb();
+  const bars = uptrend(now,WARMUP_BARS + 20,true);
+  const paperTests = ['trend_breakout','momentum_burst'].map(rule => ({rule,symbol:'BTC',version:'test.'+rule}));
+  const config = {...cfg, paperTests, reservedSymbol:'BTC', risk:{...cfg.risk,maxPositions:1}};
+  await runAutopilot(client(bars),db,'u1',config,now);
+  assert.deepEqual(tables.autopilot_positions.map(p => p.automation_version),paperTests.map(t => t.version));
+  assert.ok(tables.autopilot_positions.every(p => p.paper_book_fill && p.notional_usd === 1000));
+  await runAutopilot(client(bars),db,'u1',config,now);
+  assert.equal(tables.autopilot_positions.length,2);
+  const last = bars.at(-1)!;
+  const crash = { t:now,o:last.c,h:last.c,l:last.c*.5,c:last.c*.6 };
+  await runAutopilot(client([...bars.slice(1),crash]),db,'u1',{...config,manageOnly:true},now+HOUR);
+  assert.ok(tables.autopilot_positions.every(p => p.status === 'closed' && Number(p.pnl)<0));
 });
 
 test('autopilot (paper): opens once per signal, sizes by risk, then stops out and books the loss', async t => {

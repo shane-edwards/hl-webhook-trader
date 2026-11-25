@@ -13,20 +13,23 @@ const now = Date.UTC(2026,0,3);
 const asOf = new Date(now).toISOString();
 const profile = { market:'stocks', enabled:true, entries_paused:false, mode:'research' } as AutomationProfile;
 
-test('only sample size may fail for an exploratory paper admission', () => {
+test('positive higher-cost holdouts can enter exploratory paper without full approval', () => {
   assert.equal(trialAdmission(e),'sample');
-  for (const patch of [{early:0},{stress:-.01},{benchmark:.02},{holdoutTrades:0},{drawdown:.13},{reason:'Incomplete data'}])
+  for (const patch of [{early:0},{benchmark:.02},{drawdown:.13}])
+    assert.equal(trialAdmission({...e,...patch}),'exploratory');
+  for (const patch of [{stress:-.01},{holdoutTrades:0},{reason:'Incomplete data'}])
     assert.equal(trialAdmission({...e,...patch}),null);
 });
 
-test('named forward paper begins empty, deduplicates closes, flags gaps and stops on losses', () => {
+test('named forward paper begins empty, deduplicates closes, flags gaps and keeps observing drawdown', () => {
   const historical = [{entry:now-20,exit:now-10,net:.8}];
   const start = updateTrial(e,null,historical,0,now,now)!;
   assert.equal(start.fills.length,0);
   const fills = [...historical, {entry:now+1,exit:now+3,net:.02}, {entry:now+4,exit:now+5,net:-.17}];
   const next = updateTrial(e,start,fills,0,now+8,now+9)!;
-  assert.equal(next.state,'stopped'); assert.equal(next.fills.length,2);
-  assert.deepEqual(updateTrial(e,next,fills,0,now+20,now+21),next);
+  assert.equal(next.state,'tracking'); assert.equal(next.count,2);
+  assert.ok(next.drawdown >= .16);
+  assert.equal(updateTrial(e,next,fills,0,now+20,now+21)?.count,2);
   const gap = updateTrial(e,start,fills,now+1,now+8,now+9)!;
   assert.equal(gap.state,'data-gap'); assert.equal(gap.checked,now);
   assert.deepEqual(updateTrial(e,gap,fills,0,now+8,now+9),next);

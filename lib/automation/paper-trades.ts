@@ -1,4 +1,5 @@
 import type { createServiceClient } from '@/lib/supabase/server';
+import { readPages as pages } from '@/lib/supabase/pages';
 import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { getStrategy } from '@/lib/autopilot/strategies';
 import { openPaperPnl } from '@/lib/autopilot/paper-fill';
@@ -17,15 +18,6 @@ export type PaperTrade = {
   unit: 'usd' | 'fraction'; estimated?: boolean; portfolios?: string;
 };
 
-async function pages<T>(read: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
-  const rows: T[] = [];
-  for (let from = 0; ; from += 250) {
-    const {data, error} = await read(from, from + 249);
-    if (error || !data) throw new Error('Could not load paper trades.');
-    rows.push(...data);
-    if (data.length < 250) return rows;
-  }
-}
 
 function tradeName(market: SearchMarket, symbol: string, rule: string | null) {
   if (!rule) return 'Manual trade';

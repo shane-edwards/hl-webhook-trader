@@ -25,6 +25,7 @@ function researchStatus(payload: SearchState | null) {
   if (payload.status === 'running') return 'Automatic backtest running';
   if (payload.status === 'new') return 'Waiting for the first automatic backtest';
   if (payload.report?.verdict === 'small-sample') return 'Small sample · Tracking in paper';
+  if (payload.report?.verdict === 'exploratory') return 'Exploratory paper test';
   if (payload.report?.verdict === 'insufficient-history') return 'Waiting for more price history';
   if (payload.report?.verdict === 'venue-failed') return 'No setup passed the Hyperliquid check';
   if (payload.report?.verdict === 'holdout-failed') return 'No setup passed on later data';
@@ -114,7 +115,7 @@ export function StrategySearch({ market, symbol, frame, active = true, compact =
         {report.generation?.exactRepeats !== undefined && <p>{report.generation.exactRepeats} exact repeats · {report.generation.similar} with similar historical trades</p>}
         {report.note && !report.rule && <p>{report.note}</p>}
         {(selected ? [selected] : outcomes).map(outcome => outcome.rule && <div key={ruleKey(outcome.rule)} className="mt-2 space-y-1 border-t pt-2">
-          <p className="font-medium text-foreground">{outcome.rule.side === 'short' ? 'Short' : 'Long'} · {ruleName(outcome.rule)} · {outcome.verdict === 'paper-candidate' ? 'Passed backtest' : outcome.verdict === 'small-sample' ? 'Small-sample paper trial' : 'Did not qualify'}</p>
+          <p className="font-medium text-foreground">{outcome.rule.side === 'short' ? 'Short' : 'Long'} · {ruleName(outcome.rule)} · {outcome.verdict === 'paper-candidate' ? 'Passed backtest' : outcome.verdict === 'small-sample' ? 'Small-sample paper trial' : outcome.verdict === 'exploratory' ? 'Exploratory paper test' : 'Did not qualify'}</p>
           {outcome.holdout && <p>{outcome.holdout.trades} later trades · {pct(outcome.holdout.net)} after costs · {pct(outcome.stress?.net ?? 0)} with higher costs · {pct(outcome.stress?.drawdown ?? 0)} drawdown</p>}
           {outcome.venue && <p>Hyperliquid check · {outcome.venue.trades} trades · {pct(outcome.venue.net)} after costs and funding</p>}
           {outcome.robustness && <p>One-bar delay {pct(outcome.robustness.delayed.net)} · lower resampled mean per time group {pct(outcome.robustness.lowerGroupReturn)}</p>}

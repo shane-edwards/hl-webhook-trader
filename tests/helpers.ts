@@ -15,6 +15,7 @@ export function memoryDb(seed: Record<string, Row[]> = {}) {
     let patch: Row = {};
     let inserted: Row[] | null = null;
     let limit = Infinity;
+    let offset = 0;
     let order: { key: string; asc: boolean } | null = null;
     const exec = () => {
       if (inserted) return { data: inserted, error: null };
@@ -22,7 +23,7 @@ export function memoryDb(seed: Record<string, Row[]> = {}) {
       if (op === 'update') rows.forEach(r => Object.assign(r, patch));
       if (op === 'delete') tables[name] = tables[name].filter(r => !rows.includes(r));
       if (order) { const { key, asc } = order; rows = [...rows].sort((a, b) => (String(a[key]) < String(b[key]) ? -1 : 1) * (asc ? 1 : -1)); }
-      return { data: rows.slice(0, limit), error: null };
+      return { data: rows.slice(offset, offset + limit), error: null };
     };
     const add = (f: (r: Row) => boolean) => { filters.push(f); return q; };
     const q: Record<string, unknown> = {
@@ -35,6 +36,7 @@ export function memoryDb(seed: Record<string, Row[]> = {}) {
       lt: (k: string, v: string) => add(r => String(r[k]) < v),
       order: (key: string, o?: { ascending?: boolean }) => { order = { key, asc: o?.ascending !== false }; return q; },
       limit: (n: number) => { limit = n; return q; },
+      range: (from: number,to: number) => { offset = from; limit = to + 1 - from; return q; },
       update: (p: Row) => { op = 'update'; patch = p; return q; },
       delete: () => { op = 'delete'; return q; },
       insert: (rows: Row | Row[]) => {
