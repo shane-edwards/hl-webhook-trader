@@ -10,7 +10,7 @@ export type PaperScore = { count: number; net: number; drawdown: number; unit: '
 export type StrategyRow = { id: string; market: AutomationMarket; symbol: string; name: string; frame: string; stage: Stage;
   status: string; backtest: string; paper?: PaperScore; backtestNet?: number; backtestTrades?: number; through?: string;
   live: string; version?: string; admission?: string; rule?: string };
-export type Workspace = { rows: StrategyRow[]; markets: { market: AutomationMarket; connected: boolean; enabled: boolean;
+export type Workspace = { comparison?: import('./crypto-paper-comparison').ComparisonSummary | null; rows: StrategyRow[]; markets: { market: AutomationMarket; connected: boolean; enabled: boolean;
   needsSetup: boolean; account: boolean; demo: boolean; active: string[]; paused: boolean; budget: number | null; order: number | null }[] };
 
 export const catalogIdeas = (market: AutomationMarket): StrategyIdea[] => IDEA_RULES.filter(i => i.market === market)

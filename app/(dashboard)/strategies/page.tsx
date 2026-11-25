@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Activity, ArrowRight, ChevronDown, ChevronRight, CircleCheck, FlaskConical, Layers, Radio } from 'lucide-react';
+import { CryptoPaperComparison } from '@/components/journey/CryptoPaperComparison';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,6 +153,7 @@ export default function StrategiesPage() {
       {rows.every(r => r.stage === 'activity') && <section className="surface p-5"><h2 className="font-semibold">No strategies ready for live review</h2>
         <p className="mt-1 text-sm text-muted-foreground">{activity.filter(r => ['Backtesting','Backtest queued'].includes(r.status)).length} backtests in progress or queued</p>
         <button className="mt-3 inline-flex items-center gap-1 text-sm text-primary" onClick={() => setActivityOpen(true)}>View backtests <ArrowRight size={15} /></button></section>}
+      {filter !== 'stocks' && <CryptoPaperComparison result={data.comparison} paused={!!data.markets.find(m => m.market === 'crypto')?.paused} />}
       <section className="surface overflow-hidden"><button aria-expanded={activityOpen} onClick={() => setActivityOpen(!activityOpen)}
         className="flex w-full items-center gap-2 px-4 py-4 text-sm font-semibold"><Activity size={17} />Activity
         <ChevronDown size={16} className={`ml-auto ${activityOpen ? 'rotate-180' : ''}`} /></button>

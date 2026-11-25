@@ -29,10 +29,11 @@ async function latestFocused(db: Db, user: string, market: AutomationMarket) {
 }
 
 export async function readStrategies(db: Db, user: string): Promise<Workspace> {
-  const [plans, links, settings] = await Promise.all([
+  const [plans, links, settings, comparison] = await Promise.all([
     db.from('automation_profiles').select('market,enabled,mode,entries_paused,live_version,scan_for_opportunities,live_scan_versions,loss_budget_usd,max_order_usd').eq('user_id', user),
     db.from('etoro_connections').select('environment').eq('user_id', user),
     db.from('settings').select('hl_private_key_encrypted,is_testnet').eq('user_id', user).maybeSingle(),
+    db.from('crypto_paper_portfolios').select('summary').eq('user_id',user).order('through_ms',{ascending:false}).limit(1).maybeSingle(),
   ]);
   if (plans.error || links.error || settings.error) throw new Error('Account status unavailable');
   const demo = links.data.some(c => c.environment === 'demo');
@@ -101,5 +102,5 @@ export async function readStrategies(db: Db, user: string): Promise<Workspace> {
     a.stage.localeCompare(b.stage) || (a.stage === 'ready' ? rank(b) - rank(a) : 0) ||
     (b.paper?.count ?? 0) - (a.paper?.count ?? 0) || (a.paper?.unit === b.paper?.unit ? (b.paper?.net ?? 0) - (a.paper?.net ?? 0) : 0) ||
     a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-  return { rows: ranked, markets: markets.map(m => m.controls) };
+  return { comparison: comparison.error ? undefined : comparison.data?.summary ?? null, rows: ranked, markets: markets.map(m => m.controls) };
 }
