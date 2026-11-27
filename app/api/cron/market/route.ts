@@ -6,6 +6,7 @@ import { cronAuthorized } from '@/lib/cron-auth';
 import { notify } from '@/lib/notify';
 import { scanFundingGaps } from '@/lib/funding-scan/scan';
 import { runCrowdedBreak } from '@/lib/forward-tests/run';
+import { runFundingBasket } from '@/lib/forward-tests/basket-run';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,8 @@ export async function GET(request: Request) {
     // Record-only research (funding scan, forward test). Its failure must never hold up or fail the market scan.
     const [result] = await Promise.all([runMarketScan(supabase),
       scanFundingGaps(supabase, Date.now()).catch(error => console.error('[market] funding scan', error instanceof Error ? error.message : error)),
-      runCrowdedBreak(supabase, Date.now()).catch(error => console.error('[market] forward test', error instanceof Error ? error.message : error))]);
+      runCrowdedBreak(supabase, Date.now()).catch(error => console.error('[market] forward test', error instanceof Error ? error.message : error)),
+      runFundingBasket(supabase, Date.now()).catch(error => console.error('[market] funding basket', error instanceof Error ? error.message : error))]);
     if (result.flips.length) {
       await notify('Trade ideas changed (rule-based reads, not forecasts):\n' + result.flips.map(f =>
         `${f.symbol}: now ${f.strength} ${f.to} (was ${f.from === 'neutral' ? 'no trade' : f.from}) at ${f.price}; suggested stop ${f.stopPct}%, target ${f.targetPct}%`).join('\n'));
