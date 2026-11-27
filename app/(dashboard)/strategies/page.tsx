@@ -9,6 +9,7 @@ import { ForwardTest } from '@/components/journey/ForwardTest';
 import { FundingBasketTest } from '@/components/journey/FundingBasketTest';
 import { EventStudies } from '@/components/journey/EventStudies';
 import { PaperMatrix } from '@/components/journey/PaperMatrix';
+import { VaultIncome } from '@/components/journey/VaultIncome';
 import { PaperTrades } from '@/components/journey/PaperTrades';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -150,6 +151,7 @@ export default function StrategiesPage() {
     {filter !== 'stocks' && <PaperMatrix refresh={paperRefresh} />}
     {filter !== 'stocks' && <ForwardTest refresh={paperRefresh} />}
     {filter !== 'stocks' && <FundingBasketTest refresh={paperRefresh} />}
+    {filter !== 'stocks' && <VaultIncome refresh={paperRefresh} />}
     <EventStudies market={filter} refresh={paperRefresh} />
     <PaperTrades market={filter} refresh={paperRefresh} />
     {error && <p role="alert">{error} <button className="underline" onClick={() => void load()}>Retry</button></p>}
