@@ -37,6 +37,7 @@ export const stockSections = [
 export const cryptoResearch = [
   { label: 'Strategy Lab', href: '/lab' },
   { label: 'Scalping', href: '/lab/scalping' },
+  { label: 'Funding gaps', href: '/lab/funding' },
 ];
 
 export const cryptoActivity = [

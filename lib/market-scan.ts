@@ -7,7 +7,7 @@ import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { getMarkets } from '@/lib/hyperliquid/public';
 import { WARMUP_BARS } from '@/lib/autopilot/strategies';
 import { buildSuggestion, type Suggestion } from '@/lib/suggestions';
-import { resolveOutcome } from '@/lib/scorecard';
+import { loggedIdea, predictProbability, resolveOutcome, type LoggedIdea } from '@/lib/scorecard';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any, any, any>;
@@ -23,6 +23,14 @@ const WEEK = 7 * 24 * HOUR;
 
 export interface Flip { symbol: string; from: string; to: 'long' | 'short'; strength: string; price: number; stopPct: number; targetPct: number }
 export interface MarketScanResult { liquid: number; refreshed: string[]; flips: Flip[]; resolved: number; errors: string[] }
+
+async function predictIdea(db: Db, idea: Pick<LoggedIdea, 'bias' | 'strength' | 'stopPct' | 'targetPct'>, now: number) {
+  const { data, error } = await db.from('suggestion_log').select('bias, strength, stop_pct, target_pct, outcome, outcome_at, resolved, created_at')
+    .eq('bias', idea.bias).eq('strength', idea.strength).not('outcome', 'is', null).order('created_at', { ascending: false }).limit(1000);
+  if (error) return null;
+  const predicted = predictProbability(idea, (data ?? []).map(loggedIdea), now);
+  return predicted && { predicted_prob: Math.round(predicted.probability * 1e4) / 1e4, predicted_n: predicted.sample };
+}
 
 export async function runMarketScan(db: Db, now = Date.now()): Promise<MarketScanResult> {
   const result: MarketScanResult = { liquid: 0, refreshed: [], flips: [], resolved: 0, errors: [] };
@@ -57,10 +65,13 @@ export async function runMarketScan(db: Db, now = Date.now()): Promise<MarketSca
         // for the first time is not logged: its read may be days old, which would not be a fresh idea.
         if (s.bias !== 'neutral' && !s.limitedHistory && prev && prev.bias !== s.bias) {
           const lv = s[s.bias];
-          const { error: logError } = await db.from('suggestion_log').insert({
-            symbol: m.coin, bar_t: barT, price: m.price, bias: s.bias, score: s.score, strength: s.strength,
-            stop_pct: lv.stopLossPct, target_pct: lv.takeProfitPct, stop_kind: lv.stopKind,
-          });
+          const idea = { symbol: m.coin, bar_t: barT, price: m.price, bias: s.bias, score: s.score, strength: s.strength,
+            stop_pct: lv.stopLossPct, target_pct: lv.takeProfitPct, stop_kind: lv.stopKind };
+          // The predicted chance of target before stop, from ideas already scored. Without it the idea is still logged.
+          const prediction = await predictIdea(db, { bias: s.bias, strength: s.strength, stopPct: lv.stopLossPct, targetPct: lv.takeProfitPct }, now);
+          let { error: logError } = await db.from('suggestion_log').insert(prediction ? { ...idea, ...prediction } : idea);
+          // Before migration 027 the prediction columns do not exist: log the idea without them.
+          if (logError && prediction && logError.code !== '23505') ({ error: logError } = await db.from('suggestion_log').insert(idea));
           if (!logError) result.flips.push({ symbol: m.coin, from: String(prev.bias), to: s.bias, strength: s.strength, price: m.price, stopPct: lv.stopLossPct, targetPct: lv.takeProfitPct });
         }
       } catch (err) {
