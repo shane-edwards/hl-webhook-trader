@@ -2,6 +2,12 @@
 
 Market research and strategy automation for Hyperliquid crypto perps and US stocks.
 
+### Event strategy paper tests
+
+Open **Strategies** to see supplier momentum, token unlock hedges and the 10-year Treasury auction rebound. Select a row for its rule, observed returns and comparison. Stock tests use a connected eToro Demo account for quotes. The crypto test uses public market data. All three use the existing minute automation schedule and the server-only journal from migration 028.
+
+The supplier pilot follows five filing-verified suppliers at the first regular session of each month. The fixed unlock calendar covers ARB and STRK through March 2027. Both the unlock quantities and the supplier relationships are versioned in the research code. Treasury deadlines come from the daily TreasuryDirect announcement feed. Comparisons use observed quotes. Missing entry or exit prices cannot generate a return.
+
 ## US Stocks and eToro
 
 Open **Tools and settings → eToro connections** and connect the key pair for the intended Demo or Real account. Read permission supports market research and portfolio views. Submitting or closing orders also requires Write permission for that environment. Tideframe verifies the connection and encrypts its credentials in a server-only record. Set an identifying contact in `SEC_USER_AGENT` for the SEC filing client. [eToro key permissions](https://api-portal.etoro.com/getting-started/authentication)

@@ -26,7 +26,7 @@ export type HedgeObservation = {
   state: HedgeState;
 };
 
-function averageFill(levels: BookLevel[], units: number) {
+export function averageFill(levels: BookLevel[], units: number) {
   let remaining = units, value = 0;
   for (const level of levels) {
     if (!Number.isFinite(level.px) || level.px <= 0 || !Number.isFinite(level.sz) || level.sz <= 0) continue;
