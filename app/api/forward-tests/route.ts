@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { readForwardTest } from '@/lib/forward-tests/run';
 import { readFundingBasket } from '@/lib/forward-tests/basket-run';
+import { eventStudyReport } from '@/lib/event-studies/worker';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,9 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const db = createServiceClient();
-    const basket = new URL(request.url).searchParams.get('test') === 'funding_basket';
+    const test = new URL(request.url).searchParams.get('test');
+    if (test === 'events') return NextResponse.json(await eventStudyReport(db, user.id));
+    const basket = test === 'funding_basket';
     return NextResponse.json(basket ? await readFundingBasket(db) : await readForwardTest(db));
   } catch (error) {
     console.error('[forward-tests]', error instanceof Error ? error.message : error);

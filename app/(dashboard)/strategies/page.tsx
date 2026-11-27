@@ -7,6 +7,7 @@ import { Activity, ArrowRight, ChevronDown, ChevronRight, CircleCheck, FlaskConi
 import { CryptoPaperComparison } from '@/components/journey/CryptoPaperComparison';
 import { ForwardTest } from '@/components/journey/ForwardTest';
 import { FundingBasketTest } from '@/components/journey/FundingBasketTest';
+import { EventStudies } from '@/components/journey/EventStudies';
 import { PaperMatrix } from '@/components/journey/PaperMatrix';
 import { PaperTrades } from '@/components/journey/PaperTrades';
 import { Header } from '@/components/layout/Header';
@@ -149,6 +150,7 @@ export default function StrategiesPage() {
     {filter !== 'stocks' && <PaperMatrix refresh={paperRefresh} />}
     {filter !== 'stocks' && <ForwardTest refresh={paperRefresh} />}
     {filter !== 'stocks' && <FundingBasketTest refresh={paperRefresh} />}
+    <EventStudies market={filter} refresh={paperRefresh} />
     <PaperTrades market={filter} refresh={paperRefresh} />
     {error && <p role="alert">{error} <button className="underline" onClick={() => void load()}>Retry</button></p>}
     {!data && !error && <p role="status">Loading strategies…</p>}

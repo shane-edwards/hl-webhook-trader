@@ -10,6 +10,7 @@ import { updateCryptoShadow } from '@/lib/automation/crypto-shadow';
 import { watchFundingHedges } from '@/lib/hedge-research/watch';
 import { scanPaperPortfolios } from '@/lib/automation/crypto-paper-worker';
 import { watchDiffusion } from '@/lib/automation/diffusion-shadow';
+import { runEventStudies } from '@/lib/event-studies/worker';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -35,6 +36,7 @@ export async function GET(request: Request) {
   const db = createServiceClient();
   try {
     const now = Date.now();
+    const eventStudies = runEventStudies(db, now).catch(error => console.error('[event studies]', error));
     const [scheduled] = await Promise.all([queueScheduledResearch(db, now), checkShadow(db, now)]);
     const minute = new Date(now).getUTCMinutes();
     const [result, hedge, searches, diffusion, portfolios] = await Promise.all([
@@ -49,6 +51,7 @@ export async function GET(request: Request) {
         return null;
       }) : undefined,
       minute % 5 === 2 ? scanPaperPortfolios(db, now).catch(() => null) : undefined,
+      eventStudies,
     ]);
     const watch = hedge?.failures ? ' · funding hedge needs attention' : hedge?.captured ? ` · ${hedge.captured} hedge observations` : '';
     const research = searches === null ? ' · strategy search needs attention' : searches ? ` · ${searches} strategy tests queued` : '';
