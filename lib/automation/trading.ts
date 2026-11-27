@@ -5,7 +5,7 @@ import { isStockTradeRule, isStockTradeSymbol, STOCK_INSTRUMENTS } from '@/lib/s
 import { currentStockEntry, stockEntryWindow } from '@/lib/stocks/trade-signals';
 import { etoroFromConnection } from '@/lib/stocks/connection';
 import { marketDataClient } from '@/lib/hyperliquid/from-settings';
-import { BARS_NEEDED, entrySignal, isLiveEligible } from '@/lib/autopilot/signals';
+import { BARS_NEEDED, entrySignal, isLiveEligible, passedBacktest } from '@/lib/autopilot/signals';
 import { computeIndicators, WARMUP_BARS, STRATEGIES } from '@/lib/autopilot/strategies';
 import { MOMENTUM_ID } from '@/lib/autopilot/momentum';
 import { SEARCH_ASSETS } from '@/lib/strategy-search/model';
@@ -49,8 +49,10 @@ export function controlledCryptoConfig(base: AutopilotConfig, policy: Automation
   const { candidate, profile } = policy;
   if (policy.decision === 'paper' && policy.allPaperSignals && profile?.mode === 'paper' && profile.enabled && !profile.entries_paused) {
     const symbols = [...new Set([...SEARCH_ASSETS.crypto,...base.symbols])];
-    const paperTests = symbols.flatMap(symbol => STRATEGIES.map(({id:rule}) => ({symbol,rule,version:automationVersion('crypto',symbol,rule)})));
-    return { ...base, mode:'paper' as const, symbols, strategies:[...STRATEGIES.map(s => s.id),MOMENTUM_ID],
+    // The sample allows shorts, so a rule takes part only if its long-and-short version passed the backtest.
+    const rules = STRATEGIES.map(s => s.id).filter(rule => passedBacktest(rule, true));
+    const paperTests = symbols.flatMap(symbol => rules.map(rule => ({symbol,rule,version:automationVersion('crypto',symbol,rule)})));
+    return { ...base, mode:'paper' as const, symbols, strategies:[...rules,MOMENTUM_ID],
       allowShort:true, maxOrderUsd:1_000, paperTests, allPaperSignals:true };
   }
   if (!candidate || !profile || (policy.decision !== 'paper' && policy.decision !== 'live') || (testnet && policy.decision === 'live')) return null;

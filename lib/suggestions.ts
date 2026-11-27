@@ -5,7 +5,7 @@
 // This is a rule-based summary, not a forecast. Only rules that held up in
 // testing count toward the direction; the others are shown but carry no vote.
 import { computeIndicators, STRATEGIES, WARMUP_BARS, type Bar } from '@/lib/autopilot/strategies';
-import evidence from '@/lib/autopilot/evidence.json';
+import { isLiveEligible } from '@/lib/autopilot/signals';
 import { findLevels, stopBeyondLevel, targetBeforeLevel, type Level } from '@/lib/levels';
 
 export type Bias = 'long' | 'short' | 'neutral';
@@ -52,8 +52,7 @@ export interface Suggestion {
 }
 
 /** Did this rule, in this direction mode, pass the backtest gate? */
-const passedGate = (id: string, allowShort: boolean) =>
-  evidence.strategies.some(e => e.id === id && e.allowShort === allowShort && e.liveEligible === true && evidence.accountingVersion === 2);
+const passedGate = isLiveEligible;
 
 const round = (x: number, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };

@@ -35,7 +35,8 @@ test('paper trades are grouped by strategy, direction and coin, with the backtes
 test('each line carries the backtest result for its own rule and direction', () => {
   const m = buildPaperMatrix([]);
   const result = (rule: string, side: string) => m.lines.find(l => l.rule === rule && l.side === side)!.backtest;
-  assert.equal(result('trend_breakout', 'long'), 'passed');
+  assert.equal(result('trend_breakout', 'long'), 'failed', 'flat since 2025');
+  assert.equal(result('macd_trend', 'long'), 'passed');
   assert.equal(result('trend_breakout', 'short'), 'passed');
   assert.equal(result('trend_pullback', 'short'), 'failed');
   assert.equal(result('momentum_burst', 'long'), 'failed');

@@ -89,8 +89,8 @@
     {
       "id": "trend_breakout",
       "allowShort": false,
-      "liveEligible": true,
-      "gatePassed": true,
+      "liveEligible": false,
+      "gatePassed": false,
       "early": {
         "annualReturn": 0.6465946538122394,
         "sharpe": 1.4451543250572725,
@@ -324,7 +324,7 @@
       "id": "volume_breakout",
       "allowShort": false,
       "liveEligible": false,
-      "gatePassed": true,
+      "gatePassed": false,
       "early": {
         "annualReturn": 1.3285188860149062,
         "sharpe": 1.830227885744384,

@@ -1,6 +1,6 @@
 // Paper results laid out as strategy by coin, so it is plain which pairs are making money and how
 // far each is from the record Live review asks for. Pure functions over the paper trade rows.
-import evidence from '@/lib/autopilot/evidence.json';
+import { currentEvidence } from '@/lib/autopilot/signals';
 import { STRATEGIES } from '@/lib/autopilot/strategies';
 import { PAPER_REQUIREMENT, paperThreshold } from './model';
 
@@ -37,7 +37,7 @@ const SIDES = ['long', 'short'] as const;
 
 function backtestOf(rule: string, side: 'long' | 'short'): PaperLine['backtest'] {
   // A short is only ever taken by the long-and-short version of a rule, so that version's result applies.
-  const row = evidence.strategies.find(s => s.id === rule && s.allowShort === (side === 'short'));
+  const row = currentEvidence().strategies.find(s => s.id === rule && s.allowShort === (side === 'short'));
   return !row ? 'untested' : row.gatePassed ? 'passed' : 'failed';
 }
 
@@ -64,7 +64,7 @@ export function buildPaperMatrix(rows: PaperRow[]): PaperMatrix {
     group.closes.push({ at: row.exit_time, pnl });
     symbols.add(row.symbol);
   }
-  const backtestCoins = [...evidence.coins];
+  const backtestCoins = [...currentEvidence().coins];
   const order = (s: string) => { const i = backtestCoins.indexOf(s); return i < 0 ? backtestCoins.length : i; };
   const columns = [...symbols].sort((a, b) => order(a) - order(b) || a.localeCompare(b));
   const totals = { pairs: 0, profitable: 0, losing: 0, qualified: 0, closed: 0, open: 0, net: 0 };
