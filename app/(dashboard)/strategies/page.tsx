@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Activity, ArrowRight, ChevronDown, ChevronRight, CircleCheck, FlaskConical, Layers, Radio } from 'lucide-react';
 import { CryptoPaperComparison } from '@/components/journey/CryptoPaperComparison';
+import { PaperMatrix } from '@/components/journey/PaperMatrix';
 import { PaperTrades } from '@/components/journey/PaperTrades';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -143,6 +144,7 @@ export default function StrategiesPage() {
   return <><Header onRefresh={() => { void load(); setPaperRefresh(n => n + 1); }} refreshing={busy} /><div className="mx-auto max-w-5xl space-y-5 px-4 py-5 lg:px-8 lg:py-8">
     <div className="inline-flex rounded-lg border bg-card p-1" aria-label="Market">{['all','stocks','crypto'].map(m =>
       <Button key={m} size="sm" variant={filter === m ? 'secondary' : 'ghost'} aria-pressed={filter === m} onClick={() => navigate(m)}>{m === 'all' ? 'All markets' : marketName(m)}</Button>)}</div>
+    {filter !== 'stocks' && <PaperMatrix refresh={paperRefresh} />}
     <PaperTrades market={filter} refresh={paperRefresh} />
     {error && <p role="alert">{error} <button className="underline" onClick={() => void load()}>Retry</button></p>}
     {!data && !error && <p role="status">Loading strategies…</p>}
