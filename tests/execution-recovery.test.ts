@@ -9,7 +9,9 @@ import { readPaperResults } from '../lib/automation/policy';
 import { withWalletChange } from '../lib/wallet/change';
 import { analyticsReport } from '../lib/analytics-report';
 import type { Trade } from '../types';
-import { memoryDb } from './helpers';
+import { memoryDb, pinLiveEvidence } from './helpers';
+
+pinLiveEvidence();
 
 const start = Date.parse('2026-11-24T19:00:00Z');
 type Managed = Parameters<typeof manageStockOrder>[3];

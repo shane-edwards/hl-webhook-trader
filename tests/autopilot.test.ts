@@ -1,15 +1,34 @@
-import { memoryDb, memoryRpc, SimExchange } from './helpers';
+import { memoryDb, memoryRpc, pinLiveEvidence, SimExchange } from './helpers';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { canOpenPosition, checkRisk, DEFAULT_RISK, sizeNotional } from '../lib/autopilot/risk';
 import { computeIndicators, getStrategy, WARMUP_BARS, type Bar } from '../lib/autopilot/strategies';
 import { configFromSettings, isLiveEligible, runAutopilot, type AutopilotConfig } from '../lib/autopilot/run';
 import { runFastPass } from '../lib/upkeep';
-import { liveRules, liveStartProblem, strategyDirection } from '../lib/autopilot/signals';
+import { liveRules, liveStartProblem, passedBacktest, setEvidenceForTests, strategyDirection } from '../lib/autopilot/signals';
 import type { HyperliquidClient } from '../lib/hyperliquid/client';
 import { runMomentumLive } from '../lib/autopilot/momentum-live';
 import { controlledCryptoConfig } from '../lib/automation/trading';
 import { SEARCH_ASSETS } from '../lib/strategy-search/model';
+
+pinLiveEvidence();
+
+test('the shipped evidence asks for a profit since 2025 too, and the paper sample takes only rules that passed', t => {
+  setEvidenceForTests(null);
+  t.after(pinLiveEvidence);
+  // Trend breakout long made money before 2025 and has been flat since, so nothing is Live-eligible for now.
+  for (const id of ['trend_pullback', 'trend_breakout', 'momentum_burst', 'macd_trend', 'volume_breakout'])
+    for (const shorts of [false, true]) assert.equal(isLiveEligible(id, shorts), false, `${id} ${shorts}`);
+  assert.match(liveStartProblem(['trend_breakout'], false)!, /None of the selected strategies/);
+  assert.deepEqual(['trend_pullback', 'trend_breakout', 'momentum_burst', 'macd_trend', 'volume_breakout'].map(id => [passedBacktest(id, false), passedBacktest(id, true)]),
+    [[false, false], [false, true], [false, false], [true, true], [false, true]]);
+
+  const scan = controlledCryptoConfig(configFromSettings({}), { decision: 'paper', allPaperSignals: true, detail: '', candidate: null, results: null,
+    profile: { mode: 'paper', enabled: true, entries_paused: false } } as never, false)!;
+  assert.deepEqual(scan.strategies, ['trend_breakout', 'macd_trend', 'volume_breakout', MOMENTUM_ID]);
+  assert.deepEqual([...new Set(scan.paperTests!.map(row => row.rule))], ['trend_breakout', 'macd_trend', 'volume_breakout']);
+  assert.equal(scan.allowShort, true);
+});
 import type { AutomationProfile } from '../lib/automation/model';
 
 const HOUR = 3_600_000;

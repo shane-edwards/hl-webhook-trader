@@ -1,9 +1,20 @@
 // Test doubles: an in-memory database with the slice of the Supabase query
+import shippedEvidence from '../lib/autopilot/evidence.json';
+import { setEvidenceForTests } from '../lib/autopilot/signals';
 // builder the app uses, and a simulated exchange that fills resting orders and
 // fires stop / target triggers as the price is moved.
 import type { HyperliquidClient, TriggerLeg } from '../lib/hyperliquid/client';
 
 type Row = Record<string, unknown>;
+
+/**
+ * Pins the backtest evidence to the state these tests were written against (Trend breakout long passed and is
+ * Live-eligible), so the Live entry paths stay covered whatever the latest backtest run says about any rule.
+ */
+export function pinLiveEvidence() {
+  setEvidenceForTests({ ...shippedEvidence, strategies: shippedEvidence.strategies.map(row =>
+    row.id === 'trend_breakout' && !row.allowShort ? { ...row, gatePassed: true, liveEligible: true } : row) });
+}
 
 export function memoryDb(seed: Record<string, Row[]> = {}) {
   const tables: Record<string, Row[]> = { ...seed };

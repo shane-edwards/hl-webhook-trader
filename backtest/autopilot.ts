@@ -57,11 +57,12 @@ const evidence = STRATEGIES.flatMap(s =>
     const runs = COINS.map(c => simulate(data.get(c)!, s, allowShort, loadRealFunding(c)));
     const early = stats(runs, '2020-01-01', SPLIT);
     const late = stats(runs, SPLIT, '2100-01-01');
-    // The gate: profitable in BOTH halves, and each trade earns well above its cost.
-    const gatePassed = early.annualReturn > 0 && late.annualReturn > 0 && late.avgNetBps > 15 && late.profitFactor > 1.1;
-    const liveEligible = gatePassed && !s.paperOnly && !allowShort;
-    // Shown separately because it is the most recent stretch and was not used to design the rules.
+    // The most recent stretch, which was not used to design the rules.
     const recent = stats(runs, '2025-01-01', '2100-01-01');
+    // The gate: profitable in BOTH halves and in the most recent stretch, and each trade earns well above its cost.
+    // A rule whose edge has faded since 2025 does not pass on the strength of its earlier years.
+    const gatePassed = early.annualReturn > 0 && late.annualReturn > 0 && late.avgNetBps > 15 && late.profitFactor > 1.1 && recent.annualReturn > 0;
+    const liveEligible = gatePassed && !s.paperOnly && !allowShort;
     return { id: s.id, allowShort, liveEligible, gatePassed, early, late, recent };
   })
 );
@@ -90,11 +91,12 @@ ${rows.join('\n')}
 
 ## The live gate
 
-A strategy may trade real money only if it made money in **both** periods, its average trade since 2023 cleared
-costs by more than 15 basis points, and its wins outweighed its losses by at least 10%. Everything else can only
-run in paper mode. The gate is re-evaluated whenever this report is regenerated.
+A strategy may trade real money only if it made money in **both** periods and again from 2025 on, its average
+trade since 2023 cleared costs by more than 15 basis points, and its wins outweighed its losses by at least 10%.
+Paper mode samples only the rules whose long-and-short version passes. The gate is re-evaluated whenever this
+report is regenerated.
 
-**The most recent period is weak.** The one eligible strategy made most of its 2023+ return in 2023–2024 and was roughly flat from 2025 on, when the market fell. On a wider set of 22 coins it was profitable on fewer than half of them (see UNIVERSE.md). Treat it as a way to hold trends with controlled risk, not as a dependable income.
+**The most recent period is weak.** Trend breakout long, the only rule that was eligible before the 2025 test was added, made most of its 2023+ return in 2023–2024 and was roughly flat from 2025 on, when the market fell. On a wider set of 22 coins it was profitable on fewer than half of them (see UNIVERSE.md). Treat it as a way to hold trends with controlled risk, not as a dependable income.
 
 **Probation.** A rule that was picked after its recent results were already known (MACD trend, volume breakout) stays paper-only even if it passes: its backtest is no longer an independent test. It earns live status with a paper track record, not a backtest.
 

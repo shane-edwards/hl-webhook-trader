@@ -1,8 +1,19 @@
-import evidence from './evidence.json';
+import shipped from './evidence.json';
 import { computeIndicators, getStrategy, WARMUP_BARS, type Bar } from './strategies';
 
 export const HOUR_MS = 3_600_000;
 export const BARS_NEEDED = WARMUP_BARS + 30;
+
+type EvidenceFile = typeof shipped;
+let evidence: EvidenceFile = shipped;
+/** Tests pin the evidence so they keep exercising the Live paths whatever the latest backtest says. Pass null to restore. */
+export function setEvidenceForTests(next: EvidenceFile | null) { evidence = next ?? shipped; }
+export const currentEvidence = () => evidence;
+
+/** Did this rule, in this direction mode, pass the backtest gate? Paper trades only rules that did. */
+export function passedBacktest(id: string, allowShort: boolean) {
+  return evidence.accountingVersion === 2 && evidence.strategies.some(row => row.id === id && row.allowShort === allowShort && row.gatePassed);
+}
 
 export function isLiveEligible(id: string, allowShort: boolean) {
   return evidence.accountingVersion === 2 && evidence.strategies.some(row => row.id === id && row.allowShort === allowShort && row.liveEligible);

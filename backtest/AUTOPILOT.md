@@ -9,22 +9,23 @@ extra slippage on stops, and funding. Settings are the first ones chosen; nothin
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Trend pullback | Long only | 57 | +38% | 6 | -13 | -4% | **-8%** | -8% | -0.47 | -44% | Paper only |
 | Trend pullback | Long & short | 112 | +39% | 10 | -6 | -8% | **-9%** | -3% | -0.34 | -41% | Paper only |
-| Trend breakout | Long only | 48 | +28% | 75 | 47 | +65% | **+20%** | -1% | 0.83 | -26% | **Yes** |
+| Trend breakout | Long only | 48 | +28% | 75 | 47 | +65% | **+20%** | -1% | 0.83 | -26% | Paper only |
 | Trend breakout | Long & short | 92 | +28% | 39 | 17 | +49% | **+7%** | +7% | 0.37 | -33% | Paper only (passed the gate; on probation) |
 | Momentum burst | Long only | 90 | +38% | 1 | -15 | +4% | **-13%** | -7% | -1.15 | -52% | Paper only |
 | Momentum burst | Long & short | 171 | +38% | 0 | -16 | -19% | **-25%** | -13% | -1.53 | -73% | Paper only |
 | MACD trend (4-hour) | Long only | 42 | +30% | 73 | 47 | +44% | **+18%** | +9% | 0.85 | -22% | Paper only (passed the gate; on probation) |
 | MACD trend (4-hour) | Long & short | 79 | +32% | 42 | 23 | +24% | **+13%** | +24% | 0.56 | -44% | Paper only (passed the gate; on probation) |
-| Volume breakout (daily) | Long only | 4 | +49% | 917 | 609 | +133% | **+19%** | -13% | 0.70 | -39% | Paper only (passed the gate; on probation) |
+| Volume breakout (daily) | Long only | 4 | +49% | 917 | 609 | +133% | **+19%** | -13% | 0.70 | -39% | Paper only |
 | Volume breakout (daily) | Long & short | 7 | +46% | 552 | 377 | +115% | **+21%** | +16% | 0.68 | -37% | Paper only (passed the gate; on probation) |
 
 ## The live gate
 
-A strategy may trade real money only if it made money in **both** periods, its average trade since 2023 cleared
-costs by more than 15 basis points, and its wins outweighed its losses by at least 10%. Everything else can only
-run in paper mode. The gate is re-evaluated whenever this report is regenerated.
+A strategy may trade real money only if it made money in **both** periods and again from 2025 on, its average
+trade since 2023 cleared costs by more than 15 basis points, and its wins outweighed its losses by at least 10%.
+Paper mode samples only the rules whose long-and-short version passes. The gate is re-evaluated whenever this
+report is regenerated.
 
-**The most recent period is weak.** The one eligible strategy made most of its 2023+ return in 2023–2024 and was roughly flat from 2025 on, when the market fell. On a wider set of 22 coins it was profitable on fewer than half of them (see UNIVERSE.md). Treat it as a way to hold trends with controlled risk, not as a dependable income.
+**The most recent period is weak.** Trend breakout long, the only rule that was eligible before the 2025 test was added, made most of its 2023+ return in 2023–2024 and was roughly flat from 2025 on, when the market fell. On a wider set of 22 coins it was profitable on fewer than half of them (see UNIVERSE.md). Treat it as a way to hold trends with controlled risk, not as a dependable income.
 
 **Probation.** A rule that was picked after its recent results were already known (MACD trend, volume breakout) stays paper-only even if it passes: its backtest is no longer an independent test. It earns live status with a paper track record, not a backtest.
 

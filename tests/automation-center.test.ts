@@ -4,9 +4,11 @@ import { automationSchedule, automationVersion, PAPER_REQUIREMENT, PAPER_REQUIRE
 import { automationDecision, LIVE_EVIDENCE_REASON, readPaperResults } from '../lib/automation/policy';
 import { controlledCryptoConfig } from '../lib/automation/trading';
 import { capAutomationNotional, DEFAULT_RISK } from '../lib/autopilot/risk';
-import { memoryDb } from './helpers';
+import { memoryDb, pinLiveEvidence } from './helpers';
 import { settleCryptoShadow } from '../lib/automation/crypto-shadow';
 import { settleDiffusion, standardizedMove } from '../lib/automation/diffusion-shadow';
+
+pinLiveEvidence();
 
 test('automated research follows the US close for Stocks and the UTC day for Crypto', () => {
   assert.equal(automationSchedule('stocks', Date.parse('2026-11-24T21:14Z')).length, 0);

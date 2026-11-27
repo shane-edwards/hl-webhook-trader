@@ -5,13 +5,14 @@ import { findIdea } from '@/lib/automation/ideas';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { hlClientFromSettings } from '@/lib/hyperliquid/from-settings';
 import { configFromSettings, runAutopilot } from '@/lib/autopilot/run';
-import { BARS_NEEDED, entrySignal, isLiveEligible, strategyDirection } from '@/lib/autopilot/signals';
+import { BARS_NEEDED, currentEvidence, entrySignal, isLiveEligible, strategyDirection } from '@/lib/autopilot/signals';
 import { marketDataClient } from '@/lib/hyperliquid/from-settings';
 import { readPages } from '@/lib/supabase/pages';
 import { computeIndicators, STRATEGIES, WARMUP_BARS } from '@/lib/autopilot/strategies';
-import evidence from '@/lib/autopilot/evidence.json';
 import scalpSearch from '@/lib/autopilot/scalp-evidence.json';
 import momentumEvidence from '@/lib/autopilot/momentum-evidence.json';
+
+const evidence = currentEvidence();
 import { DAY_MS, MOMENTUM_HOLD_DAYS, MOMENTUM_ID, MOMENTUM_LOOKBACK_DAYS, MOMENTUM_STOP_PCT, MOMENTUM_UNIVERSE, momentumOrderPlan, momentumPlanKey, rankMomentum } from '@/lib/autopilot/momentum';
 
 export const dynamic = 'force-dynamic';
