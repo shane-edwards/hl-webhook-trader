@@ -3378,6 +3378,155 @@
         "complete": true,
         "notes": {}
       }
+    },
+    {
+      "strategy": "funding_basket",
+      "day": "2026-11-02",
+      "checked_at": "2026-11-02T00:07:00Z",
+      "detail": {
+        "basket": {
+          "longs": [
+            "ATOM",
+            "TRX",
+            "ADA",
+            "ETC"
+          ],
+          "shorts": [
+            "BTC",
+            "XRP",
+            "LTC",
+            "LINK"
+          ]
+        },
+        "prices": {},
+        "rates": {
+          "ATOM": -0.00055,
+          "TRX": -0.00037,
+          "ADA": -0.00012,
+          "ETC": -6e-05,
+          "BTC": 0.00026,
+          "XRP": 0.0002,
+          "LTC": 0.00018,
+          "LINK": 0.00018
+        },
+        "week": null,
+        "traded": 1.0,
+        "cost": 0.001
+      }
+    },
+    {
+      "strategy": "funding_basket",
+      "day": "2026-11-09",
+      "checked_at": "2026-11-09T00:07:00Z",
+      "detail": {
+        "basket": {
+          "longs": [
+            "ATOM",
+            "TRX",
+            "ADA",
+            "ETC"
+          ],
+          "shorts": [
+            "BTC",
+            "XRP",
+            "LTC",
+            "LINK"
+          ]
+        },
+        "prices": {},
+        "rates": {
+          "ATOM": -0.00055,
+          "TRX": -0.00037,
+          "ADA": -0.00012,
+          "ETC": -6e-05,
+          "BTC": 0.00026,
+          "XRP": 0.0002,
+          "LTC": 0.00018,
+          "LINK": 0.00018
+        },
+        "week": {
+          "price": 0.0188,
+          "funding": 0.0013
+        },
+        "traded": 0.25,
+        "cost": 0.00025
+      }
+    },
+    {
+      "strategy": "funding_basket",
+      "day": "2026-11-16",
+      "checked_at": "2026-11-16T00:07:00Z",
+      "detail": {
+        "basket": {
+          "longs": [
+            "ATOM",
+            "TRX",
+            "ADA",
+            "ETC"
+          ],
+          "shorts": [
+            "BTC",
+            "XRP",
+            "LTC",
+            "LINK"
+          ]
+        },
+        "prices": {},
+        "rates": {
+          "ATOM": -0.00055,
+          "TRX": -0.00037,
+          "ADA": -0.00012,
+          "ETC": -6e-05,
+          "BTC": 0.00026,
+          "XRP": 0.0002,
+          "LTC": 0.00018,
+          "LINK": 0.00018
+        },
+        "week": {
+          "price": 0.0306,
+          "funding": 0.0003
+        },
+        "traded": 0.5,
+        "cost": 0.0005
+      }
+    },
+    {
+      "strategy": "funding_basket",
+      "day": "2026-11-23",
+      "checked_at": "2026-11-23T00:07:00Z",
+      "detail": {
+        "basket": {
+          "longs": [
+            "ATOM",
+            "TRX",
+            "ADA",
+            "ETC"
+          ],
+          "shorts": [
+            "BTC",
+            "XRP",
+            "LTC",
+            "LINK"
+          ]
+        },
+        "prices": {},
+        "rates": {
+          "ATOM": -0.00055,
+          "TRX": -0.00037,
+          "ADA": -0.00012,
+          "ETC": -6e-05,
+          "BTC": 0.00026,
+          "XRP": 0.0002,
+          "LTC": 0.00018,
+          "LINK": 0.00018
+        },
+        "week": {
+          "price": -0.0212,
+          "funding": 0.0011
+        },
+        "traded": 0.0,
+        "cost": 0
+      }
     }
   ]
 }

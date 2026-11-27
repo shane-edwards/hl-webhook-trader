@@ -72,21 +72,16 @@ export default function FundingGapsPage() {
       <Header />
       <div className="p-4 lg:p-8 space-y-5 w-full max-w-[1400px] mx-auto">
         <section className="surface p-4 lg:p-6 space-y-4">
-          <p className="text-sm text-muted-foreground max-w-3xl">
-            Perpetual futures pay a funding rate between buyers and sellers, and the same coin often has a different rate on Hyperliquid, Binance and Bybit. This page estimates what you would have collected, after costs, by shorting a coin on the exchange that pays more and buying the same amount on the other, and it places no trades.
-          </p>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Segmented aria-label="Time window" value={days} onChange={setDays} options={WINDOWS} />
             <div aria-live="polite" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               {loading ? <Skeleton className="h-4 w-56" /> : report && <>
-                <span>{report.latestAt ? `Last scan ${formatRelativeTime(report.latestAt)}` : 'No scans recorded yet'}</span>
-                {current.stale && <Badge variant="warning">Stale</Badge>}
-                <span>· {report.markets} {report.markets === 1 ? 'market' : 'markets'}</span>
+                {current.stale && <Badge variant="warning">Not updating</Badge>}
+                <span>{report.latestAt ? `Updated ${formatRelativeTime(report.latestAt)}` : 'Collecting data'}</span>
                 <span>· {hoursOfData(report.scans, report.days)}</span>
               </>}
             </div>
           </div>
-          {current?.stale && <p className="text-xs text-warning">The last scan is more than 15 minutes old, so the scanner may have stopped. The figures below may be out of date.</p>}
           {current?.error && <p role="alert" className="text-sm text-destructive">{current.error}</p>}
 
           {loading && <div className="space-y-2" aria-label="Loading funding gaps">
@@ -94,38 +89,37 @@ export default function FundingGapsPage() {
           </div>}
 
           {report && report.gaps.length === 0 && <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">No results yet</p>
-            <p className="mt-1">The scanner records funding rates every {SCAN_MINUTES} minutes. It needs about an hour of data in this window before it can show results.</p>
+            <p className="font-medium text-foreground">Collecting data</p>
+            <p className="mt-1">First results in about an hour.</p>
           </div>}
 
-          {report && report.gaps.length > 0 && <p className="text-xs text-muted-foreground">Best result after costs first. 1 basis point (bps) is 0.01% of the position size.</p>}
           {report && report.gaps.length > 0 && <div className="overflow-x-auto -mx-4 lg:-mx-6">
             <table className="data-table">
               <thead>
                 <tr>
                   <th scope="col">Market</th>
                   <th scope="col" className="text-left">Position</th>
-                  <th scope="col" title="Funding collected over the data in this window minus one round trip, in basis points">Net over window</th>
-                  <th scope="col" title="Average funding difference over the window, as a yearly rate">Avg gap / yr</th>
-                  <th scope="col" className="hidden sm:table-cell" title="The difference in the latest scan, as a yearly rate. Negative means the direction has flipped.">Now / yr</th>
+                  <th scope="col" title="Funding collected over the data in this window minus one round trip, as a share of the position">Net after costs</th>
+                  <th scope="col" title="Average funding difference over the window, as a yearly rate">Yearly gap</th>
+                  <th scope="col" className="hidden sm:table-cell" title="The difference in the latest scan, as a yearly rate. Negative means the direction has flipped.">Now</th>
                   <th scope="col" className="hidden md:table-cell" title="Share of scans where the gap pointed the same way as its average">Consistency</th>
-                  <th scope="col" className="hidden lg:table-cell" title="Fees and spread to open and close both sides, in basis points">Round-trip cost</th>
+                  <th scope="col" className="hidden lg:table-cell" title="Fees and spread to open and close both sides, as a share of the position">Cost</th>
                   <th scope="col" className="hidden sm:table-cell" title="Time the average gap needs to pay for the round-trip cost">Break-even</th>
-                  <th scope="col" className="hidden lg:table-cell">Hyperliquid 24h volume</th>
+                  <th scope="col" className="hidden lg:table-cell">Volume</th>
                 </tr>
               </thead>
               <tbody>
                 {report.gaps.map(gap => {
                   const now = gap.nowHourly == null ? null : gap.nowHourly * 24 * 365 * 100;
-                  const net = gap.netOverWindow * 1e4;
+                  const net = gap.netOverWindow * 100;
                   const open = expanded === gap.symbol;
                   const figures: Array<[string, string, string?]> = [
-                    ['Avg gap / yr', `${gap.annualPct.toFixed(1)}%`],
-                    ['Now / yr', now == null ? 'n/a' : `${now.toFixed(1)}%`, now != null && now < 0 ? 'text-loss' : undefined],
+                    ['Yearly gap', `${gap.annualPct.toFixed(1)}%`],
+                    ['Now', now == null ? 'n/a' : `${now.toFixed(1)}%`, now != null && now < 0 ? 'text-loss' : undefined],
                     ['Consistency', `${(gap.consistency * 100).toFixed(0)}%`],
-                    ['Round-trip cost', `${(gap.cost * 1e4).toFixed(1)} bps`],
+                    ['Cost', `${(gap.cost * 100).toFixed(2)}%`],
                     ['Break-even', breakEven(gap.breakEvenHours)],
-                    ['Hyperliquid 24h volume', gap.hlVolume == null ? 'n/a' : compactUsd.format(gap.hlVolume)],
+                    ['Volume', gap.hlVolume == null ? 'n/a' : compactUsd.format(gap.hlVolume)],
                   ];
                   return (
                     <Fragment key={gap.symbol}>
@@ -142,11 +136,11 @@ export default function FundingGapsPage() {
                         <span className="hidden xl:inline"> / </span>
                         <span className="block xl:inline text-muted-foreground xl:text-foreground">Long {VENUE_NAMES[gap.long]}</span>
                       </td>
-                      <td className={cn('num font-medium', pnlColor(net))}>{signed(net)} bps</td>
+                      <td className={cn('num font-medium', pnlColor(net))}>{signed(net, 2)}%</td>
                       <td className="num">{gap.annualPct.toFixed(1)}%</td>
                       <td className={cn('num hidden sm:table-cell', now == null ? 'text-muted-foreground' : now < 0 && 'text-loss')}>{now == null ? 'n/a' : `${now.toFixed(1)}%`}</td>
                       <td className="num hidden md:table-cell">{(gap.consistency * 100).toFixed(0)}%</td>
-                      <td className="num hidden lg:table-cell">{(gap.cost * 1e4).toFixed(1)} bps</td>
+                      <td className="num hidden lg:table-cell">{(gap.cost * 100).toFixed(2)}%</td>
                       <td className="num hidden sm:table-cell">{breakEven(gap.breakEvenHours)}</td>
                       <td className="num hidden lg:table-cell text-muted-foreground">{gap.hlVolume == null ? 'n/a' : compactUsd.format(gap.hlVolume)}</td>
                     </tr>
@@ -166,18 +160,17 @@ export default function FundingGapsPage() {
               </tbody>
             </table>
           </div>}
-          {report && report.gaps.length > 0 && <p className="text-xs text-muted-foreground lg:hidden">Tap a market to see all of its figures.</p>}
         </section>
 
-        <section className="surface p-4 lg:p-6 space-y-3">
-          <h2 className="text-lg font-semibold">How to read this</h2>
-          <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground max-w-3xl">
-            <li>The rates are each exchange&apos;s predicted next funding rate, as published by Hyperliquid and sampled every {SCAN_MINUTES} minutes. The result is an estimate, not a record of payments that were actually settled.</li>
-            <li>Costs assume the standard taker fee (the fee for an order that fills immediately) on all four fills: opening and closing on both exchanges. They also assume the gap between buy and sell prices on the other exchange is the same as on Hyperliquid.</li>
-            <li>Price differences between the two exchanges when you open and close are not included. Neither is the money you would need to keep as margin on two exchanges.</li>
-            <li>A gap that looks large on a small coin may not be tradable at a meaningful size.</li>
+        <details className="surface p-4 lg:p-6 text-sm text-muted-foreground">
+          <summary className="cursor-pointer text-primary">About these numbers</summary>
+          <ul className="mt-3 list-disc pl-5 space-y-2 max-w-3xl">
+            <li>The trade: short a coin on the exchange paying more funding and buy the same amount on the one paying less. Nothing here places an order.</li>
+            <li>Rates are each exchange&apos;s predicted next funding rate, sampled every {SCAN_MINUTES} minutes, so results are estimates, not settled payments.</li>
+            <li>Costs are the standard fee on all four fills, and assume the other exchange&apos;s spread matches Hyperliquid&apos;s.</li>
+            <li>Not included: price differences between the exchanges, and the margin needed on both. A large gap on a small coin may not be tradable at size.</li>
           </ul>
-        </section>
+        </details>
       </div>
     </div>
   );
