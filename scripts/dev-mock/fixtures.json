@@ -1300,5 +1300,153 @@
         "limitedHistory": false
       }
     }
+  ],
+  "rpc/funding_gap_summary": [
+    {
+      "symbol": "BTC",
+      "scans": 2016,
+      "hl_spread": 2e-05,
+      "hl_volume": 2100000000.0,
+      "hl_binance_n": 2016,
+      "hl_binance_gap": 4.5e-06,
+      "hl_binance_above": 0.9,
+      "hl_bybit_n": 2016,
+      "hl_bybit_gap": 3.3e-06,
+      "hl_bybit_above": 0.2,
+      "binance_bybit_n": 2016,
+      "binance_bybit_gap": -1.2e-06,
+      "binance_bybit_above": 0.3
+    },
+    {
+      "symbol": "ETH",
+      "scans": 2016,
+      "hl_spread": 6e-05,
+      "hl_volume": 940000000.0,
+      "hl_binance_n": 2016,
+      "hl_binance_gap": 4.1e-06,
+      "hl_binance_above": 0.8,
+      "hl_bybit_n": 2016,
+      "hl_bybit_gap": 5.2e-06,
+      "hl_bybit_above": 0.85,
+      "binance_bybit_n": 2016,
+      "binance_bybit_gap": 1.1e-06,
+      "binance_bybit_above": 0.6
+    },
+    {
+      "symbol": "SOL",
+      "scans": 2016,
+      "hl_spread": 3e-05,
+      "hl_volume": 320000000.0,
+      "hl_binance_n": 2016,
+      "hl_binance_gap": -2e-06,
+      "hl_binance_above": 0.4,
+      "hl_bybit_n": 2016,
+      "hl_bybit_gap": 1.1e-05,
+      "hl_bybit_above": 0.7,
+      "binance_bybit_n": 2016,
+      "binance_bybit_gap": 1.3e-05,
+      "binance_bybit_above": 0.75
+    },
+    {
+      "symbol": "INIT",
+      "scans": 2016,
+      "hl_spread": 0.0034,
+      "hl_volume": 6200000.0,
+      "hl_binance_n": 2016,
+      "hl_binance_gap": 0.00033,
+      "hl_binance_above": 0.95,
+      "hl_bybit_n": 2016,
+      "hl_bybit_gap": -6e-05,
+      "hl_bybit_above": 0.3,
+      "binance_bybit_n": 2016,
+      "binance_bybit_gap": -0.00039,
+      "binance_bybit_above": 0.1
+    },
+    {
+      "symbol": "WLD",
+      "scans": 2016,
+      "hl_spread": 0.00048,
+      "hl_volume": 24000000.0,
+      "hl_binance_n": 2016,
+      "hl_binance_gap": 1e-05,
+      "hl_binance_above": 0.6,
+      "hl_bybit_n": 2016,
+      "hl_bybit_gap": 4e-06,
+      "hl_bybit_above": 0.5,
+      "binance_bybit_n": 2016,
+      "binance_bybit_gap": -4.5e-05,
+      "binance_bybit_above": 0.15
+    },
+    {
+      "symbol": "DOGE",
+      "scans": 2016,
+      "hl_spread": 8e-05,
+      "hl_volume": 110000000.0,
+      "hl_binance_n": 2016,
+      "hl_binance_gap": 8e-07,
+      "hl_binance_above": 0.55,
+      "hl_bybit_n": 2016,
+      "hl_bybit_gap": -6e-07,
+      "hl_bybit_above": 0.45,
+      "binance_bybit_n": 2016,
+      "binance_bybit_gap": -1.4e-06,
+      "binance_bybit_above": 0.4
+    }
+  ],
+  "funding_gap_scans": [
+    {
+      "scanned_at": "2026-11-27T00:00:00.000Z",
+      "symbol": "BTC",
+      "hl_rate": 1.25e-05,
+      "binance_rate": 8.1e-06,
+      "bybit_rate": 9.2e-06,
+      "hl_spread": 2e-05,
+      "hl_volume": 2100000000.0
+    },
+    {
+      "scanned_at": "2026-11-27T00:00:00.000Z",
+      "symbol": "ETH",
+      "hl_rate": 1.25e-05,
+      "binance_rate": 9e-06,
+      "bybit_rate": 7e-06,
+      "hl_spread": 6e-05,
+      "hl_volume": 940000000.0
+    },
+    {
+      "scanned_at": "2026-11-27T00:00:00.000Z",
+      "symbol": "SOL",
+      "hl_rate": 1e-05,
+      "binance_rate": 1.2e-05,
+      "bybit_rate": -2e-06,
+      "hl_spread": 3e-05,
+      "hl_volume": 320000000.0
+    },
+    {
+      "scanned_at": "2026-11-27T00:00:00.000Z",
+      "symbol": "INIT",
+      "hl_rate": 0.00035,
+      "binance_rate": -6e-06,
+      "bybit_rate": 0.00041,
+      "hl_spread": 0.0034,
+      "hl_volume": 6200000.0
+    },
+    {
+      "scanned_at": "2026-11-27T00:00:00.000Z",
+      "symbol": "WLD",
+      "hl_rate": 1.25e-05,
+      "binance_rate": 6e-05,
+      "bybit_rate": 1.25e-05,
+      "hl_spread": 0.00048,
+      "hl_volume": 24000000.0
+    },
+    {
+      "scanned_at": "2026-11-27T00:00:00.000Z",
+      "symbol": "DOGE",
+      "hl_rate": 1.25e-05,
+      "binance_rate": 1.25e-05,
+      "bybit_rate": null,
+      "hl_spread": 8e-05,
+      "hl_volume": 110000000.0
+    }
   ]
 }

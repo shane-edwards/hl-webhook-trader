@@ -24,6 +24,7 @@ const pageTitles: Record<string, string> = {
   '/stocks/factors': 'Earnings and reversal research',
   '/lab': 'Strategy Lab',
   '/lab/scalping': 'Scalping research',
+  '/lab/funding': 'Funding gap scanner',
   '/analytics': 'Crypto analytics',
   '/settings': 'Crypto settings',
   '/strategies': 'Strategies',

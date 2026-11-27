@@ -204,6 +204,16 @@ export class HyperliquidClient {
     return entry;
   }
 
+  /** Every perp with its live context (funding, day volume, impact bid and ask), in listing order. */
+  async getAssetContexts(): Promise<[MetaResponse, Array<Record<string, unknown>>]> {
+    return this.infoRequest({ type: 'metaAndAssetCtxs' });
+  }
+
+  /** The next funding rate per coin on Hyperliquid, Binance and Bybit, as Hyperliquid publishes them. */
+  async getPredictedFundings(): Promise<unknown> {
+    return this.infoRequest({ type: 'predictedFundings' });
+  }
+
   async getAllMids(): Promise<Record<string, string>> {
     return this.infoRequest({ type: 'allMids' });
   }

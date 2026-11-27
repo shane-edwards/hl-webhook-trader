@@ -4,6 +4,7 @@ import { runMarketScan } from '@/lib/market-scan';
 import { alertOnStalePeers, heartbeat } from '@/lib/health';
 import { cronAuthorized } from '@/lib/cron-auth';
 import { notify } from '@/lib/notify';
+import { scanFundingGaps } from '@/lib/funding-scan/scan';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,9 @@ export async function GET(request: Request) {
   if (!cronAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const supabase = createServiceClient();
   try {
-    const result = await runMarketScan(supabase);
+    // Record-only funding research. Its failure must never hold up or fail the market scan.
+    const [result] = await Promise.all([runMarketScan(supabase),
+      scanFundingGaps(supabase, Date.now()).catch(error => console.error('[market] funding scan', error instanceof Error ? error.message : error))]);
     if (result.flips.length) {
       await notify('Trade ideas changed (rule-based reads, not forecasts):\n' + result.flips.map(f =>
         `${f.symbol}: now ${f.strength} ${f.to} (was ${f.from === 'neutral' ? 'no trade' : f.from}) at ${f.price}; suggested stop ${f.stopPct}%, target ${f.targetPct}%`).join('\n'));

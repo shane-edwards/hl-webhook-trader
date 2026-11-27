@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sessionCookies } from './session.mjs';
 
-const ROUTES = ['/dashboard', '/autopilot', '/trades', '/markets', '/lab', '/analytics', '/settings'];
+const ROUTES = ['/dashboard', '/autopilot', '/trades', '/markets', '/lab', '/lab/funding', '/analytics', '/settings'];
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900, isMobile: false, deviceScaleFactor: 1 },
   { name: 'phone', width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },

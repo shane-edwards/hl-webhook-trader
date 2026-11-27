@@ -221,7 +221,8 @@ const sameOn = (columns, a, b) => columns.every(c => a[c] !== undefined && a[c] 
 
 function rest(req, url, body) {
   const table = decodeURIComponent(url.pathname.slice('/rest/v1/'.length)).replace(/\/$/, '');
-  if (!table || table.startsWith('rpc/')) return { status: 200, body: null }; // no database functions are modelled
+  // Database functions are not modelled: one answers with its fixture rows if fixtures.json has any, else null.
+  if (!table || table.startsWith('rpc/')) return { status: 200, body: db[table] ?? null };
   const q = parseQuery(url.searchParams);
   const prefer = preferences(req);
   const s = spec(table);
