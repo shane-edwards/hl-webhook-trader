@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Badge } from '@/components/ui/badge';
 import { Segmented } from '@/components/ui/segmented';
@@ -38,6 +39,7 @@ function hoursOfData(scans: number, days: number) {
 export default function FundingGapsPage() {
   const [days, setDays] = useState<Days>('7');
   const [loaded, setLoaded] = useState<Loaded>();
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -116,9 +118,25 @@ export default function FundingGapsPage() {
                 {report.gaps.map(gap => {
                   const now = gap.nowHourly == null ? null : gap.nowHourly * 24 * 365 * 100;
                   const net = gap.netOverWindow * 1e4;
+                  const open = expanded === gap.symbol;
+                  const figures: Array<[string, string, string?]> = [
+                    ['Avg gap / yr', `${gap.annualPct.toFixed(1)}%`],
+                    ['Now / yr', now == null ? 'n/a' : `${now.toFixed(1)}%`, now != null && now < 0 ? 'text-loss' : undefined],
+                    ['Consistency', `${(gap.consistency * 100).toFixed(0)}%`],
+                    ['Round-trip cost', `${(gap.cost * 1e4).toFixed(1)} bps`],
+                    ['Break-even', breakEven(gap.breakEvenHours)],
+                    ['Hyperliquid 24h volume', gap.hlVolume == null ? 'n/a' : compactUsd.format(gap.hlVolume)],
+                  ];
                   return (
-                    <tr key={gap.symbol}>
-                      <td className="font-medium">{gap.symbol}</td>
+                    <Fragment key={gap.symbol}>
+                    <tr>
+                      <td className="font-medium">
+                        {/* Below the widest layout some columns are hidden, so the market name opens every figure. */}
+                        <button type="button" onClick={() => setExpanded(open ? null : gap.symbol)} aria-expanded={open}
+                          className="inline-flex items-center gap-1 lg:pointer-events-none">
+                          {gap.symbol}<ChevronDown size={14} aria-hidden="true" className={cn('text-muted-foreground transition-transform lg:hidden', open && 'rotate-180')} />
+                        </button>
+                      </td>
                       <td className="text-left">
                         <span className="block xl:inline">Short {VENUE_NAMES[gap.short]}</span>
                         <span className="hidden xl:inline"> / </span>
@@ -132,12 +150,23 @@ export default function FundingGapsPage() {
                       <td className="num hidden sm:table-cell">{breakEven(gap.breakEvenHours)}</td>
                       <td className="num hidden lg:table-cell text-muted-foreground">{gap.hlVolume == null ? 'n/a' : compactUsd.format(gap.hlVolume)}</td>
                     </tr>
+                    {open && <tr className="lg:hidden">
+                      <td colSpan={9} className="!text-left">
+                        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 py-1 sm:grid-cols-3">
+                          {figures.map(([label, value, colour]) => <div key={label}>
+                            <dt className="text-xs text-muted-foreground">{label}</dt>
+                            <dd className={cn('tabular-nums', colour)}>{value}</dd>
+                          </div>)}
+                        </dl>
+                      </td>
+                    </tr>}
+                    </Fragment>
                   );
                 })}
               </tbody>
             </table>
           </div>}
-          {report && report.gaps.length > 0 && <p className="text-xs text-muted-foreground lg:hidden">Some columns are hidden on small screens. Use a wider screen to see them all.</p>}
+          {report && report.gaps.length > 0 && <p className="text-xs text-muted-foreground lg:hidden">Tap a market to see all of its figures.</p>}
         </section>
 
         <section className="surface p-4 lg:p-6 space-y-3">
