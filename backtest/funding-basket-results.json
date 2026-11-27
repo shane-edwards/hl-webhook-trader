@@ -1,0 +1,768 @@
+{
+  "spec": {
+    "coins": [
+      "AAVE",
+      "ADA",
+      "ATOM",
+      "AVAX",
+      "BCH",
+      "BNB",
+      "BTC",
+      "DOGE",
+      "ETC",
+      "ETH",
+      "LINK",
+      "LTC",
+      "SOL",
+      "TRX",
+      "XLM",
+      "XRP"
+    ],
+    "windows": {
+      "discovery": [
+        "2022-01-01",
+        "2023-12-31"
+      ],
+      "validation": [
+        "2024-01-01",
+        "2024-12-31"
+      ],
+      "holdout": [
+        "2025-01-01",
+        "2026-10-31"
+      ]
+    },
+    "costs_per_side": {
+      "base": 0.001,
+      "stressed": 0.002
+    },
+    "rebalance": "weekly, Monday daily open UTC, signal ends the previous day",
+    "quartile_rule": "floor(n/4), minimum 2; equal weight; 50% of capital per side",
+    "placebo": {
+      "seed": 7,
+      "runs": 200
+    },
+    "bootstrap": {
+      "type": "stationary block",
+      "mean_block_days": 20,
+      "draws": 2000,
+      "seed": 7
+    },
+    "annualisation_days": 365,
+    "window_handling": "each window starts flat, first trade on its first Monday, all positions closed (and charged) on its last day",
+    "turnover_definition": "sum of absolute weight changes / equity, averaged over rebalances after the initial entry",
+    "pnl_split": "dollar P&L per 1.0 of starting capital; price + funding + costs = total return"
+  },
+  "data_notes": {
+    "daily_bars_rebuilt_from_cached_hourly": {
+      "LTC": [
+        "2022-02-26",
+        "2022-02-27",
+        "2022-02-28",
+        "2022-04-01",
+        "2022-04-02"
+      ],
+      "SOL": [
+        "2022-02-26",
+        "2022-02-27",
+        "2022-02-28",
+        "2022-04-01",
+        "2022-04-02"
+      ],
+      "TRX": [
+        "2022-02-26",
+        "2022-02-27",
+        "2022-02-28",
+        "2022-04-01",
+        "2022-04-02"
+      ],
+      "XLM": [
+        "2022-02-26",
+        "2022-02-27",
+        "2022-02-28",
+        "2022-04-01",
+        "2022-04-02"
+      ],
+      "XRP": [
+        "2022-02-26",
+        "2022-02-27",
+        "2022-02-28",
+        "2022-04-01",
+        "2022-04-02"
+      ]
+    },
+    "eligible_coins_first_discovery_rebalance": 16
+  },
+  "variants": {
+    "carry_7d": {
+      "results": {
+        "discovery": {
+          "base": {
+            "total_return": 0.03241200727778115,
+            "annualised_return": 0.01607677233454008,
+            "sharpe": 0.17955312053014522,
+            "max_drawdown": -0.20944006906706825,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.8150650337394724,
+            "price_pnl": -0.05228798667355568,
+            "funding_pnl": 0.17491354425667974,
+            "cost_pnl": -0.09021355030534348,
+            "short_basket_funding_ann_pct": 7.252820867101649,
+            "long_basket_funding_ann_pct": -9.70019262019231,
+            "short_basket_signal_funding_ann_pct": 8.859606268887362,
+            "long_basket_signal_funding_ann_pct": -16.342546976304945
+          },
+          "stressed": {
+            "total_return": -0.052607679388167905,
+            "annualised_return": -0.026659196061403212,
+            "sharpe": -0.04157989801548049,
+            "max_drawdown": -0.21592042195817607,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.8153715051469187,
+            "price_pnl": -0.047073869257070834,
+            "funding_pnl": 0.16738254238616182,
+            "cost_pnl": -0.1729163525172551,
+            "short_basket_funding_ann_pct": 7.252820867101649,
+            "long_basket_funding_ann_pct": -9.70019262019231,
+            "short_basket_signal_funding_ann_pct": 8.859606268887362,
+            "long_basket_signal_funding_ann_pct": -16.342546976304945
+          }
+        },
+        "validation": {
+          "base": {
+            "total_return": -0.08051004380824556,
+            "annualised_return": -0.08029914953272643,
+            "sharpe": -0.31007092535099273,
+            "max_drawdown": -0.27373969423055355,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.8885963581555234,
+            "price_pnl": -0.09584095264758541,
+            "funding_pnl": 0.06658931220120208,
+            "cost_pnl": -0.051258403361862076,
+            "short_basket_funding_ann_pct": 14.117114723360658,
+            "long_basket_funding_ann_pct": 1.9890575273224052,
+            "short_basket_signal_funding_ann_pct": 16.557316681266848,
+            "long_basket_signal_funding_ann_pct": -0.06547199797843843
+          },
+          "stressed": {
+            "total_return": -0.1239482115182079,
+            "annualised_return": -0.12363141109526066,
+            "sharpe": -0.5460757400248176,
+            "max_drawdown": -0.2795577894449184,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.889011011231635,
+            "price_pnl": -0.0892049409841306,
+            "funding_pnl": 0.06544418474243545,
+            "cost_pnl": -0.10018745527651288,
+            "short_basket_funding_ann_pct": 14.117114723360658,
+            "long_basket_funding_ann_pct": 1.9890575273224052,
+            "short_basket_signal_funding_ann_pct": 16.557316681266848,
+            "long_basket_signal_funding_ann_pct": -0.06547199797843843
+          }
+        },
+        "holdout": {
+          "base": {
+            "total_return": 0.7136441657209258,
+            "annualised_return": 0.34160561433296244,
+            "sharpe": 1.8334425316201335,
+            "max_drawdown": -0.13537396493762066,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.92569134219391,
+            "price_pnl": 0.728022560442995,
+            "funding_pnl": 0.09753926219395566,
+            "cost_pnl": -0.11191765691602522,
+            "short_basket_funding_ann_pct": 4.147287626129519,
+            "long_basket_funding_ann_pct": -4.569686074924698,
+            "short_basket_signal_funding_ann_pct": 5.889859548872181,
+            "long_basket_signal_funding_ann_pct": -6.9792338834586465
+          },
+          "stressed": {
+            "total_return": 0.5681488049109691,
+            "annualised_return": 0.2782076902016095,
+            "sharpe": 1.5356929337874852,
+            "max_drawdown": -0.14300620321834412,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.9260815057980296,
+            "price_pnl": 0.6885589858845859,
+            "funding_pnl": 0.0932134251661532,
+            "cost_pnl": -0.21362360613976905,
+            "short_basket_funding_ann_pct": 4.147287626129519,
+            "long_basket_funding_ann_pct": -4.569686074924698,
+            "short_basket_signal_funding_ann_pct": 5.889859548872181,
+            "long_basket_signal_funding_ann_pct": -6.9792338834586465
+          }
+        }
+      },
+      "extra_day_delay": {
+        "discovery": {
+          "base": {
+            "total_return": -0.07389158411305974,
+            "annualised_return": -0.037654731457084645,
+            "sharpe": -0.09047317546642182,
+            "max_drawdown": -0.24533852347749407,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.818439580921289,
+            "price_pnl": -0.14560453219496572,
+            "funding_pnl": 0.15737834334280051,
+            "cost_pnl": -0.08566539526089159,
+            "short_basket_funding_ann_pct": 7.108726444291609,
+            "long_basket_funding_ann_pct": -9.163689623452544,
+            "short_basket_signal_funding_ann_pct": 8.859606268887362,
+            "long_basket_signal_funding_ann_pct": -16.342546976304945
+          },
+          "stressed": {
+            "total_return": -0.15051168451562358,
+            "annualised_return": -0.07832309593633613,
+            "sharpe": -0.3055539908683144,
+            "max_drawdown": -0.26633496507515086,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.8188032244609358,
+            "price_pnl": -0.13679346422761948,
+            "funding_pnl": 0.15062043000960482,
+            "cost_pnl": -0.16433865029761024,
+            "short_basket_funding_ann_pct": 7.108726444291609,
+            "long_basket_funding_ann_pct": -9.163689623452544,
+            "short_basket_signal_funding_ann_pct": 8.859606268887362,
+            "long_basket_signal_funding_ann_pct": -16.342546976304945
+          }
+        },
+        "validation": {
+          "base": {
+            "total_return": -0.14234447262575012,
+            "annualised_return": -0.1419845737490273,
+            "sharpe": -0.6359669998759556,
+            "max_drawdown": -0.2878616982923843,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.8938693745856869,
+            "price_pnl": -0.1541157891667081,
+            "funding_pnl": 0.062281462371284575,
+            "cost_pnl": -0.0505101458303275,
+            "short_basket_funding_ann_pct": 13.837699,
+            "long_basket_funding_ann_pct": 2.1515275000000003,
+            "short_basket_signal_funding_ann_pct": 16.557316681266848,
+            "long_basket_signal_funding_ann_pct": -0.06547199797843843
+          },
+          "stressed": {
+            "total_return": -0.18313269235048868,
+            "annualised_return": -0.1826811064116587,
+            "sharpe": -0.8681717536191738,
+            "max_drawdown": -0.2954719564502356,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.8942987887008166,
+            "price_pnl": -0.14560546586461998,
+            "funding_pnl": 0.061209870187435886,
+            "cost_pnl": -0.09873709667330469,
+            "short_basket_funding_ann_pct": 13.837699,
+            "long_basket_funding_ann_pct": 2.1515275000000003,
+            "short_basket_signal_funding_ann_pct": 16.557316681266848,
+            "long_basket_signal_funding_ann_pct": -0.06547199797843843
+          }
+        },
+        "holdout": {
+          "base": {
+            "total_return": 0.5109758352593707,
+            "annualised_return": 0.2525676395666454,
+            "sharpe": 1.4258719758678748,
+            "max_drawdown": -0.14362666000108393,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.92549760125503,
+            "price_pnl": 0.5282289190834598,
+            "funding_pnl": 0.08785821606561839,
+            "cost_pnl": -0.10511129988970883,
+            "short_basket_funding_ann_pct": 3.9731736425339363,
+            "long_basket_funding_ann_pct": -4.40207382918552,
+            "short_basket_signal_funding_ann_pct": 5.889859548872181,
+            "long_basket_signal_funding_ann_pct": -6.9792338834586465
+          },
+          "stressed": {
+            "total_return": 0.3826340494031446,
+            "annualised_return": 0.19335189840906764,
+            "sharpe": 1.133966485376256,
+            "max_drawdown": -0.15427245676382695,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.9258819572025413,
+            "price_pnl": 0.49937169705983986,
+            "funding_pnl": 0.08401386611499334,
+            "cost_pnl": -0.20075151377169007,
+            "short_basket_funding_ann_pct": 3.9731736425339363,
+            "long_basket_funding_ann_pct": -4.40207382918552,
+            "short_basket_signal_funding_ann_pct": 5.889859548872181,
+            "long_basket_signal_funding_ann_pct": -6.9792338834586465
+          }
+        }
+      },
+      "holdout_stressed_bootstrap_annualised_return_90pct": {
+        "p05": 0.0684934597215213,
+        "median": 0.281925726225842,
+        "p95": 0.5299788246769043,
+        "share_positive": 0.9915
+      },
+      "pass_rule": {
+        "stressed_positive_all_windows": false,
+        "holdout_stressed_sharpe_at_least_0_5": true,
+        "beats_placebo_p95_holdout": true,
+        "placebo_p95_holdout_stressed_total_return": 0.09565040546987108,
+        "passes": false
+      }
+    },
+    "carry_30d": {
+      "results": {
+        "discovery": {
+          "base": {
+            "total_return": 0.09190711367361981,
+            "annualised_return": 0.044943593536806326,
+            "sharpe": 0.32981309064409603,
+            "max_drawdown": -0.23737595399916345,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.4072313716445989,
+            "price_pnl": -0.027316318755445455,
+            "funding_pnl": 0.16583774118269962,
+            "cost_pnl": -0.046614308753636355,
+            "short_basket_funding_ann_pct": 7.278856572802199,
+            "long_basket_funding_ann_pct": -8.359473792925822,
+            "short_basket_signal_funding_ann_pct": 7.913960416666667,
+            "long_basket_signal_funding_ann_pct": -14.643516978766025
+          },
+          "stressed": {
+            "total_return": 0.04494465073634424,
+            "annualised_return": 0.02222534244477603,
+            "sharpe": 0.21172834249008404,
+            "max_drawdown": -0.2417248311841832,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.40731196944575054,
+            "price_pnl": -0.026061593734640755,
+            "funding_pnl": 0.162218352551714,
+            "cost_pnl": -0.09121210808072863,
+            "short_basket_funding_ann_pct": 7.278856572802199,
+            "long_basket_funding_ann_pct": -8.359473792925822,
+            "short_basket_signal_funding_ann_pct": 7.913960416666667,
+            "long_basket_signal_funding_ann_pct": -14.643516978766025
+          }
+        },
+        "validation": {
+          "base": {
+            "total_return": 0.04589531210779474,
+            "annualised_return": 0.04576708841196031,
+            "sharpe": 0.29677178807801985,
+            "max_drawdown": -0.18381608960280793,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.4374503682437147,
+            "price_pnl": 0.004811399734055089,
+            "funding_pnl": 0.06762798312552497,
+            "cost_pnl": -0.026544070751784127,
+            "short_basket_funding_ann_pct": 14.27245538251366,
+            "long_basket_funding_ann_pct": 2.000351086065574,
+            "short_basket_signal_funding_ann_pct": 16.10834482389937,
+            "long_basket_signal_funding_ann_pct": 0.9666627287735852
+          },
+          "stressed": {
+            "total_return": 0.02041395032404525,
+            "annualised_return": 0.020357610591300812,
+            "sharpe": 0.20636866346915708,
+            "max_drawdown": -0.18616913396577583,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.43756705721738054,
+            "price_pnl": 0.005899949725881299,
+            "funding_pnl": 0.06697407045605873,
+            "cost_pnl": -0.05246006985789366,
+            "short_basket_funding_ann_pct": 14.27245538251366,
+            "long_basket_funding_ann_pct": 2.000351086065574,
+            "short_basket_signal_funding_ann_pct": 16.10834482389937,
+            "long_basket_signal_funding_ann_pct": 0.9666627287735852
+          }
+        },
+        "holdout": {
+          "base": {
+            "total_return": 0.6071557819945044,
+            "annualised_return": 0.29545776923850786,
+            "sharpe": 1.6715290315922582,
+            "max_drawdown": -0.13370176792038024,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.38716213219536866,
+            "price_pnl": 0.5555712482353496,
+            "funding_pnl": 0.1021606894509726,
+            "cost_pnl": -0.05057615569181724,
+            "short_basket_funding_ann_pct": 4.421310276731927,
+            "long_basket_funding_ann_pct": -4.364835734186747,
+            "short_basket_signal_funding_ann_pct": 5.342473174561404,
+            "long_basket_signal_funding_ann_pct": -5.896255080701753
+          },
+          "stressed": {
+            "total_return": 0.5468748998507025,
+            "annualised_return": 0.26871753000058685,
+            "sharpe": 1.539820486282879,
+            "max_drawdown": -0.13892961685972727,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.38720267434993444,
+            "price_pnl": 0.5457705841670409,
+            "funding_pnl": 0.10021554601252008,
+            "cost_pnl": -0.09911123032885907,
+            "short_basket_funding_ann_pct": 4.421310276731927,
+            "long_basket_funding_ann_pct": -4.364835734186747,
+            "short_basket_signal_funding_ann_pct": 5.342473174561404,
+            "long_basket_signal_funding_ann_pct": -5.896255080701753
+          }
+        }
+      },
+      "extra_day_delay": {
+        "discovery": {
+          "base": {
+            "total_return": -0.007583486772481107,
+            "annualised_return": -0.0037989594326275355,
+            "sharpe": 0.07400569429593931,
+            "max_drawdown": -0.24294541974924222,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.4149548205670863,
+            "price_pnl": -0.11557323261115499,
+            "funding_pnl": 0.15330510453916985,
+            "cost_pnl": -0.04531535870049703,
+            "short_basket_funding_ann_pct": 7.195955168500687,
+            "long_basket_funding_ann_pct": -8.041393196354884,
+            "short_basket_signal_funding_ann_pct": 7.913960416666667,
+            "long_basket_signal_funding_ann_pct": -14.643516978766025
+          },
+          "stressed": {
+            "total_return": -0.05106327017618606,
+            "annualised_return": -0.025866164316313056,
+            "sharpe": -0.04542661904506595,
+            "max_drawdown": -0.24767627362525868,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.41503502963474037,
+            "price_pnl": -0.11229817129487311,
+            "funding_pnl": 0.14990769997638198,
+            "cost_pnl": -0.08867279885769368,
+            "short_basket_funding_ann_pct": 7.195955168500687,
+            "long_basket_funding_ann_pct": -8.041393196354884,
+            "short_basket_signal_funding_ann_pct": 7.913960416666667,
+            "long_basket_signal_funding_ann_pct": -14.643516978766025
+          }
+        },
+        "validation": {
+          "base": {
+            "total_return": -0.005918284821720188,
+            "annualised_return": -0.00590216245840669,
+            "sharpe": 0.10614753833105674,
+            "max_drawdown": -0.17757876490680635,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.4426408568293487,
+            "price_pnl": -0.04263365297828286,
+            "funding_pnl": 0.06217946045730717,
+            "cost_pnl": -0.02546409230074457,
+            "short_basket_funding_ann_pct": 14.137769749999999,
+            "long_basket_funding_ann_pct": 1.9945270000000002,
+            "short_basket_signal_funding_ann_pct": 16.10834482389937,
+            "long_basket_signal_funding_ann_pct": 0.9666627287735852
+          },
+          "stressed": {
+            "total_return": -0.030473370076829265,
+            "annualised_return": -0.03039138773834149,
+            "sharpe": 0.010828861665249262,
+            "max_drawdown": -0.17919067030905933,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.44276049416634805,
+            "price_pnl": -0.04172358574128848,
+            "funding_pnl": 0.06157367809899246,
+            "cost_pnl": -0.05032346243453134,
+            "short_basket_funding_ann_pct": 14.137769749999999,
+            "long_basket_funding_ann_pct": 1.9945270000000002,
+            "short_basket_signal_funding_ann_pct": 16.10834482389937,
+            "long_basket_signal_funding_ann_pct": 0.9666627287735852
+          }
+        },
+        "holdout": {
+          "base": {
+            "total_return": 0.5041733470425109,
+            "annualised_return": 0.24948783476348946,
+            "sharpe": 1.4488729789480144,
+            "max_drawdown": -0.15079819934307592,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.38747787602956674,
+            "price_pnl": 0.457487531162323,
+            "funding_pnl": 0.09473585781930262,
+            "cost_pnl": -0.048050041939116016,
+            "short_basket_funding_ann_pct": 4.419095601432881,
+            "long_basket_funding_ann_pct": -4.230382756410257,
+            "short_basket_signal_funding_ann_pct": 5.342473174561404,
+            "long_basket_signal_funding_ann_pct": -5.896255080701753
+          },
+          "stressed": {
+            "total_return": 0.4477023269239362,
+            "annualised_return": 0.22367214443755667,
+            "sharpe": 1.3203073351856425,
+            "max_drawdown": -0.155396164194877,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.38752968621526473,
+            "price_pnl": 0.44892821461496407,
+            "funding_pnl": 0.09294487328425112,
+            "cost_pnl": -0.0941707609752777,
+            "short_basket_funding_ann_pct": 4.419095601432881,
+            "long_basket_funding_ann_pct": -4.230382756410257,
+            "short_basket_signal_funding_ann_pct": 5.342473174561404,
+            "long_basket_signal_funding_ann_pct": -5.896255080701753
+          }
+        }
+      },
+      "holdout_stressed_bootstrap_annualised_return_90pct": {
+        "p05": 0.041050753594896176,
+        "median": 0.2734144706463435,
+        "p95": 0.562468214467217,
+        "share_positive": 0.9725
+      },
+      "pass_rule": {
+        "stressed_positive_all_windows": true,
+        "holdout_stressed_sharpe_at_least_0_5": true,
+        "beats_placebo_p95_holdout": true,
+        "placebo_p95_holdout_stressed_total_return": 0.09565040546987108,
+        "passes": true
+      }
+    },
+    "carry_7d_btc_hedged_short_only": {
+      "results": {
+        "discovery": {
+          "base": {
+            "total_return": -0.0758301029300229,
+            "annualised_return": -0.038662443743107455,
+            "sharpe": -0.07458293311261734,
+            "max_drawdown": -0.3240667696184175,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.4759583755053007,
+            "price_pnl": -0.0338026856807735,
+            "funding_pnl": 0.01146540515493864,
+            "cost_pnl": -0.05349282240419343,
+            "short_basket_funding_ann_pct": 7.139592026098902,
+            "long_basket_funding_ann_pct": 6.015503832417582,
+            "short_basket_signal_funding_ann_pct": 8.667589946771978,
+            "long_basket_signal_funding_ann_pct": 5.741408385989011
+          },
+          "stressed": {
+            "total_return": -0.1218362208730508,
+            "annualised_return": -0.06289606812960657,
+            "sharpe": -0.1933719955846519,
+            "max_drawdown": -0.3302026371927911,
+            "days": 730,
+            "rebalances": 104,
+            "avg_weekly_turnover": 0.4760848680807114,
+            "price_pnl": -0.028559170034370952,
+            "funding_pnl": 0.011096668895859252,
+            "cost_pnl": -0.10437371973454002,
+            "short_basket_funding_ann_pct": 7.139592026098902,
+            "long_basket_funding_ann_pct": 6.015503832417582,
+            "short_basket_signal_funding_ann_pct": 8.667589946771978,
+            "long_basket_signal_funding_ann_pct": 5.741408385989011
+          }
+        },
+        "validation": {
+          "base": {
+            "total_return": -0.140418903337307,
+            "annualised_return": -0.14006346564588323,
+            "sharpe": -0.43705820810855733,
+            "max_drawdown": -0.3621869971361922,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.5814839366439084,
+            "price_pnl": -0.1194419852889137,
+            "funding_pnl": 0.01288049794409473,
+            "cost_pnl": -0.03385741599248932,
+            "short_basket_funding_ann_pct": 14.117789873633878,
+            "long_basket_funding_ann_pct": 11.89687980874317,
+            "short_basket_signal_funding_ann_pct": 16.502340400943396,
+            "long_basket_signal_funding_ann_pct": 12.420145229110513
+          },
+          "stressed": {
+            "total_return": -0.16782348598466312,
+            "annualised_return": -0.1674056769454385,
+            "sharpe": -0.5590698313457698,
+            "max_drawdown": -0.36566301404032375,
+            "days": 366,
+            "rebalances": 53,
+            "avg_weekly_turnover": 0.5817053129454943,
+            "price_pnl": -0.1138645368302293,
+            "funding_pnl": 0.01273626719444876,
+            "cost_pnl": -0.06669521634888266,
+            "short_basket_funding_ann_pct": 14.117789873633878,
+            "long_basket_funding_ann_pct": 11.89687980874317,
+            "short_basket_signal_funding_ann_pct": 16.502340400943396,
+            "long_basket_signal_funding_ann_pct": 12.420145229110513
+          }
+        },
+        "holdout": {
+          "base": {
+            "total_return": 0.2889443197332806,
+            "annualised_return": 0.14853094643541853,
+            "sharpe": 0.8006370926405256,
+            "max_drawdown": -0.2479348637197769,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.5401271805276235,
+            "price_pnl": 0.3478667762158495,
+            "funding_pnl": 0.000547275021310937,
+            "cost_pnl": -0.059469731503880255,
+            "short_basket_funding_ann_pct": 4.1033323362198795,
+            "long_basket_funding_ann_pct": 4.16950109186747,
+            "short_basket_signal_funding_ann_pct": 5.72713980451128,
+            "long_basket_signal_funding_ann_pct": 4.191640789473684
+          },
+          "stressed": {
+            "total_return": 0.2227872435031759,
+            "annualised_return": 0.11598360670646102,
+            "sharpe": 0.654706770966967,
+            "max_drawdown": -0.25596237684103185,
+            "days": 669,
+            "rebalances": 95,
+            "avg_weekly_turnover": 0.5402696596916411,
+            "price_pnl": 0.33806404540206464,
+            "funding_pnl": 0.00053247582784903,
+            "cost_pnl": -0.1158092777267405,
+            "short_basket_funding_ann_pct": 4.1033323362198795,
+            "long_basket_funding_ann_pct": 4.16950109186747,
+            "short_basket_signal_funding_ann_pct": 5.72713980451128,
+            "long_basket_signal_funding_ann_pct": 4.191640789473684
+          }
+        }
+      },
+      "pass_rule": {
+        "stressed_positive_all_windows": false,
+        "holdout_stressed_sharpe_at_least_0_5": true,
+        "beats_placebo_p95_holdout": true,
+        "placebo_p95_holdout_stressed_total_return": 0.09565040546987108,
+        "passes": false
+      }
+    },
+    "placebo_random": {
+      "results": {
+        "discovery": {
+          "base": {
+            "total_return": -0.12321169741707369,
+            "annualised_return": -0.07250723125854971,
+            "sharpe": -0.3493721728461003,
+            "max_drawdown": -0.3234469400225353,
+            "rebalances": 104,
+            "avg_weekly_turnover": 1.5235873896847425,
+            "price_pnl": 0.025166738906282154,
+            "funding_pnl": 0.0011351425444021017,
+            "cost_pnl": -0.14951357886775796,
+            "days": 730,
+            "total_return_p05": -0.45609781629164764,
+            "total_return_p95": 0.3113554479314218,
+            "sharpe_p05": -1.497035615737536,
+            "sharpe_p95": 0.8417115610402838
+          },
+          "stressed": {
+            "total_return": -0.25247601950662146,
+            "annualised_return": -0.14362687890156198,
+            "sharpe": -0.7640762976125777,
+            "max_drawdown": -0.3851406658778356,
+            "rebalances": 104,
+            "avg_weekly_turnover": 1.524754601553065,
+            "price_pnl": 0.023750435319384575,
+            "funding_pnl": 0.0010389907327919266,
+            "cost_pnl": -0.27726544555879806,
+            "days": 730,
+            "total_return_p05": -0.537311014579599,
+            "total_return_p95": 0.1230280509572489,
+            "sharpe_p05": -1.878422123727702,
+            "sharpe_p95": 0.3871437220949857
+          }
+        },
+        "validation": {
+          "base": {
+            "total_return": -0.08299064242955607,
+            "annualised_return": -0.08285456466619934,
+            "sharpe": -0.3495106798462203,
+            "max_drawdown": -0.2951222811954318,
+            "rebalances": 53,
+            "avg_weekly_turnover": 1.5399282559177476,
+            "price_pnl": -0.004131740440246811,
+            "funding_pnl": -0.0002494112915699311,
+            "cost_pnl": -0.0786094906977393,
+            "days": 366,
+            "total_return_p05": -0.43919093132161613,
+            "total_return_p95": 0.352022459964127,
+            "sharpe_p05": -2.11409784703601,
+            "sharpe_p95": 1.3452387439918416
+          },
+          "stressed": {
+            "total_return": -0.1553902809598154,
+            "annualised_return": -0.15507566725139071,
+            "sharpe": -0.6800680962583897,
+            "max_drawdown": -0.3264174812420428,
+            "rebalances": 53,
+            "avg_weekly_turnover": 1.5411598915351135,
+            "price_pnl": -0.0038959698291968392,
+            "funding_pnl": -0.00023833961867709776,
+            "cost_pnl": -0.15125597151194145,
+            "days": 366,
+            "total_return_p05": -0.4852956887761308,
+            "total_return_p95": 0.24498113792660292,
+            "sharpe_p05": -2.432086731561296,
+            "sharpe_p95": 1.0312078476358304
+          }
+        },
+        "holdout": {
+          "base": {
+            "total_return": -0.11940536636612877,
+            "annualised_return": -0.07388966178714458,
+            "sharpe": -0.4567111940955341,
+            "max_drawdown": -0.27860655875555956,
+            "rebalances": 95,
+            "avg_weekly_turnover": 1.5183552663914208,
+            "price_pnl": 0.017575517256353774,
+            "funding_pnl": -0.00034711471983884525,
+            "cost_pnl": -0.13663376890264378,
+            "days": 669,
+            "total_return_p05": -0.4092517861089689,
+            "total_return_p95": 0.2680549772025103,
+            "sharpe_p05": -1.690084522931507,
+            "sharpe_p95": 0.8773406801750452
+          },
+          "stressed": {
+            "total_return": -0.23839436935526034,
+            "annualised_return": -0.14443945554277424,
+            "sharpe": -0.9538303363711848,
+            "max_drawdown": -0.34211024126565276,
+            "rebalances": 95,
+            "avg_weekly_turnover": 1.5194873937878095,
+            "price_pnl": 0.017023831363948708,
+            "funding_pnl": -0.00031225162093446583,
+            "cost_pnl": -0.25510594909827466,
+            "days": 669,
+            "total_return_p05": -0.48959908233913846,
+            "total_return_p95": 0.09565040546987108,
+            "sharpe_p05": -2.1810043191627067,
+            "sharpe_p95": 0.3853118254029046
+          }
+        }
+      },
+      "note": "mean of 200 random runs; p05/p95 are across runs",
+      "pass_rule": {
+        "passes": false,
+        "note": "the null; not a candidate"
+      }
+    }
+  }
+}
