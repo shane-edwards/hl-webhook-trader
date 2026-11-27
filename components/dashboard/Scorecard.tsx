@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ClipboardCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ScoreRow } from '@/lib/scorecard';
+import type { Calibration, ScoreRow } from '@/lib/scorecard';
 
 interface Paired { ideas: number; level: { hitRate: number; avgPct: number; avgStopPct: number }; volatility: { hitRate: number; avgPct: number; avgStopPct: number } }
 interface Historical {
   generatedThrough?: string; coins?: string[]; ideas?: number; costPct?: number; verdict?: string; edge?: string;
   periods?: Array<{ name: string; ideas: number; avgPct: number; rows: ScoreRow[]; paired: Paired }>;
 }
-interface Data { available: boolean; live: { since: string | null; rows: ScoreRow[] }; historical: Historical }
+interface Data { available: boolean; live: { since: string | null; rows: ScoreRow[]; calibration?: Calibration }; historical: Historical }
 
 const pct = (v: number | null | undefined, d = 2) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(d)}%`);
 const toneOf = (v: number | null | undefined) => (v == null ? '' : v > 0 ? 'text-profit' : v < 0 ? 'text-loss' : '');
@@ -34,6 +34,46 @@ function Table({ rows }: { rows: ScoreRow[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+const share = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(0)}%`);
+
+/** Predicted chance of target before stop, against how often it happened. */
+function CalibrationBlock({ c }: { c: Calibration }) {
+  const verdict = c.scored < 30 || c.skill == null ? 'Too few scored ideas to judge the predictions yet.'
+    : c.skill > 0.02 ? 'So far the predictions are closer to what happened than assuming the ideas have no edge.'
+    : c.skill < -0.02 ? 'So far the predictions are further from what happened than assuming the ideas have no edge.'
+    : 'So far the predictions are no better than assuming the ideas have no edge.';
+  return (
+    <div className="pt-5">
+      <div className="px-5 pb-2">
+        <h3 className="text-xs font-semibold">Predicted chance against what happened</h3>
+        <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
+          Each idea gets a predicted chance of reaching its target before its stop within 7 days, worked out only from ideas already scored when it appeared.
+          {c.scored === 0 ? ' None has a result yet.' : ` ${c.scored} scored so far: predicted ${share(c.meanPredicted)} on average, ${share(c.hitRate)} reached the target. ${verdict}`}
+        </p>
+        {c.scored > 0 && <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+          Error score {c.brier?.toFixed(3) ?? '—'} against {c.noEdgeBrier?.toFixed(3) ?? '—'} for assuming no edge (lower is better; 0 is perfect).
+          {c.stored < c.scored ? ` ${c.scored - c.stored} of these predictions were rebuilt afterwards from the earlier record, because the idea was logged before predictions were stored.` : ''}
+        </p>}
+      </div>
+      {c.scored > 0 && <div className="overflow-x-auto">
+        <table className="data-table">
+          <thead><tr><th>Predicted chance</th><th>Ideas</th><th>Average predicted</th><th>Reached target</th></tr></thead>
+          <tbody>
+            {c.buckets.filter(b => b.ideas > 0).map(b => (
+              <tr key={b.label}>
+                <td className="font-medium">{b.label}</td>
+                <td className="num">{b.ideas}</td>
+                <td className="num">{share(b.predicted)}</td>
+                <td className="num">{share(b.actual)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>}
     </div>
   );
 }
@@ -77,6 +117,7 @@ export function Scorecard() {
             </p>
           </div>
           {liveIdeas > 0 && <Table rows={live!.rows} />}
+          {liveIdeas > 0 && live?.calibration && <CalibrationBlock c={live.calibration} />}
 
           {h?.periods?.length ? (
             <>
