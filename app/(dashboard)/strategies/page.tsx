@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Activity, ArrowRight, ChevronDown, ChevronRight, CircleCheck, FlaskConical, Layers, Radio } from 'lucide-react';
 import { CryptoPaperComparison } from '@/components/journey/CryptoPaperComparison';
+import { ForwardTest } from '@/components/journey/ForwardTest';
 import { PaperMatrix } from '@/components/journey/PaperMatrix';
 import { PaperTrades } from '@/components/journey/PaperTrades';
 import { Header } from '@/components/layout/Header';
@@ -145,6 +146,7 @@ export default function StrategiesPage() {
     <div className="inline-flex rounded-lg border bg-card p-1" aria-label="Market">{['all','stocks','crypto'].map(m =>
       <Button key={m} size="sm" variant={filter === m ? 'secondary' : 'ghost'} aria-pressed={filter === m} onClick={() => navigate(m)}>{m === 'all' ? 'All markets' : marketName(m)}</Button>)}</div>
     {filter !== 'stocks' && <PaperMatrix refresh={paperRefresh} />}
+    {filter !== 'stocks' && <ForwardTest refresh={paperRefresh} />}
     <PaperTrades market={filter} refresh={paperRefresh} />
     {error && <p role="alert">{error} <button className="underline" onClick={() => void load()}>Retry</button></p>}
     {!data && !error && <p role="status">Loading strategies…</p>}

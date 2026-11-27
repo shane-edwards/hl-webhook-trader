@@ -1,0 +1,1401 @@
+{
+ "data": {
+  "etf_flows": {
+   "fields": [
+    "btcCloseUsd",
+    "date",
+    "netFlowUsd",
+    "perEtfUsd",
+    "totalNetAssetsUsd",
+    "vendorNetFlowUsd"
+   ],
+   "first": "2024-01-11",
+   "last": "2026-11-20",
+   "null_flow_rows": 0,
+   "rows": 735,
+   "units": "USD",
+   "updatedThrough": "2026-11-20",
+   "weekday_counts": {
+    "0": 144,
+    "1": 149,
+    "2": 149,
+    "3": 147,
+    "4": 146
+   },
+   "zero_flow_rows": 16
+  },
+  "liquidations": {
+   "BTC": {
+    "colA_share_in_falling_hours": 0.904918211053919,
+    "colA_total_usd": 15598992989.956448,
+    "colB_share_in_rising_hours": 0.878331353466724,
+    "colB_total_usd": 9505209819.659708,
+    "first_hour": "2025-05-25 14:00:00",
+    "full_days": 524,
+    "hourly_rows": 12586,
+    "last_hour": "2026-10-31 23:00:00",
+    "partial_days_dropped": 1
+   },
+   "ETH": {
+    "colA_share_in_falling_hours": 0.7791109988151367,
+    "colA_total_usd": 9445159100.196463,
+    "colB_share_in_rising_hours": 0.926283480465013,
+    "colB_total_usd": 4033291163.832921,
+    "first_hour": "2025-05-25 14:00:00",
+    "full_days": 524,
+    "hourly_rows": 12586,
+    "last_hour": "2026-10-31 23:00:00",
+    "partial_days_dropped": 1
+   },
+   "SOL": {
+    "colA_share_in_falling_hours": 0.9309889970182751,
+    "colA_total_usd": 3094526940.9350986,
+    "colB_share_in_rising_hours": 0.8993198622663788,
+    "colB_total_usd": 787651756.818339,
+    "first_hour": "2025-05-25 14:00:00",
+    "full_days": 524,
+    "hourly_rows": 12586,
+    "last_hour": "2026-10-31 23:00:00",
+    "partial_days_dropped": 1
+   },
+   "files": 18
+  },
+  "prices": {
+   "BTC": {
+    "first": "2021-01-01",
+    "funding_days_missing_since_2024": 0,
+    "last": "2026-10-31",
+    "price_days_missing": 0
+   },
+   "ETH": {
+    "first": "2021-01-01",
+    "funding_days_missing_since_2024": 0,
+    "last": "2026-10-31",
+    "price_days_missing": 0
+   },
+   "SOL": {
+    "first": "2021-01-01",
+    "funding_days_missing_since_2024": 0,
+    "last": "2026-10-31",
+    "price_days_missing": 5
+   }
+  }
+ },
+ "etf": {
+  "etf_flow_shock_fade": {
+   "D+1": {
+    "discovery": {
+     "base": {
+      "annualised_return": -0.1937536414515112,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.6320100230740375,
+       "days": 344,
+       "exposure": 1.0,
+       "max_drawdown": -0.29341554219618626,
+       "sharpe": 1.2244502049481676,
+       "total_return": 0.5866603695936934
+      },
+      "days": 344,
+      "days_in_market": 181,
+      "exposure": 0.5261627906976745,
+      "long_days": 90,
+      "max_drawdown": -0.2698813303804882,
+      "mean_trade_return": -0.006646973912336618,
+      "sharpe": -0.36303871427104056,
+      "short_days": 91,
+      "total_return": -0.18370136037499663,
+      "trade_t_stat": -0.6162201513079681,
+      "trades": 25,
+      "window": [
+       "2024-06-28",
+       "2025-06-06"
+      ]
+     },
+     "stressed": {
+      "annualised_return": -0.23543305020639171,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.6285551562082801,
+       "days": 344,
+       "exposure": 1.0,
+       "max_drawdown": -0.2934155421961856,
+       "sharpe": 1.220225186686587,
+       "total_return": 0.5834945620184806
+      },
+      "days": 344,
+      "days_in_market": 181,
+      "exposure": 0.5261627906976745,
+      "long_days": 90,
+      "max_drawdown": -0.28548527522166844,
+      "mean_trade_return": -0.008631478482575722,
+      "sharpe": -0.5000481125526459,
+      "short_days": 91,
+      "total_return": -0.22353278901038387,
+      "trade_t_stat": -0.8014387147822589,
+      "trades": 25,
+      "window": [
+       "2024-06-28",
+       "2025-06-06"
+      ]
+     }
+    },
+    "holdout": {
+     "base": {
+      "annualised_return": -0.4328358209600345,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.223979109841131,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874583,
+       "sharpe": -0.4119028610959946,
+       "total_return": -0.2993178389746547
+      },
+      "days": 512,
+      "days_in_market": 228,
+      "exposure": 0.4453125,
+      "long_days": 127,
+      "max_drawdown": -0.610501770439365,
+      "mean_trade_return": -0.02140019401165106,
+      "sharpe": -1.6762590658321268,
+      "short_days": 101,
+      "total_return": -0.5486457450041253,
+      "trade_t_stat": -2.1550587856802244,
+      "trades": 34,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     },
+     "stressed": {
+      "annualised_return": -0.45978552635560943,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.22507838055170437,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874588,
+       "sharpe": -0.4153972091518721,
+       "total_return": -0.30070973074246976
+      },
+      "days": 512,
+      "days_in_market": 228,
+      "exposure": 0.4453125,
+      "long_days": 127,
+      "max_drawdown": -0.6236334283274063,
+      "mean_trade_return": -0.02336278869183101,
+      "sharpe": -1.8312141898191874,
+      "short_days": 101,
+      "total_return": -0.5784394069330637,
+      "trade_t_stat": -2.3567176531037983,
+      "trades": 34,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     }
+    }
+   },
+   "D+2": {
+    "discovery": {
+     "base": {
+      "annualised_return": -0.2222651760740666,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.6710047526647709,
+       "days": 343,
+       "exposure": 1.0,
+       "max_drawdown": -0.29341554219618615,
+       "sharpe": 1.2713398582347077,
+       "total_return": 0.6200854969959064
+      },
+      "days": 343,
+      "days_in_market": 181,
+      "exposure": 0.5276967930029155,
+      "long_days": 90,
+      "max_drawdown": -0.28514940506888464,
+      "mean_trade_return": -0.007628375298114949,
+      "sharpe": -0.4289667184262625,
+      "short_days": 91,
+      "total_return": -0.2103919598995846,
+      "trade_t_stat": -0.6399697626921838,
+      "trades": 25,
+      "window": [
+       "2024-06-29",
+       "2025-06-06"
+      ]
+     },
+     "stressed": {
+      "annualised_return": -0.2628157093972826,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.667510080203441,
+       "days": 343,
+       "exposure": 1.0,
+       "max_drawdown": -0.29341554219618626,
+       "sharpe": 1.267261135119109,
+       "total_return": 0.6169013333900344
+      },
+      "days": 343,
+      "days_in_market": 181,
+      "exposure": 0.5276967930029155,
+      "long_days": 90,
+      "max_drawdown": -0.2952154049676202,
+      "mean_trade_return": -0.009622549222258171,
+      "sharpe": -0.5610386639880153,
+      "short_days": 91,
+      "total_return": -0.2491420419408379,
+      "trade_t_stat": -0.8085926582291307,
+      "trades": 25,
+      "window": [
+       "2024-06-29",
+       "2025-06-06"
+      ]
+     }
+    },
+    "holdout": {
+     "base": {
+      "annualised_return": -0.12592998758738094,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.223979109841131,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874583,
+       "sharpe": -0.4119028610959946,
+       "total_return": -0.2993178389746547
+      },
+      "days": 512,
+      "days_in_market": 227,
+      "exposure": 0.443359375,
+      "long_days": 126,
+      "max_drawdown": -0.41952772979048025,
+      "mean_trade_return": -0.003293361089150335,
+      "sharpe": -0.28270275932552313,
+      "short_days": 101,
+      "total_return": -0.17204913984622672,
+      "trade_t_stat": -0.2710927883284581,
+      "trades": 33,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     },
+     "stressed": {
+      "annualised_return": -0.1659884918260801,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.22507838055170437,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874588,
+       "sharpe": -0.4153972091518721,
+       "total_return": -0.30070973074246976
+      },
+      "days": 512,
+      "days_in_market": 227,
+      "exposure": 0.443359375,
+      "long_days": 126,
+      "max_drawdown": -0.42763886614436686,
+      "mean_trade_return": -0.005276594302424657,
+      "sharpe": -0.4356987915485247,
+      "short_days": 101,
+      "total_return": -0.22478013379444672,
+      "trade_t_stat": -0.43498768635025825,
+      "trades": 33,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     }
+    }
+   }
+  },
+  "etf_flow_shock_follow": {
+   "D+1": {
+    "discovery": {
+     "base": {
+      "annualised_return": -0.0402897888623146,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.6320100230740375,
+       "days": 344,
+       "exposure": 1.0,
+       "max_drawdown": -0.29341554219618626,
+       "sharpe": 1.2244502049481676,
+       "total_return": 0.5866603695936934
+      },
+      "days": 344,
+      "days_in_market": 181,
+      "exposure": 0.5261627906976745,
+      "long_days": 91,
+      "max_drawdown": -0.3247229289596877,
+      "mean_trade_return": -0.00021963029250801736,
+      "sharpe": 0.08911082468958609,
+      "short_days": 90,
+      "total_return": -0.03801639461884476,
+      "trade_t_stat": -0.020651613625215885,
+      "trades": 25,
+      "window": [
+       "2024-06-28",
+       "2025-06-06"
+      ]
+     },
+     "stressed": {
+      "annualised_return": -0.09006146874099852,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.6285551562082801,
+       "days": 344,
+       "exposure": 1.0,
+       "max_drawdown": -0.2934155421961856,
+       "sharpe": 1.220225186686587,
+       "total_return": 0.5834945620184806
+      },
+      "days": 344,
+      "days_in_market": 181,
+      "exposure": 0.5261627906976745,
+      "long_days": 91,
+      "max_drawdown": -0.34883672426140033,
+      "mean_trade_return": -0.0022236143777397822,
+      "sharpe": -0.04755984827375827,
+      "short_days": 90,
+      "total_return": -0.08510708146081036,
+      "trade_t_stat": -0.209416527608846,
+      "trades": 25,
+      "window": [
+       "2024-06-28",
+       "2025-06-06"
+      ]
+     }
+    },
+    "holdout": {
+     "base": {
+      "annualised_return": 0.45329949881768594,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.223979109841131,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874583,
+       "sharpe": -0.4119028610959946,
+       "total_return": -0.2993178389746547
+      },
+      "days": 512,
+      "days_in_market": 228,
+      "exposure": 0.4453125,
+      "long_days": 101,
+      "max_drawdown": -0.15515749654551858,
+      "mean_trade_return": 0.01726433286871473,
+      "sharpe": 1.3635443164252006,
+      "short_days": 127,
+      "total_return": 0.689436924188148,
+      "trade_t_stat": 1.6442869817513808,
+      "trades": 34,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     },
+     "stressed": {
+      "annualised_return": 0.3845080426168854,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.22507838055170437,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874588,
+       "sharpe": -0.4153972091518721,
+       "total_return": -0.30070973074246976
+      },
+      "days": 512,
+      "days_in_market": 228,
+      "exposure": 0.4453125,
+      "long_days": 101,
+      "max_drawdown": -0.16942966198267018,
+      "mean_trade_return": 0.015232008634181934,
+      "sharpe": 1.2062089827364906,
+      "short_days": 127,
+      "total_return": 0.5783408139556181,
+      "trade_t_stat": 1.4533226446256042,
+      "trades": 34,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     }
+    }
+   },
+   "D+2": {
+    "discovery": {
+     "base": {
+      "annualised_return": -0.014550867240709309,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.6710047526647709,
+       "days": 343,
+       "exposure": 1.0,
+       "max_drawdown": -0.29341554219618615,
+       "sharpe": 1.2713398582347077,
+       "total_return": 0.6200854969959064
+      },
+      "days": 343,
+      "days_in_market": 181,
+      "exposure": 0.5276967930029155,
+      "long_days": 91,
+      "max_drawdown": -0.31642288304633837,
+      "mean_trade_return": 0.0011284541082323728,
+      "sharpe": 0.16333551500492746,
+      "short_days": 90,
+      "total_return": -0.01367985597454191,
+      "trade_t_stat": 0.09364197290379514,
+      "trades": 25,
+      "window": [
+       "2024-06-29",
+       "2025-06-06"
+      ]
+     },
+     "stressed": {
+      "annualised_return": -0.0655191308251507,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.667510080203441,
+       "days": 343,
+       "exposure": 1.0,
+       "max_drawdown": -0.29341554219618626,
+       "sharpe": 1.267261135119109,
+       "total_return": 0.6169013333900344
+      },
+      "days": 343,
+      "days_in_market": 181,
+      "exposure": 0.5276967930029155,
+      "long_days": 91,
+      "max_drawdown": -0.34063178352596657,
+      "mean_trade_return": -0.0008668043416345039,
+      "sharpe": 0.0299985954350666,
+      "short_days": 90,
+      "total_return": -0.061694519728718866,
+      "trade_t_stat": -0.07204800625632515,
+      "trades": 25,
+      "window": [
+       "2024-06-29",
+       "2025-06-06"
+      ]
+     }
+    },
+    "holdout": {
+     "base": {
+      "annualised_return": -0.05435803558985941,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.223979109841131,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874583,
+       "sharpe": -0.4119028610959946,
+       "total_return": -0.2993178389746547
+      },
+      "days": 512,
+      "days_in_market": 227,
+      "exposure": 0.443359375,
+      "long_days": 101,
+      "max_drawdown": -0.38949834186558463,
+      "mean_trade_return": 9.490691469445552e-05,
+      "sharpe": -0.021424642659293794,
+      "short_days": 126,
+      "total_return": -0.07540630194983389,
+      "trade_t_stat": 0.007581985534005886,
+      "trades": 33,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     },
+     "stressed": {
+      "annualised_return": -0.09815087671094991,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.22507838055170437,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874588,
+       "sharpe": -0.4153972091518721,
+       "total_return": -0.30070973074246976
+      },
+      "days": 512,
+      "days_in_market": 227,
+      "exposure": 0.443359375,
+      "long_days": 101,
+      "max_drawdown": -0.4041175266589553,
+      "mean_trade_return": -0.0019161554530340128,
+      "sharpe": -0.17218404166449383,
+      "short_days": 126,
+      "total_return": -0.1349035665608913,
+      "trade_t_stat": -0.153307896752742,
+      "trades": 33,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     }
+    }
+   }
+  },
+  "etf_flow_trend": {
+   "D+1": {
+    "discovery": {
+     "base": {
+      "annualised_return": 0.8402805312682593,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.7262902633172494,
+       "days": 506,
+       "exposure": 1.0,
+       "max_drawdown": -0.29363451257724116,
+       "sharpe": 1.3164734377355571,
+       "total_return": 1.13162701152946
+      },
+      "benchmark_exposure_matched": {
+       "annualised_return": 0.4970983882176827,
+       "days": 506,
+       "exposure": 0.6877470355731226,
+       "max_drawdown": -0.20564871771369464,
+       "sharpe": 1.3164734377355574,
+       "total_return": 0.7496443968186652
+      },
+      "days": 506,
+      "days_in_market": 348,
+      "exposure": 0.6877470355731226,
+      "long_days": 348,
+      "max_drawdown": -0.195510446750763,
+      "mean_trade_return": 0.05715841152700461,
+      "sharpe": 1.6880888919996457,
+      "short_days": 0,
+      "total_return": 1.3292124130774998,
+      "trade_t_stat": 1.5857628060281137,
+      "trades": 18,
+      "window": [
+       "2024-01-18",
+       "2025-06-06"
+      ]
+     },
+     "stressed": {
+      "annualised_return": 0.7931928757118372,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.7237867359417764,
+       "days": 506,
+       "exposure": 1.0,
+       "max_drawdown": -0.2936345125772415,
+       "sharpe": 1.3136205868770754,
+       "total_return": 1.1273426541945573
+      },
+      "benchmark_exposure_matched": {
+       "annualised_return": 0.49560793546658544,
+       "days": 506,
+       "exposure": 0.6877470355731226,
+       "max_drawdown": -0.2056487177136952,
+       "sharpe": 1.3136205868770754,
+       "total_return": 0.7472300938082159
+      },
+      "days": 506,
+      "days_in_market": 348,
+      "exposure": 0.6877470355731226,
+      "long_days": 348,
+      "max_drawdown": -0.20031305310008585,
+      "mean_trade_return": 0.05505372014181182,
+      "sharpe": 1.6251711338693975,
+      "short_days": 0,
+      "total_return": 1.2470020267034343,
+      "trade_t_stat": 1.5301059233262768,
+      "trades": 18,
+      "window": [
+       "2024-01-18",
+       "2025-06-06"
+      ]
+     }
+    },
+    "holdout": {
+     "base": {
+      "annualised_return": 0.035132698556749276,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.223979109841131,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874583,
+       "sharpe": -0.4119028610959946,
+       "total_return": -0.2993178389746547
+      },
+      "benchmark_exposure_matched": {
+       "annualised_return": -0.10967945473371465,
+       "days": 512,
+       "exposure": 0.541015625,
+       "max_drawdown": -0.3273626858937595,
+       "sharpe": -0.41190286109599444,
+       "total_return": -0.1503760925093922
+      },
+      "days": 512,
+      "days_in_market": 277,
+      "exposure": 0.541015625,
+      "long_days": 277,
+      "max_drawdown": -0.3089318952428921,
+      "mean_trade_return": 0.0034105639685487452,
+      "sharpe": 0.26174436930046807,
+      "short_days": 0,
+      "total_return": 0.049628280854111306,
+      "trade_t_stat": 0.3040563583055796,
+      "trades": 23,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     },
+     "stressed": {
+      "annualised_return": 0.001538285796865102,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.22507838055170437,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874588,
+       "sharpe": -0.4153972091518721,
+       "total_return": -0.30070973074246976
+      },
+      "benchmark_exposure_matched": {
+       "annualised_return": -0.11036380400906942,
+       "days": 512,
+       "exposure": 0.541015625,
+       "max_drawdown": -0.32736268589375883,
+       "sharpe": -0.41539720915187195,
+       "total_return": -0.15129203456472906
+      },
+      "days": 512,
+      "days_in_market": 277,
+      "exposure": 0.541015625,
+      "long_days": 277,
+      "max_drawdown": -0.32413005793265703,
+      "mean_trade_return": 0.0013940294740153218,
+      "sharpe": 0.14238583229932528,
+      "short_days": 0,
+      "total_return": 0.002158482806813078,
+      "trade_t_stat": 0.12450677608516134,
+      "trades": 23,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     }
+    }
+   },
+   "D+2": {
+    "discovery": {
+     "base": {
+      "annualised_return": 0.6715908748447952,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.7725323867674112,
+       "days": 505,
+       "exposure": 1.0,
+       "max_drawdown": -0.29363451257724205,
+       "sharpe": 1.3687138006326989,
+       "total_return": 1.2077270107618872
+      },
+      "benchmark_exposure_matched": {
+       "annualised_return": 0.52557957174089,
+       "days": 505,
+       "exposure": 0.689108910891089,
+       "max_drawdown": -0.20604066638967355,
+       "sharpe": 1.3687138006326984,
+       "total_return": 0.7938802269673819
+      },
+      "days": 505,
+      "days_in_market": 348,
+      "exposure": 0.689108910891089,
+      "long_days": 348,
+      "max_drawdown": -0.31673487048432425,
+      "mean_trade_return": 0.049015491240746084,
+      "sharpe": 1.4551926358866807,
+      "short_days": 0,
+      "total_return": 1.0357015067033801,
+      "trade_t_stat": 1.3969053047979596,
+      "trades": 18,
+      "window": [
+       "2024-01-19",
+       "2025-06-06"
+      ]
+     },
+     "stressed": {
+      "annualised_return": 0.6283845618363069,
+      "benchmark_buy_hold": {
+       "annualised_return": 0.7700125229604924,
+       "days": 505,
+       "exposure": 1.0,
+       "max_drawdown": -0.2936345125772407,
+       "sharpe": 1.366008580909005,
+       "total_return": 1.203385825519164
+      },
+      "benchmark_exposure_matched": {
+       "annualised_return": 0.5240773376250443,
+       "days": 505,
+       "exposure": 0.689108910891089,
+       "max_drawdown": -0.20604066638967322,
+       "sharpe": 1.3660085809090041,
+       "total_return": 0.7914367251107493
+      },
+      "days": 505,
+      "days_in_market": 348,
+      "exposure": 0.689108910891089,
+      "long_days": 348,
+      "max_drawdown": -0.3256481184055877,
+      "mean_trade_return": 0.046906413384114165,
+      "sharpe": 1.3902171527492087,
+      "short_days": 0,
+      "total_return": 0.963264574928181,
+      "trade_t_stat": 1.3394782307642874,
+      "trades": 18,
+      "window": [
+       "2024-01-19",
+       "2025-06-06"
+      ]
+     }
+    },
+    "holdout": {
+     "base": {
+      "annualised_return": -0.06415656871886766,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.223979109841131,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874583,
+       "sharpe": -0.4119028610959946,
+       "total_return": -0.2993178389746547
+      },
+      "benchmark_exposure_matched": {
+       "annualised_return": -0.10967945473371465,
+       "days": 512,
+       "exposure": 0.541015625,
+       "max_drawdown": -0.3273626858937595,
+       "sharpe": -0.41190286109599444,
+       "total_return": -0.1503760925093922
+      },
+      "days": 512,
+      "days_in_market": 277,
+      "exposure": 0.541015625,
+      "long_days": 277,
+      "max_drawdown": -0.33709787460976626,
+      "mean_trade_return": -0.002761629357820756,
+      "sharpe": -0.10314247217411844,
+      "short_days": 0,
+      "total_return": -0.08881706068387107,
+      "trade_t_stat": -0.24989632732376996,
+      "trades": 23,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     },
+     "stressed": {
+      "annualised_return": -0.09442794771706375,
+      "benchmark_buy_hold": {
+       "annualised_return": -0.22507838055170437,
+       "days": 512,
+       "exposure": 1.0,
+       "max_drawdown": -0.5372014135874588,
+       "sharpe": -0.4153972091518721,
+       "total_return": -0.30070973074246976
+      },
+      "benchmark_exposure_matched": {
+       "annualised_return": -0.11036380400906942,
+       "days": 512,
+       "exposure": 0.541015625,
+       "max_drawdown": -0.32736268589375883,
+       "sharpe": -0.41539720915187195,
+       "total_return": -0.15129203456472906
+      },
+      "days": 512,
+      "days_in_market": 277,
+      "exposure": 0.541015625,
+      "long_days": 277,
+      "max_drawdown": -0.3516037350182175,
+      "mean_trade_return": -0.004758733520456304,
+      "sharpe": -0.22164976218506846,
+      "short_days": 0,
+      "total_return": -0.12988992760106044,
+      "trade_t_stat": -0.43134091370217836,
+      "trades": 23,
+      "window": [
+       "2025-06-07",
+       "2026-10-31"
+      ]
+     }
+    }
+   }
+  },
+  "flow_rows_after_price_end_unused": 15,
+  "flow_rows_used": 720,
+  "shock_signal_counts": {
+   "D+1": {
+    "above_p90": 70,
+    "below_p10": 68
+   },
+   "D+2": {
+    "above_p90": 70,
+    "below_p10": 68
+   }
+  },
+  "windows_nominal": {
+   "discovery": [
+    "2024-01-12",
+    "2025-06-06"
+   ],
+   "holdout": [
+    "2025-06-07",
+    "2026-10-31"
+   ]
+  }
+ },
+ "liquidations": {
+  "liq_long_flush_rebound": {
+   "discovery": {
+    "base": {
+     "annualised_return": 0.016760473730754955,
+     "benchmark_buy_hold_equal_weight_long": {
+      "annualised_return": -0.5104512475093447,
+      "days": 159,
+      "exposure": 1.0,
+      "max_drawdown": -0.4001353215906258,
+      "sharpe": -0.9298765456405903,
+      "total_return": -0.26739476820564256
+     },
+     "days": 159,
+     "exposure": 0.17819706498951782,
+     "max_drawdown": -0.08157933450464516,
+     "mean_trade_return": 0.0018966092709268763,
+     "per_coin": {
+      "BTC": {
+       "annualised_return": -0.2421498181903433,
+       "days": 159,
+       "exposure": 0.20754716981132076,
+       "max_drawdown": -0.14867422951377907,
+       "mean_trade_return": -0.011700823923087699,
+       "sharpe": -1.5074713585361823,
+       "total_return": -0.11377390894369976,
+       "trade_t_stat": -1.4213110905195303,
+       "trades": 10
+      },
+      "ETH": {
+       "annualised_return": 0.20089019121537,
+       "days": 159,
+       "exposure": 0.16981132075471697,
+       "max_drawdown": -0.15075143160279625,
+       "mean_trade_return": 0.012522315936555867,
+       "sharpe": 0.6410018263151586,
+       "total_return": 0.08301118852101519,
+       "trade_t_stat": 0.4629802747920303,
+       "trades": 8
+      },
+      "SOL": {
+       "annualised_return": 0.09664131290069777,
+       "days": 159,
+       "exposure": 0.15723270440251572,
+       "max_drawdown": -0.1355947404520791,
+       "mean_trade_return": 0.010391389040112517,
+       "sharpe": 0.43232557145813566,
+       "total_return": 0.041004961823194463,
+       "trade_t_stat": 0.26583157653189393,
+       "trades": 6
+      }
+     },
+     "sharpe": 0.1976583183613367,
+     "total_return": 0.007266904516551431,
+     "trade_t_stat": 0.14374819403909195,
+     "trades": 24,
+     "window": [
+      "2025-07-26",
+      "2025-12-31"
+     ]
+    },
+    "stressed": {
+     "annualised_return": -0.02024994662289703,
+     "benchmark_buy_hold_equal_weight_long": {
+      "annualised_return": -0.5127036404533976,
+      "days": 159,
+      "exposure": 1.0,
+      "max_drawdown": -0.4001353215906257,
+      "sharpe": -0.9376970549016248,
+      "total_return": -0.26886500518614564
+     },
+     "days": 159,
+     "exposure": 0.17819706498951782,
+     "max_drawdown": -0.08441535441175119,
+     "mean_trade_return": -0.00012078091226299288,
+     "per_coin": {
+      "BTC": {
+       "annualised_return": -0.2765086348553043,
+       "days": 159,
+       "exposure": 0.20754716981132076,
+       "max_drawdown": -0.1648856510691048,
+       "mean_trade_return": -0.01369589721920279,
+       "sharpe": -1.746839506479858,
+       "total_return": -0.13150592988002907,
+       "trade_t_stat": -1.665937068548572,
+       "trades": 10
+      },
+      "ETH": {
+       "annualised_return": 0.15708483557500252,
+       "days": 159,
+       "exposure": 0.16981132075471697,
+       "max_drawdown": -0.15515573093204882,
+       "mean_trade_return": 0.010479000117112142,
+       "sharpe": 0.5521548456548401,
+       "total_return": 0.0656213756263897,
+       "trade_t_stat": 0.3879583987523734,
+       "trades": 8
+      },
+      "SOL": {
+       "annualised_return": 0.06677841196731538,
+       "days": 159,
+       "exposure": 0.15723270440251572,
+       "max_drawdown": -0.1364679443283322,
+       "mean_trade_return": 0.00837137156013649,
+       "sharpe": 0.35722798806818723,
+       "total_return": 0.028559905619196524,
+       "trade_t_stat": 0.2144862386704466,
+       "trades": 6
+      }
+     },
+     "sharpe": 0.06531110414055863,
+     "total_return": -0.008872156561249067,
+     "trade_t_stat": -0.009167584747664973,
+     "trades": 24,
+     "window": [
+      "2025-07-26",
+      "2025-12-31"
+     ]
+    }
+   },
+   "holdout": {
+    "base": {
+     "annualised_return": -0.2015995873234061,
+     "benchmark_buy_hold_equal_weight_long": {
+      "annualised_return": -0.2357515716022156,
+      "days": 304,
+      "exposure": 1.0,
+      "max_drawdown": -0.4950496094180097,
+      "sharpe": -0.2353000044593356,
+      "total_return": -0.20062828061722837
+     },
+     "days": 304,
+     "exposure": 0.17653508771929827,
+     "max_drawdown": -0.2585487936458366,
+     "mean_trade_return": -0.0127709434564304,
+     "per_coin": {
+      "BTC": {
+       "annualised_return": -0.15770193430431223,
+       "days": 304,
+       "exposure": 0.2138157894736842,
+       "max_drawdown": -0.21035902486180613,
+       "mean_trade_return": -0.007929260375359999,
+       "sharpe": -0.6231101821907549,
+       "total_return": -0.13319341218651126,
+       "trade_t_stat": -0.535464520332853,
+       "trades": 15
+      },
+      "ETH": {
+       "annualised_return": -0.1339350810437281,
+       "days": 304,
+       "exposure": 0.15460526315789475,
+       "max_drawdown": -0.19575589902078472,
+       "mean_trade_return": -0.005877438507071382,
+       "sharpe": -0.38169876278145193,
+       "total_return": -0.11287009012455018,
+       "trade_t_stat": -0.29606158093666757,
+       "trades": 14
+      },
+      "SOL": {
+       "annualised_return": -0.32544137312156973,
+       "days": 304,
+       "exposure": 0.1611842105263158,
+       "max_drawdown": -0.3943965563908095,
+       "mean_trade_return": -0.02968437500713863,
+       "sharpe": -1.0094531044586301,
+       "total_return": -0.2795655190678601,
+       "trade_t_stat": -1.2787336398309528,
+       "trades": 10
+      }
+     },
+     "sharpe": -0.8025699154873914,
+     "total_return": -0.17098585254226073,
+     "trade_t_stat": -1.191863443436874,
+     "trades": 39,
+     "window": [
+      "2026-01-01",
+      "2026-10-31"
+     ]
+    },
+    "stressed": {
+     "annualised_return": -0.2261953034367169,
+     "benchmark_buy_hold_equal_weight_long": {
+      "annualised_return": -0.23757503244670053,
+      "days": 304,
+      "exposure": 1.0,
+      "max_drawdown": -0.49504960941800946,
+      "sharpe": -0.23979697706007844,
+      "total_return": -0.20221711286281396
+     },
+     "days": 304,
+     "exposure": 0.17653508771929827,
+     "max_drawdown": -0.2672165746580416,
+     "mean_trade_return": -0.014752473145716668,
+     "per_coin": {
+      "BTC": {
+       "annualised_return": -0.1875326455793408,
+       "days": 304,
+       "exposure": 0.2138157894736842,
+       "max_drawdown": -0.222171132686925,
+       "mean_trade_return": -0.009911253700817128,
+       "sharpe": -0.7780369059426118,
+       "total_return": -0.158838375765601,
+       "trade_t_stat": -0.6701432658543012,
+       "trades": 15
+      },
+      "ETH": {
+       "annualised_return": -0.16262619118923904,
+       "days": 304,
+       "exposure": 0.15460526315789475,
+       "max_drawdown": -0.20380501722448785,
+       "mean_trade_return": -0.007863947833703422,
+       "sharpe": -0.5031322937484727,
+       "total_return": -0.13741611398562592,
+       "trade_t_stat": -0.3966269880614432,
+       "trades": 14
+      },
+      "SOL": {
+       "annualised_return": -0.34174755952674096,
+       "days": 304,
+       "exposure": 0.1611842105263158,
+       "max_drawdown": -0.40066621502091115,
+       "mean_trade_return": -0.03165823774988452,
+       "sharpe": -1.0778612915357422,
+       "total_return": -0.2940997688883231,
+       "trade_t_stat": -1.3660614535056648,
+       "trades": 10
+      }
+     },
+     "sharpe": -0.9300721570328394,
+     "total_return": -0.19231195566510662,
+     "trade_t_stat": -1.3786648250811873,
+     "trades": 39,
+     "window": [
+      "2026-01-01",
+      "2026-10-31"
+     ]
+    }
+   }
+  },
+  "liq_short_squeeze_fade": {
+   "discovery": {
+    "base": {
+     "annualised_return": -0.09288369033808097,
+     "benchmark_buy_hold_equal_weight_long": {
+      "annualised_return": -0.5104512475093447,
+      "days": 159,
+      "exposure": 1.0,
+      "max_drawdown": -0.4001353215906258,
+      "sharpe": -0.9298765456405903,
+      "total_return": -0.26739476820564256
+     },
+     "days": 159,
+     "exposure": 0.09224318658280922,
+     "max_drawdown": -0.11664068762202984,
+     "mean_trade_return": -0.009165992452158498,
+     "per_coin": {
+      "BTC": {
+       "annualised_return": 0.06529600035547412,
+       "days": 159,
+       "exposure": 0.06289308176100629,
+       "max_drawdown": -0.0675063438133725,
+       "mean_trade_return": 0.010492779048856926,
+       "sharpe": 0.5932997710640037,
+       "total_return": 0.027937033582376314,
+       "trade_t_stat": 0.29004687954993646,
+       "trades": 3
+      },
+      "ETH": {
+       "annualised_return": -0.220944461025823,
+       "days": 159,
+       "exposure": 0.0880503144654088,
+       "max_drawdown": -0.2255683035115772,
+       "mean_trade_return": -0.026696589845476144,
+       "sharpe": -0.9065369971818568,
+       "total_return": -0.10305580973212114,
+       "trade_t_stat": -0.29510744226748914,
+       "trades": 3
+      },
+      "SOL": {
+       "annualised_return": -0.13823770134760271,
+       "days": 159,
+       "exposure": 0.12578616352201258,
+       "max_drawdown": -0.14131584053963442,
+       "mean_trade_return": -0.010230079506007387,
+       "sharpe": -0.45446645136064423,
+       "total_return": -0.06275371300365207,
+       "trade_t_stat": -0.7181058566083542,
+       "trades": 6
+      }
+     },
+     "sharpe": -0.6670159478399781,
+     "total_return": -0.04157684792674887,
+     "trade_t_stat": -0.4126405429836937,
+     "trades": 12,
+     "window": [
+      "2025-07-26",
+      "2025-12-31"
+     ]
+    },
+    "stressed": {
+     "annualised_return": -0.10937472322135444,
+     "benchmark_buy_hold_equal_weight_long": {
+      "annualised_return": -0.5127036404533976,
+      "days": 159,
+      "exposure": 1.0,
+      "max_drawdown": -0.4001353215906257,
+      "sharpe": -0.9376970549016248,
+      "total_return": -0.26886500518614564
+     },
+     "days": 159,
+     "exposure": 0.09224318658280922,
+     "max_drawdown": -0.11754852060276455,
+     "mean_trade_return": -0.01113779986499866,
+     "per_coin": {
+      "BTC": {
+       "annualised_return": 0.05091406218974193,
+       "days": 159,
+       "exposure": 0.06289308176100629,
+       "max_drawdown": -0.07030723009821305,
+       "mean_trade_return": 0.00850192890616778,
+       "sharpe": 0.4833331301396119,
+       "total_return": 0.021868538716178998,
+       "trade_t_stat": 0.2353302211399149,
+       "trades": 3
+      },
+      "ETH": {
+       "annualised_return": -0.2315549761231046,
+       "days": 159,
+       "exposure": 0.0880503144654088,
+       "max_drawdown": -0.2264173463126261,
+       "mean_trade_return": -0.0286249734144783,
+       "sharpe": -0.9650932314296459,
+       "total_return": -0.10839795382453243,
+       "trade_t_stat": -0.3169163496263151,
+       "trades": 3
+      },
+      "SOL": {
+       "annualised_return": -0.16174269105598582,
+       "days": 159,
+       "exposure": 0.12578616352201258,
+       "max_drawdown": -0.14481127494949286,
+       "mean_trade_return": -0.012214077475842059,
+       "sharpe": -0.5616923309386279,
+       "total_return": -0.07397670140624923,
+       "trade_t_stat": -0.8580476860175514,
+       "trades": 6
+      }
+     },
+     "sharpe": -0.8064431286947552,
+     "total_return": -0.04920624108321714,
+     "trade_t_stat": -0.5021403859639888,
+     "trades": 12,
+     "window": [
+      "2025-07-26",
+      "2025-12-31"
+     ]
+    }
+   },
+   "holdout": {
+    "base": {
+     "annualised_return": -0.040011411950738984,
+     "benchmark_buy_hold_equal_weight_long": {
+      "annualised_return": -0.2357515716022156,
+      "days": 304,
+      "exposure": 1.0,
+      "max_drawdown": -0.4950496094180097,
+      "sharpe": -0.2353000044593356,
+      "total_return": -0.20062828061722837
+     },
+     "days": 304,
+     "exposure": 0.15021929824561406,
+     "max_drawdown": -0.19312115009570663,
+     "mean_trade_return": -0.0017089704874030849,
+     "per_coin": {
+      "BTC": {
+       "annualised_return": -0.04507479899368949,
+       "days": 304,
+       "exposure": 0.17105263157894737,
+       "max_drawdown": -0.25620044102363004,
+       "mean_trade_return": -0.000804043504248203,
+       "sharpe": -0.13722102848188106,
+       "total_return": -0.03768569426542656,
+       "trade_t_stat": -0.04045086170944698,
+       "trades": 12
+      },
+      "ETH": {
+       "annualised_return": 0.043327920378315676,
+       "days": 304,
+       "exposure": 0.1513157894736842,
+       "max_drawdown": -0.13414913129973038,
+       "mean_trade_return": 0.0036025341765926885,
+       "sharpe": 0.3217272032051417,
+       "total_return": 0.03595831370512048,
+       "trade_t_stat": 0.30205274129597254,
+       "trades": 13
+      },
+      "SOL": {
+       "annualised_return": -0.13273879905261932,
+       "days": 304,
+       "exposure": 0.12828947368421054,
+       "max_drawdown": -0.24254369077843096,
+       "mean_trade_return": -0.008973396344657962,
+       "sharpe": -0.5640576962772932,
+       "total_return": -0.11184961844787389,
+       "trade_t_stat": -0.4847236958386628,
+       "trades": 11
+      }
+     },
+     "sharpe": -0.1889683630995101,
+     "total_return": -0.03343776418277178,
+     "trade_t_stat": -0.18046086848860587,
+     "trades": 36,
+     "window": [
+      "2026-01-01",
+      "2026-10-31"
+     ]
+    },
+    "stressed": {
+     "annualised_return": -0.06731536746088651,
+     "benchmark_buy_hold_equal_weight_long": {
+      "annualised_return": -0.23757503244670053,
+      "days": 304,
+      "exposure": 1.0,
+      "max_drawdown": -0.49504960941800946,
+      "sharpe": -0.23979697706007844,
+      "total_return": -0.20221711286281396
+     },
+     "days": 304,
+     "exposure": 0.15021929824561406,
+     "max_drawdown": -0.19960062380699495,
+     "mean_trade_return": -0.0037035434493709546,
+     "per_coin": {
+      "BTC": {
+       "annualised_return": -0.07208772641648442,
+       "days": 304,
+       "exposure": 0.17105263157894737,
+       "max_drawdown": -0.26067488402932026,
+       "mean_trade_return": -0.0027911323922556277,
+       "sharpe": -0.28593511391058646,
+       "total_return": -0.060412415004575615,
+       "trade_t_stat": -0.14066963955791958,
+       "trades": 12
+      },
+      "ETH": {
+       "annualised_return": 0.011226772112060024,
+       "days": 304,
+       "exposure": 0.1513157894736842,
+       "max_drawdown": -0.13852181122971807,
+       "mean_trade_return": 0.001596076106368181,
+       "sharpe": 0.15331082179162675,
+       "total_return": 0.009341783151030514,
+       "trade_t_stat": 0.13401912222401866,
+       "trades": 13
+      },
+      "SOL": {
+       "annualised_return": -0.15546034193539748,
+       "days": 304,
+       "exposure": 0.12828947368421054,
+       "max_drawdown": -0.2456656351423261,
+       "mean_trade_return": -0.010962087713915743,
+       "sharpe": -0.6870004472879366,
+       "total_return": -0.1312725453044773,
+       "trade_t_stat": -0.593088762958307,
+       "trades": 11
+      }
+     },
+     "sharpe": -0.376668857240434,
+     "total_return": -0.056389342509556184,
+     "trade_t_stat": -0.3917256346461541,
+     "trades": 36,
+     "window": [
+      "2026-01-01",
+      "2026-10-31"
+     ]
+    }
+   }
+  },
+  "signal_counts": {
+   "liq_long_flush_rebound": {
+    "BTC": 44,
+    "ETH": 30,
+    "SOL": 31
+   },
+   "liq_short_squeeze_fade": {
+    "BTC": 25,
+    "ETH": 22,
+    "SOL": 23
+   }
+  }
+ },
+ "spec": {
+  "costs_per_side": {
+   "base": 0.001,
+   "stressed": 0.002
+  },
+  "note": "see module docstring for conventions"
+ },
+ "verdicts": {
+  "etf_flow_shock_fade": {
+   "D+1": {
+    "reasons": [
+     "not positive in both windows at stressed cost",
+     "holdout trade t-stat below 2"
+    ],
+    "verdict": "fail"
+   },
+   "D+2": {
+    "reasons": [
+     "not positive in both windows at stressed cost",
+     "holdout trade t-stat below 2"
+    ],
+    "verdict": "fail"
+   },
+   "final": "fail"
+  },
+  "etf_flow_shock_follow": {
+   "D+1": {
+    "reasons": [
+     "not positive in both windows at stressed cost",
+     "holdout trade t-stat below 2"
+    ],
+    "verdict": "fail"
+   },
+   "D+2": {
+    "reasons": [
+     "not positive in both windows at stressed cost",
+     "holdout trade t-stat below 2"
+    ],
+    "verdict": "fail"
+   },
+   "final": "fail"
+  },
+  "etf_flow_trend": {
+   "D+1": {
+    "reasons": [
+     "holdout trade t-stat below 2"
+    ],
+    "verdict": "fail"
+   },
+   "D+2": {
+    "reasons": [
+     "not positive in both windows at stressed cost",
+     "holdout trade t-stat below 2"
+    ],
+    "verdict": "fail"
+   },
+   "final": "fail"
+  },
+  "liq_long_flush_rebound": {
+   "final": "fail",
+   "reasons": [
+    "not positive in both windows at stressed cost",
+    "holdout trade t-stat below 2"
+   ]
+  },
+  "liq_short_squeeze_fade": {
+   "final": "fail",
+   "reasons": [
+    "not positive in both windows at stressed cost",
+    "holdout trade t-stat below 2"
+   ]
+  }
+ }
+}
