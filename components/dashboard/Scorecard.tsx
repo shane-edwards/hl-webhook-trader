@@ -42,26 +42,24 @@ const share = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(0)
 
 /** Predicted chance of target before stop, against how often it happened. */
 function CalibrationBlock({ c }: { c: Calibration }) {
-  const verdict = c.scored < 30 || c.skill == null ? 'Too few scored ideas to judge the predictions yet.'
-    : c.skill > 0.02 ? 'So far the predictions are closer to what happened than assuming the ideas have no edge.'
-    : c.skill < -0.02 ? 'So far the predictions are further from what happened than assuming the ideas have no edge.'
-    : 'So far the predictions are no better than assuming the ideas have no edge.';
+  const verdict = c.scored < 30 || c.skill == null ? { label: `Testing · ${c.scored} of 30 scored`, tone: 'text-muted-foreground' }
+    : c.skill > 0.02 ? { label: 'Predictions are helping', tone: 'text-profit' }
+    : c.skill < -0.02 ? { label: 'Predictions are misleading', tone: 'text-loss' }
+    : { label: 'Predictions add nothing yet', tone: 'text-muted-foreground' };
   return (
     <div className="pt-5">
       <div className="px-5 pb-2">
-        <h3 className="text-xs font-semibold">Predicted chance against what happened</h3>
-        <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
-          Each idea gets a predicted chance of reaching its target before its stop within 7 days, worked out only from ideas already scored when it appeared.
-          {c.scored === 0 ? ' None has a result yet.' : ` ${c.scored} scored so far: predicted ${share(c.meanPredicted)} on average, ${share(c.hitRate)} reached the target. ${verdict}`}
-        </p>
-        {c.scored > 0 && <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-          Error score {c.brier?.toFixed(3) ?? '—'} against {c.noEdgeBrier?.toFixed(3) ?? '—'} for assuming no edge (lower is better; 0 is perfect).
-          {c.stored < c.scored ? ` ${c.scored - c.stored} of these predictions were rebuilt afterwards from the earlier record, because the idea was logged before predictions were stored.` : ''}
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-xs font-semibold">Predicted against actual</h3>
+          <span className={cn('text-xs font-medium', verdict.tone)}>{verdict.label}</span>
+        </div>
+        {c.scored > 0 && <p className="mt-1 text-sm tabular-nums">
+          <span className="text-muted-foreground">Predicted</span> {share(c.meanPredicted)} <span className="text-muted-foreground">· reached target</span> {share(c.hitRate)}
         </p>}
       </div>
       {c.scored > 0 && <div className="overflow-x-auto">
         <table className="data-table">
-          <thead><tr><th>Predicted chance</th><th>Ideas</th><th>Average predicted</th><th>Reached target</th></tr></thead>
+          <thead><tr><th>Predicted</th><th>Ideas</th><th>Avg predicted</th><th>Reached target</th></tr></thead>
           <tbody>
             {c.buckets.filter(b => b.ideas > 0).map(b => (
               <tr key={b.label}>

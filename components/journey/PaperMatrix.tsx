@@ -86,14 +86,15 @@ export function PaperMatrix({ refresh }: { refresh?: number }) {
   return (
     <section className="surface overflow-hidden" aria-label="Paper results by strategy and coin">
       <div className="px-4 py-4 sm:px-5">
-        <h2 className="flex items-center gap-2 font-semibold"><Grid3x3 className="text-primary" size={18} />Paper results by strategy and coin</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t.pairs} strategy and coin pairs traded on paper: <span className="text-profit">{t.profitable} in profit</span>, <span className="text-loss">{t.losing} losing</span>,
-          {' '}{t.qualified} meeting the Paper requirement. Net across all of them <span className={cn('font-medium', tone(t.net))}>{money(t.net)}</span> from {t.closed} closed trades, {t.open} open.
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Each cell is one strategy on one coin, tested on its own at a fixed $1,000 per trade. The small figure is closed trades out of the {matrix.requirement.trades} needed. Select a cell for the full check.
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 font-semibold"><Grid3x3 className="text-primary" size={18} />Paper results</h2>
+          <span className={cn('text-lg font-semibold tabular-nums', tone(t.net))}>{money(t.net)}</span>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <span><span className="font-semibold text-profit">{t.profitable}</span> <span className="text-muted-foreground">in profit</span></span>
+          <span><span className="font-semibold text-loss">{t.losing}</span> <span className="text-muted-foreground">losing</span></span>
+          <span><span className={cn('font-semibold', t.qualified ? 'text-profit' : '')}>{t.qualified}</span> <span className="text-muted-foreground">ready for Live review</span></span>
+        </div>
       </div>
       <div className="overflow-x-auto border-t border-border/70">
         <table className="w-full border-separate border-spacing-0 text-sm">
@@ -109,9 +110,7 @@ export function PaperMatrix({ refresh }: { refresh?: number }) {
               <tr key={`${row.rule}-${row.side}`}>
                 <th scope="row" className="sticky left-0 z-10 bg-card border-t border-border/50 px-3 py-2 text-left font-medium sm:px-5">
                   <span className="block whitespace-nowrap">{row.name}</span>
-                  <span className="block whitespace-nowrap text-xs font-normal text-muted-foreground">
-                    {row.side === 'long' ? 'Long' : 'Short'} · backtest {row.backtest === 'passed' ? 'passed' : row.backtest === 'failed' ? 'failed' : 'not run'}
-                  </span>
+                  <span className="block whitespace-nowrap text-xs font-normal text-muted-foreground">{row.side === 'long' ? 'Long' : 'Short'}</span>
                 </th>
                 {matrix.symbols.map(symbol => {
                   const c = row.cells[symbol];
@@ -127,26 +126,24 @@ export function PaperMatrix({ refresh }: { refresh?: number }) {
                         <span className={cn('flex items-center gap-1 text-[13px] font-semibold leading-tight', tone(c.net))}>
                           {c.status === 'qualified' && <CircleCheck size={12} aria-hidden="true" />}{c.closed ? money(c.net) : 'open'}
                         </span>
-                        <span className="text-[11px] leading-tight text-muted-foreground">{Math.min(c.closed, matrix.requirement.trades)}/{matrix.requirement.trades}</span>
+                        {/* How far along it is: closed trades toward the number needed. */}
+                        <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-foreground/10" aria-hidden="true">
+                          <span className="block h-full rounded-full bg-foreground/50" style={{ width: `${Math.min(100, (c.closed / matrix.requirement.trades) * 100)}%` }} />
+                        </span>
                       </button>
                     </td>
                   );
                 })}
                 <td className={cn('border-t border-border/50 px-3 py-2 text-right font-semibold tabular-nums whitespace-nowrap', tone(row.net))}>
                   {row.closed ? money(row.net) : '—'}
-                  <span className="block text-[11px] font-normal text-muted-foreground">{row.closed} closed</span>
+                  <span className="block text-[11px] font-normal text-muted-foreground">{row.closed} trades</span>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {line && cell ? <Detail line={line} cell={cell} matrix={matrix} /> : (
-        <p className="border-t border-border/70 px-4 py-3 text-xs text-muted-foreground sm:px-5">
-          To be reviewed for Live a pair needs {matrix.requirement.trades} closed paper trades on {matrix.requirement.dates} or more dates, a net profit,
-          no drop above ${matrix.requirement.maxDrawdownUsd} and a result unlikely to be luck. A pair that reaches that is outlined in green.
-        </p>
-      )}
+      {line && cell && <Detail line={line} cell={cell} matrix={matrix} />}
     </section>
   );
 }
