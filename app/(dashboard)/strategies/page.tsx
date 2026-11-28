@@ -11,6 +11,7 @@ import { EventStudies } from '@/components/journey/EventStudies';
 import { PaperMatrix } from '@/components/journey/PaperMatrix';
 import { VaultIncome } from '@/components/journey/VaultIncome';
 import { PaperTrades } from '@/components/journey/PaperTrades';
+import { Scoreboard } from '@/components/journey/Scoreboard';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -148,6 +149,7 @@ export default function StrategiesPage() {
   return <><Header onRefresh={() => { void load(); setPaperRefresh(n => n + 1); }} refreshing={busy} /><div className="mx-auto max-w-5xl space-y-5 px-4 py-5 lg:px-8 lg:py-8">
     <div className="inline-flex rounded-lg border bg-card p-1" aria-label="Market">{['all','stocks','crypto'].map(m =>
       <Button key={m} size="sm" variant={filter === m ? 'secondary' : 'ghost'} aria-pressed={filter === m} onClick={() => navigate(m)}>{m === 'all' ? 'All markets' : marketName(m)}</Button>)}</div>
+    <Scoreboard market={filter} refresh={paperRefresh} />
     {filter !== 'stocks' && <PaperMatrix refresh={paperRefresh} />}
     {filter !== 'stocks' && <ForwardTest refresh={paperRefresh} />}
     {filter !== 'stocks' && <FundingBasketTest refresh={paperRefresh} />}
