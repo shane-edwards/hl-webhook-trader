@@ -337,7 +337,8 @@ async function runAutopilotLocked(hl: HyperliquidClient, db: Db, userId: string,
         const sig = entrySignal(id, m, now, shortOk);
         if (!sig || (manual && (sig.barT !== manual.barT || sig.side !== manual.side))) continue;
         const { side, barT } = sig;
-        if (samples && [...open.values()].some(p => p.symbol === symbol && p.strategy_id === id && p.entry_bar_t === barT)) continue;
+        // One open position per rule and coin. A setup that stays true for several hours is one trade, not one per hour.
+        if (samples && [...open.values()].some(p => p.symbol === symbol && p.strategy_id === id)) continue;
         if (cfg.checkEntries && !await cfg.checkEntries()) break;
 
         const testedVersion = samples?.find(row => row.symbol === symbol && row.rule === id)?.version ?? cfg.automationVersion;

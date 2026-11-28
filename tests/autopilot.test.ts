@@ -13,7 +13,7 @@ import { SEARCH_ASSETS } from '../lib/strategy-search/model';
 
 pinLiveEvidence();
 
-test('the shipped evidence asks for a profit since 2025 too, and the paper sample takes only rules that passed', t => {
+test('the shipped evidence asks for a profit since 2025 too, and the paper sample tests every rule while Live stays gated', t => {
   setEvidenceForTests(null);
   t.after(pinLiveEvidence);
   // Trend breakout long made money before 2025 and has been flat since, so nothing is Live-eligible for now.
@@ -25,8 +25,9 @@ test('the shipped evidence asks for a profit since 2025 too, and the paper sampl
 
   const scan = controlledCryptoConfig(configFromSettings({}), { decision: 'paper', allPaperSignals: true, detail: '', candidate: null, results: null,
     profile: { mode: 'paper', enabled: true, entries_paused: false } } as never, false)!;
-  assert.deepEqual(scan.strategies, ['trend_breakout', 'macd_trend', 'volume_breakout', MOMENTUM_ID]);
-  assert.deepEqual([...new Set(scan.paperTests!.map(row => row.rule))], ['trend_breakout', 'macd_trend', 'volume_breakout']);
+  const every = ['trend_pullback', 'trend_breakout', 'momentum_burst', 'macd_trend', 'volume_breakout'];
+  assert.deepEqual(scan.strategies, [...every, MOMENTUM_ID]);
+  assert.deepEqual([...new Set(scan.paperTests!.map(row => row.rule))], every);
   assert.equal(scan.allowShort, true);
 });
 import type { AutomationProfile } from '../lib/automation/model';
@@ -193,6 +194,24 @@ test('independent paper fills every distinct rule on the same coin despite portf
   const crash = { t:now,o:last.c,h:last.c,l:last.c*.5,c:last.c*.6 };
   await runAutopilot(client([...bars.slice(1),crash]),db,'u1',{...config,manageOnly:true},now+HOUR);
   assert.ok(tables.autopilot_positions.every(p => p.status === 'closed' && Number(p.pnl)<0));
+});
+
+test('paper holds one position per rule and coin while the setup keeps firing on later bars', async t => {
+  let now = Date.UTC(2026,5,1);
+  t.mock.method(Date,'now',() => now);
+  const {db,tables} = fakeDb();
+  let bars = uptrend(now,WARMUP_BARS + 20,true);
+  const config = {...cfg, paperTests:[{rule:'trend_breakout',symbol:'BTC',version:'test.trend_breakout'}]};
+  await runAutopilot(client(bars),db,'u1',config,now);
+  assert.equal(tables.autopilot_positions.length,1);
+  // The next hour makes another new 48h high: the same setup, on a new bar.
+  const last = bars.at(-1)!;
+  bars = [...bars.slice(1), { t:last.t + HOUR, o:last.c, h:last.c * 1.021, l:last.c * .999, c:last.c * 1.02 }];
+  now += HOUR;
+  assert.equal(getStrategy('trend_breakout')!.evaluate(computeIndicators(bars),bars,bars.length - 1,0,false).target,1,'the setup is still firing');
+  await runAutopilot(client(bars),db,'u1',config,now);
+  assert.equal(tables.autopilot_positions.length,1,'no second position while the first is open');
+  assert.equal(tables.autopilot_positions[0].status,'open');
 });
 
 test('all-signal paper scans supported markets and rules with an empty research shortlist', () => {

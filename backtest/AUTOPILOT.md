@@ -22,7 +22,7 @@ extra slippage on stops, and funding. Settings are the first ones chosen; nothin
 
 A strategy may trade real money only if it made money in **both** periods and again from 2025 on, its average
 trade since 2023 cleared costs by more than 15 basis points, and its wins outweighed its losses by at least 10%.
-Paper mode samples only the rules whose long-and-short version passes. The gate is re-evaluated whenever this
+Paper mode tests every rule, long and short, one position per rule and coin; only Live is held to this gate. The gate is re-evaluated whenever this
 report is regenerated.
 
 **The most recent period is weak.** Trend breakout long, the only rule that was eligible before the 2025 test was added, made most of its 2023+ return in 2023–2024 and was roughly flat from 2025 on, when the market fell. On a wider set of 22 coins it was profitable on fewer than half of them (see UNIVERSE.md). Treat it as a way to hold trends with controlled risk, not as a dependable income.
